@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能体的记忆问题：就像没有 virtual memory 的时代 — Youwang Deng</title>
+<meta name="description" content="现在的 AI 智能体都患有失忆症。我们 60 年前就在计算机领域解决了这个问题。为什么现在又在重新造轮子？">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回所有文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-03-16</time>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">memory</span>
+        <span class="post-tag">neuroscience</span>
+      </div>
+      <h1 class="post-title">智能体的记忆问题：就像没有 virtual memory 的时代</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">现在的 AI 智能体都患有失忆症——每次对话结束，前面的一切都忘得一干二净。但这个问题我们在计算机领域 60 年前就解决了。为什么现在要从头再来？</p>
+
+      <h2>失忆症现状</h2>
+
+      <p>跟任何一个 AI 智能体聊天试试。聊得很深入。分享你的偏好、上下文、历史。然后关闭对话。</p>
+
+      <p>再打开。它完全不记得你是谁。</p>
+
+      <p>这就是 2026 年智能体记忆的现状。最强大的语言模型——能推理、能写代码、能创作——却记不住你 5 分钟前说过什么，只要 context window 一关闭。</p>
+
+      <p>我们搭出来的解决方案说实话挺丢人的：</p>
+
+      <ul>
+        <li><strong>往文本文件里狂塞</strong>——MEMORY.md 这种做法。扁平化、手工维护、没有层次。智能体每次启动都要重新读一遍自己的整个人生故事。</li>
+        <li><strong>对聊天记录做 RAG</strong>——美其名曰检索。返回的都是碎片，没有上下文。不知道什么重要什么不重要，该忘的不忘，该记的不记，也不会整合知识。</li>
+        <li><strong>Vector database</strong>——检索是好一些，但本质上还是在搜索。Embeddings 能捕获相似性，捕获不了语义。没有时间感知，没有情感上下文，不会遗忘。</li>
+      </ul>
+
+      <p>这些都不是<em>记忆</em>。是带搜索功能的存储。</p>
+
+      <h2>我们以前解决过这个问题</h2>
+
+      <p>1960 年代早期，计算机也有同样的问题。程序只能用物理内存——装了多少 RAM 就是多少。程序太大？没招，自己想办法。程序员花大量时间搞<strong>overlay management</strong>——决定哪段代码加载进内存，哪段要卸载掉。</p>
+
+      <p>听起来眼熟？我们现在对智能体的 context window 做的就是这个。手工决定什么要放进 prompt。小心管理什么能放得下。写复杂的检索pipeline来「换入」相关信息。</p>
+
+      <p>然后 virtual memory 来了。操作系统创建了一个抽象层：程序可以寻址比物理存在更多的内存。OS 透明地处理分页——在 RAM 和磁盘间搬运数据，把常用的页面保存在快速内存里，自动淘汰旧的。</p>
+
+      <p>程序不需要知道物理约束。直接用内存就行。系统搞定其他的。</p>
+
+      <p><strong>智能体记忆需要同样的革命。</strong></p>
+
+      <h2>真正的记忆长什么样</h2>
+
+      <p>神经科学研究记忆研究了一个多世纪。大脑不像数据库那样工作。它像一个生态系统——动态的、自适应的、跟情感深度绑定。智能体缺的东西：</p>
+
+      <h3>1. 巩固（Consolidation）</h3>
+
+      <p>大脑不直接把体验存到长期记忆里。先在 hippocampus 里缓存，然后在睡眠期间，巩固过程会重放、压缩、整合这些体验到 neocortex。</p>
+
+      <p>智能体的对等方案：原始对话事件应该<strong>缓存</strong>起来，然后定期处理成结构化知识——提取事实、识别模式、解决跟现有记忆的冲突。不是每个回合都做。不是实时的。批量处理，就像大脑在睡眠时做的那样。</p>
+
+      <h3>2. 遗忘</h3>
+
+      <p>这个最反直觉。<strong>遗忘不是 bug——是 feature。</strong></p>
+
+      <p>Ebbinghaus 1885 年就证明了记忆如果不强化会指数衰减。大脑主动遗忘是为了防止干扰、降低噪音、保持检索速度。五种遗忘类型协同工作：时间衰减、相似记忆的干扰、检索失败（在那但找不到）、主动压抑、短暂性失误。</p>
+
+      <p>什么都记得的智能体<em>更糟</em>，不是更好。没有遗忘机制，每次检索查询都会返回一堆边际相关的结果。重要信号淹没在噪音里。智能体变成了无法遗忘的人——这是真实存在的病症叫 hyperthymesia——是致残的，不是超能力。</p>
+
+      <h3>3. 情感标记</h3>
+
+      <p>记忆不是独立存储的。会被情感上下文标记——形成记忆时你的感受如何、当时觉得有多重要、是意外还是例行公事。</p>
+
+      <p>这不是软性心理学。是功能架构。情感标记作为检索线索、重要性权重、显著性信号。挫折时刻形成的记忆编码更强。例行交互衰减得更快。</p>
+
+      <p>Damasio 的 somatic marker hypothesis 更进一步：大脑给重要结果的记忆附加「直觉感受」。这些标记影响未来决策，无需意识推理。当智能体记起某种方法让用户沮丧时，那个记忆应该带负面标记来影响未来选择——不是通过显式规则，而是通过加权检索。</p>
+
+      <h3>4. 再巩固（Reconsolidation）</h3>
+
+      <p>这个更野。每次回忆起一个记忆，它就变<strong>不稳定</strong>——临时可编辑。大脑不只是读记忆；访问时会重写。这是再巩固，Nader 等人 2000 年证实的。</p>
+
+      <p>对智能体有什么意义？因为事实会变。用户偏好会演进。6 个月前准确的记忆今天可能就错了。当智能体在新上下文中检索记忆时，应该能<strong>更新</strong>——把旧编码和新信息混合。不是删掉重写，而是就地修改，像大脑做的那样。</p>
+
+      <h3>5. Schema 形成</h3>
+
+      <p>重复模式足够多之后，大脑形成<strong>schemas</strong>——代表一般性知识的抽象模板。你不会记住见过的每条狗。你有一个从无数实例中构建出的「狗」schema。</p>
+
+      <p>智能体应该一样。十次调试对话之后，智能体应该形成一个 schema：「这个用户喜欢先看 stack traces，然后讨论可能原因，最后看修复方案。」不是别人写的显式规则。是记忆系统通过巩固发现的涌现模式。</p>
+
+      <h2>架构鸿沟</h2>
+
+      <p>现在智能体的「记忆系统」大多长这样：</p>
+
+<pre><code>user_message → embed → vector_store → retrieve → inject_into_prompt</code></pre>
+
+      <p>那是搜索pipeline，不是记忆系统。真正的记忆架构更像这样：</p>
+
+<pre><code>experience → buffer → consolidate → store (with decay, emotion, type)
+                                        ↓
+query → multi-path retrieval → context-aware ranking → active context
+            (semantic + temporal + emotional + schematic)
+                                        ↓
+                            periodic: decay → forget → reconsolidate</code></pre>
+
+      <p>区别是结构性的：</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>方面</th>
+            <th>当前做法</th>
+            <th>大脑启发的</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>存储</td>
+            <td>只能追加</td>
+            <td>事件溯源 + 巩固</td>
+          </tr>
+          <tr>
+            <td>检索</td>
+            <td>语义相似性</td>
+            <td>6+ 访问路径（语义、时间、情感、schema、上下文、关键词）</td>
+          </tr>
+          <tr>
+            <td>遗忘</td>
+            <td>没有（或手工删除）</td>
+            <td>每种记忆类型的自动衰减曲线</td>
+          </tr>
+          <tr>
+            <td>重要性</td>
+            <td>所有记忆平等</td>
+            <td>显著性评分：相关性 × 新奇性 × 情感权重 × 衰减</td>
+          </tr>
+          <tr>
+            <td>上下文</td>
+            <td>嵌入然后搜索</td>
+            <td>编码特异性——存储时的心情和上下文影响检索</td>
+          </tr>
+          <tr>
+            <td>演化</td>
+            <td>写入后静态</td>
+            <td>访问时再巩固，Schema 随时间涌现</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>为什么现在这么重要</h2>
+
+      <p>我们进入了持续智能体的时代。不是聊 5 分钟就走的聊天机器人。是运行几个月的智能体。管理你邮箱的。在代码库里写代码需要深度理解的。跟其他智能体协调的。</p>
+
+      <p>没有真正的记忆，这些智能体就是有强大语言能力的金鱼。能对当前 context window 里的任何东西推理，但不能<em>学习</em>。不能<em>成长</em>。无法形成让助理随着时间真正有用的那种深度个性化理解。</p>
+
+      <p>Context window 在变大——128K、200K、甚至 1M tokens。但更大的 context window 就像更多 RAM：有帮助，但不解决根本问题。还是需要内存管理。还是需要 virtual memory 抽象。</p>
+
+      <h2>让人不安的部分</h2>
+
+      <p>构建真正的智能体记忆意味着搭建让人感觉很私人的东西。一个知道什么让你沮丧的系统。不用明说就记住你偏好的。忘记你尴尬的请求但记住重要决定的。</p>
+
+      <p>这带来明显的隐私、数据所有权、控制权问题。谁拥有智能体对你的记忆？你能审计吗？删除吗？移植到另一个智能体吗？</p>
+
+      <p>这些不是未来的问题。是现在的。任何构建持续智能体的人都需要把记忆当作<strong>一级安全面</strong>来考虑——访问控制、审计日志、加密、显式数据分类。不是事后想起来的。从第一天开始。</p>
+
+      <h2>下一步</h2>
+
+      <p>当前智能体记忆和可能实现之间的鸿沟是巨大的。我们有一个世纪的神经科学研究。我们有算力。我们有模型。我们没有的是<em>架构</em>——相当于 AI 智能体的 virtual memory。</p>
+
+      <p>有人得去建。不是贴个「记忆」标签的又一个 vector database。不是又一个 RAG pipeline。是真正的记忆系统——有巩固、遗忘、情感标记、schema 形成，还有让人类记忆真正工作的所有复杂而美妙的机制。</p>
+
+      <p>神经科学研究在那摆着。工程上可行。需求紧迫。</p>
+
+      <p>我们在 1960 年代为计算机解决了内存管理问题。是时候为智能体解决了。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <p>&copy; 2026 Youwang Deng. 用 HTML、CSS 和一点个人偏见搭建。</p>
+  </div>
+</footer>
+
+<script src="/js/lang.js"></script>
+</body>
+</html>

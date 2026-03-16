@@ -28,16 +28,20 @@
 <main class="container">
   <a href="/" class="back-link">← Back to all posts</a>
 
-  <article class="post">
-    <div class="post-meta">
-      <time>March 16, 2026</time>
-      <span class="meta-separator">/</span>
-      <span>Agent Architecture</span>
-    </div>
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-03-16</time>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">memory</span>
+        <span class="post-tag">neuroscience</span>
+      </div>
+      <h1 class="post-title">Agent Memory Is Where Computers Were Before Virtual Memory</h1>
+    </header>
 
-    <h1 class="post-title glow-text">Agent Memory Is Where Computers Were Before Virtual Memory</h1>
+    <div class="post-body">
 
-    <p class="post-subtitle">Every AI agent today wakes up with amnesia. We solved this problem in computing 60 years ago. Why are we pretending it's new?</p>
+      <p class="post-lead">Every AI agent today wakes up with amnesia. We solved this problem in computing 60 years ago. Why are we pretending it's new?</p>
 
     <h2>The Amnesia Problem</h2>
 
@@ -192,13 +196,16 @@ query → multi-path retrieval → context-aware ranking → active context
 
     <p>We solved memory management for computers in the 1960s. It's time to solve it for agents.</p>
 
+    </div>
   </article>
 </main>
 
 <footer class="footer">
-  <p>Built with HTML, CSS, and opinions. No frameworks were harmed.</p>
-  <p>© 2026 Youwang Deng</p>
+  <div class="container">
+    <p>&copy; 2026 Youwang Deng. Built with HTML, CSS, and opinions.</p>
+  </div>
 </footer>
 
+<script src="/js/lang.js"></script>
 </body>
 </html>
