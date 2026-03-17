@@ -41,35 +41,34 @@
 
     <div class="post-body">
 
-      <p class="post-lead">Token 成本是 AI 智能体的隐性税。每次 git diff、每条错误日志、每个文件读取，都在往你的账单里塞垃圾。三层压缩策略可以让你在不损失质量的情况下省下 40-70% 的钱。</p>
+      <p class="post-lead">跑了几个月智能体之后，我发现一个反直觉的事实：真正吃掉你 API 预算的不是你精心调教的 prompt，而是那些你根本没在意的工具输出。一坨 <code>git diff</code>，一页搜索结果，一份报错日志——这些东西默默地把你的上下文窗口塞满，然后每一轮对话都跟着你走，轮轮收费。</p>
 
-      <h2>痛点：Token 账单的真相</h2>
+      <h2>钱都花哪儿了？</h2>
 
-      <p>很多团队只盯着 prompt 优化，却忽略了真正的 Token 杀手：工具输出。</p>
-
-      <p>看看这个数字。一个重度使用工具的 session，工具输出能占到 40% 的 Token 量。一次 <code>git diff</code> 能产生上千个 Token。一个带调用栈的错误日志，几百个 Token。这些东西每轮对话都要重新处理，成本在不断累积。</p>
-
-      <p>更要命的是，这些输出大部分都是噪音：</p>
+      <p>先看一组数据。拆开一个典型的、工具用得比较狠的智能体 session，Token 的去向大概是这样的：</p>
 
       <ul>
-        <li>重复的样板文字</li>
-        <li>无意义的空行和格式</li>
-        <li>冗长的时间戳</li>
-        <li>相同的错误信息</li>
-        <li>巨型的 JSON 响应</li>
+        <li><strong>工具输出 ~40%</strong> —— git diff、文件内容、搜索结果、API 响应，都算这里</li>
+        <li><strong>对话历史 ~30%</strong> —— 之前聊过的内容，每轮都要带上</li>
+        <li><strong>系统提示 + 上下文 ~20%</strong> —— 你精心写的 system prompt 和各种注入的背景信息</li>
+        <li><strong>当前请求 + 格式开销 ~10%</strong> —— 用户这轮说了啥，加上 JSON 的各种花括号</li>
       </ul>
 
-      <p>智能体需要的是信号，不是噪音。但现在我们把噪音全塞进上下文窗口，让模型去筛。这就像让 CEO 逐字读垃圾邮件。</p>
+      <p>看到了吗？大头是工具输出，而且这 40% 基本全是噪音。你的智能体跑了一个 <code>npm test</code>，输出 500 行，真正有用的就 3 行——哪个 test 挂了。它抓了一个网页回来，50KB 的正文，答案在第一段。</p>
 
-      <h2>第一层：源头压缩</h2>
+      <p>但这些垃圾不会自己消失。它们会老老实实待在上下文窗口里，每一轮对话都跟着，轮轮付费。一次搜索结果 5000 Token，后面再聊 10 轮，这就是 5 万 Token 的成本——而那个搜索结果可能第 3 轮就没人看了。</p>
 
-      <p>最有效的压缩是在工具输出进入上下文窗口之前就动手。几个立竿见影的工具：</p>
+      <p>大部分团队把精力花在打磨 prompt 上，从 200 Token 抠到 150 Token，节省了 25%——的那 20%。与此同时，工具输出那 40% 的领地完全放养。这就像装修房子时认真挑窗帘颜色，但漏水的屋顶不管。</p>
 
-      <h3>RTK：Rust 压缩神器</h3>
+      <h2>第一招：出口压缩——垃圾别进门</h2>
 
-      <p><a href="https://github.com/rtk-ai/rtk" target="_blank">RTK</a> 专门用来压缩命令行输出。看看这个效果：</p>
+      <p>最划算的 Token 是根本不进入上下文的 Token。在工具输出返回的那一刻就拦截它、压缩它，而不是等它进了对话再想办法。</p>
 
-      <pre><code># 压缩前
+      <h3>命令行输出：用 RTK</h3>
+
+      <p><a href="https://github.com/rtk-ai/rtk" target="_blank">RTK</a> 是个 Rust 写的小工具，专门吃命令行输出然后吐出精华。来感受一下：</p>
+
+      <pre><code># 原始输出
 $ git push origin main
 Enumerating objects: 15, done.
 Counting objects: 100% (15/15), done.
@@ -81,156 +80,140 @@ remote: Resolving deltas: 100% (4/4), completed with 2 local objects.
 To github.com:user/repo.git
    abc1234..def5678  main -> main
 
-# RTK 压缩后
+# 过一遍 RTK
 ✓ Pushed 9 commits to main (1.23 KiB)</code></pre>
 
-      <p>从 200 Token 压缩到 10 个。20x 的压缩比。</p>
+      <p>200 Token 变 10 个。你的智能体只需要知道「推成功了」，不需要知道 delta compression 用了几个线程。</p>
 
-      <h3>Laconic：Markdown 瘦身</h3>
+      <h3>文档和网页：用 Laconic</h3>
 
-      <p><a href="https://github.com/copyleftdev/laconic" target="_blank">Laconic</a> 专门清理 Markdown 文档：</p>
+      <p><a href="https://github.com/copyleftdev/laconic" target="_blank">Laconic</a> 干的事是给 Markdown 和 HTML 瘦身。那些 GitHub README 里的 badge 图标、花哨的表格、重复的分隔线——全是给人眼看的装饰，对模型来说纯粹是噪音。Laconic 能做到 40-68% 的无损压缩，表格转 CSV，badge 去掉，空白归一化。</p>
 
-      <ul>
-        <li>去掉无用的 badge</li>
-        <li>HTML 表格转 CSV 格式</li>
-        <li>规范化空白字符</li>
-        <li>压缩重复的分隔线</li>
-      </ul>
+      <h3>通用套路：折叠重复、砍时间戳、保头保尾</h3>
 
-      <h3>结构化压缩</h3>
+      <p>对于 RTK 和 Laconic 覆盖不到的场景，几个通用规则就能搞定大部分情况：</p>
 
-      <p>对于日志和结构化输出，你可以用更激进的策略：</p>
+      <pre><code># 日志里 100 行一模一样的 INFO？折叠
+[10:23:45-10:24:30] Processed 94/100 files [INFO x94]
+ERROR: file 95 - Permission denied
 
-      <pre><code># 压缩前
-[2026-03-17 10:23:45] INFO: Processing file 1/100
-[2026-03-17 10:23:46] INFO: Processing file 2/100
-[2026-03-17 10:23:47] INFO: Processing file 3/100
-...
-[2026-03-17 10:24:30] ERROR: Failed to process file 95/100: Permission denied
+# 截断？别只保留头部
+# 保头 70% + 保尾 20%（报错信息通常在最后！）
+# 中间塞一句 [... 省略 2847 tokens ...]
 
-# 压缩后
-[10:23:45-10:24:30] Processed 94/100 files
-ERROR: file 95 - Permission denied</code></pre>
+# 同一个命令跑了三遍？直接引用
+[同上次 ls /home/user 的结果，15 个文件]</code></pre>
 
-      <h3>智能截断</h3>
+      <p>最后那个「去重」别小看——有些智能体真的会用完全相同的参数反复调同一个工具。返回一个引用就好，别让模型吃第二遍。</p>
 
-      <p>对于超长输出，保留头部 70% + 尾部 20% 的内容。为什么？错误信息通常在末尾，而上下文在开头。中间的重复信息价值最低。</p>
+      <h2>第二招：对话瘦身——让旧信息慢慢「退场」</h2>
 
-      <h3>去重机制</h3>
+      <p>源头压缩解决了「进门」的问题，但对话越聊越长怎么办？5 轮前的 git diff 结果，到第 10 轮大概率没人 care 了，但它还在那儿占着坑位。</p>
 
-      <p>相同工具、相同参数的调用，直接返回引用而不是完整输出：</p>
-
-      <pre><code>[参考: ls /home/user - 调用 #3，共 15 个文件]</code></pre>
-
-      <h2>第二层：历史墓碑</h2>
-
-      <p>随着对话进行，旧的工具结果价值在递减。「墓碑策略」的名字来自操作系统——在删除文件时留下一个小标记，表示「这里曾经有什么」。</p>
-
-      <p>我们对智能体记忆也用同样的思路：</p>
+      <p>思路很简单：<strong>信息的价值会随时间衰减，压缩力度应该跟着走。</strong></p>
 
       <ul>
-        <li><strong>0-2 轮：</strong>保留完整结果</li>
-        <li><strong>3-5 轮：</strong>压缩为摘要预览</li>
-        <li><strong>6+ 轮：</strong>最小墓碑 <code>[工具已调用: git status - 5 files changed]</code></li>
+        <li><strong>刚出炉（0-2 轮）：</strong>完整保留，一个字不动</li>
+        <li><strong>有点凉了（3-5 轮）：</strong>压缩成摘要，保留关键信息——「npm test 跑了 47 个用例，2 个挂在 auth 模块」</li>
+        <li><strong>彻底凉了（6 轮以后）：</strong>只留一行记录——「<code>[执行过: npm test → 2 failures]</code>」</li>
       </ul>
 
-      <p><strong>注意：</strong>压缩时必须保留 toolResult 的 API 结构，否则模型 API 验证会报错。你需要在保持结构完整的前提下缩短内容。</p>
+      <p>这招在行业里有时候被叫做「tombstone」——像墓碑一样，原来的内容已经「入土」了，但留个碑告诉你这里发生过什么。智能体回头翻的时候还能知道上下文，但不会被一大坨过期内容撑到。</p>
 
-      <pre><code># 完整版（0-2 轮）
+      <p>实操时有个坑必须注意：很多模型 API（比如 Bedrock Converse、Azure OpenAI）会严格校验 tool result 的 JSON 结构。你不能把 toolResult 直接替换成一段纯文本，那样 API 会报错。得在保持结构完整的前提下缩短 content：</p>
+
+      <pre><code>// 第 1 轮：完整结果
 {
   "toolResult": {
-    "tool": "git_status",
-    "output": "On branch main\nYour branch is up to date...",
-    "status": "success"
+    "toolUseId": "toolu_abc",
+    "content": "FAIL src/auth.test.js\n  ● login flow\n    ✕ should validate token (24ms)\n      Expected: valid\n      Received: expired\n\n  47 tests, 2 failures",
+    "isError": false
   }
 }
 
-# 墓碑版（6+ 轮）
+// 第 7 轮：一行够了
 {
   "toolResult": {
-    "tool": "git_status", 
-    "output": "[墓碑: 5 files changed, clean working tree]",
-    "status": "success"
+    "toolUseId": "toolu_abc",
+    "content": "[压缩] npm test: 47 tests, 2 failures in auth",
+    "isError": false
   }
 }</code></pre>
 
-      <h2>第三层：分级模型</h2>
+      <p>结构没变，内容从 1200 Token 变成 20 个。模型 API 不会叫，智能体也不会失忆。</p>
 
-      <p>不是所有任务都需要 Claude Sonnet 或 GPT-4 的智商。关键洞察：<strong>后台任务不需要前沿智能</strong>。</p>
+      <h2>第三招：杀鸡别用牛刀</h2>
 
-      <h3>任务分层</h3>
+      <p>到这一步，该压的都压了，该瘦的都瘦了。但还有一个维度被大部分人忽略了：<strong>不是所有活儿都值得请最贵的模型来干。</strong></p>
 
-      <ul>
-        <li><strong>对话 + 工具调度</strong> → 贵的模型（Sonnet, GPT-4）</li>
-        <li><strong>记忆提取、摘要生成</strong> → 便宜的模型（Haiku, GPT-3.5, Flash）</li>
-      </ul>
-
-      <p>成本差异有多大？Haiku 比 Sonnet 便宜 12 倍。Flash 比 GPT-4 便宜 15 倍。用便宜模型处理压缩和摘要，成本立刻下降一个数量级。</p>
-
-      <pre><code># 架构示例
-primary_agent = ClaudeAgent(model="sonnet")  # 主对话
-memory_compressor = ClaudeAgent(model="haiku")  # 后台压缩
-
-# 主智能体处理用户请求
-response = primary_agent.process(user_input)
-
-# 便宜模型在后台清理历史
-async_task: memory_compressor.compress_history()</code></pre>
-
-      <h2>三层叠加效果</h2>
-
-      <p>每一层都能带来显著节省，但真正的魔法在于叠加：</p>
-
-      <pre><code>原始成本：     10,000 Token × $0.01 = $0.10
-源头压缩：      4,000 Token × $0.01 = $0.04 (60% 节省)
-墓碑策略：        200 Token × $0.01 = $0.002 (98% 节省)
-分级模型：        200 Token × $0.001 = $0.0002 (99.8% 节省)</code></pre>
-
-      <p>综合节省：<strong>70-90% 的 Token 成本降低</strong>。</p>
-
-      <p>在生产环境，这意味着：</p>
+      <p>想想看，一个智能体 session 里其实有两类工作：</p>
 
       <ul>
-        <li>月度 API 账单从 $1000 降到 $200</li>
-        <li>相同预算下能支撑 5x 的用户量</li>
-        <li>更快的响应速度（更少 Token 意味着更少延迟）</li>
+        <li><strong>需要脑子的</strong>——理解用户意图、决定调哪个工具、组织回复、处理复杂逻辑。这些活儿交给 Sonnet、GPT-4 这种大脑袋，没毛病。</li>
+        <li><strong>纯体力活</strong>——把一大段工具输出压缩成摘要、从对话里提取值得记住的信息、生成 tombstone。这些任务模式固定、不需要创造力，用 Haiku 或者 Flash 绰绰有余。</li>
       </ul>
 
-      <h2>踩坑提醒</h2>
+      <p>成本差多少？Haiku 大概是 Sonnet 价格的 1/12，Flash 是 GPT-4 的 1/15。把后台任务全切到便宜模型上，光这一步就能省下一个数量级。</p>
 
-      <p>这些策略不是银弹。诚实地说几个坑：</p>
+      <pre><code># 伪代码，意思到了就行
+main_model = "sonnet"      # 处理对话、做决策
+background_model = "haiku"  # 压缩、提取、打杂
 
-      <h3>工具兼容性有限</h3>
+# 用户问了个问题 → 大模型出马
+response = call_model(main_model, user_input + context)
 
-      <p>很多代理压缩工具（比如 Kompact）只支持特定的 API 格式。RTK 目前只压缩 bash 输出。要针对你的工具栈定制压缩逻辑。</p>
+# 后台默默干活 → 小模型就够
+summary = call_model(background_model, "把这段工具输出压缩成一句话: " + tool_output)
+memories = call_model(background_model, "从对话里提取值得记住的事实: " + recent_exchanges)</code></pre>
 
-      <h3>有损压缩的风险</h3>
+      <p>这个思路 <a href="https://alma.now" target="_blank">Alma</a> 团队也在用，他们管它叫「Tool Model」模式——控制面（决策）用贵的，数据面（处理）用便宜的。和微服务架构里分离 control plane 和 data plane 是一个道理。</p>
 
-      <p>过度压缩会丢失智能体需要的关键上下文。症状：智能体开始问一些之前已经回答过的问题，或者遗漏重要细节。</p>
+      <h2>三招叠加的效果</h2>
 
-      <p>缓解方法：保守起步，逐步调激进程度。监控智能体性能指标。</p>
+      <p>这三层不是三选一，是叠加的。来算一笔账：</p>
 
-      <h3>压缩放错位置</h3>
+      <pre><code>场景：智能体调了一个工具，原始输出 10,000 Token
 
-      <p>在错误的地方做有损压缩会毁掉准确率。错误日志、代码 diff、API 响应——这些通常需要保持完整性。先压缩样板文字和格式，再考虑语义压缩。</p>
+第一招（出口压缩）：10,000 → 4,000 Token    省了 60%
+第二招（5 轮后瘦身）：4,000 → 200 Token      省了 95%（相对原始）
+第三招（后台用便宜模型）：处理成本再降 12x
 
-      <h3>调试变难</h3>
+一个 session 20 轮，重度工具使用：
+  没优化：~50,000 Token，全用贵模型
+  三层拉满：~15,000 Token，60% 跑在便宜模型上
+  综合省下：70-85% 的账单</code></pre>
 
-      <p>当智能体行为异常时，追踪压缩后的上下文会比较困难。建议保留原始日志的副本，用于事后调试。</p>
+      <p>月底看 API 账单的时候，你会感谢自己的。</p>
 
-      <h2>开始行动</h2>
+      <h2>别太猛——几个踩过的坑</h2>
 
-      <p>Token 优化不是一次性的工作，是持续的系统工程。建议的实施顺序：</p>
+      <p>说完好处，聊聊现实。这些策略不是无脑上的，有几个坑值得注意：</p>
+
+      <p><strong>RTK 只管命令行。</strong>搜索结果、浏览器输出、MCP 工具返回的内容，它管不着。你得针对不同类型的工具输出分别处理，没有银弹。</p>
+
+      <p><strong>代理式压缩工具水土不服。</strong>市面上有些工具（Kompact、Janus 之类）是以代理的方式拦截 API 请求做压缩的。如果你用的是 OpenAI 的标准 API，它们能用；但如果你走的是 Bedrock、Azure、或者任何自建端点，这类工具直接废了。压缩逻辑得内建到你的智能体架构里，而不是外挂。</p>
+
+      <p><strong>过度压缩比不压缩更糟。</strong>有一种经典翻车：第 2 轮的工具结果在第 3 轮就被压成了一行，结果第 4 轮用户问「刚才那个报错的具体信息是什么？」——智能体答不上来。衰减速度要调，宁可保守一点，不要激进。症状很好辨认：如果智能体开始重复问已经回答过的问题，多半是压过头了。</p>
+
+      <p><strong>有些东西不能压。</strong>错误日志的 stack trace、代码 diff 的具体改动、API 返回的结构化数据——这些压了就废了。规则很简单：先压格式和样板，语义内容留到最后再动。</p>
+
+      <p><strong>调试会变难。</strong>出了 bug 你想回溯上下文，看到的全是压缩后的摘要，查不到原始数据就抓瞎了。建议：原始输出单独存一份日志，压缩后的进上下文。出问题翻原始日志就行。</p>
+
+      <h2>怎么开始</h2>
+
+      <p>不用一步到位，从性价比最高的地方切入：</p>
 
       <ol>
-        <li><strong>测量现状</strong>：统计你的智能体 Token 消耗模式。工具输出占多少比例？</li>
-        <li><strong>低风险压缩</strong>：从 RTK、Laconic 这种成熟工具开始。先压缩样板内容。</li>
-        <li><strong>墓碑机制</strong>：实现渐进式历史压缩。小心保持 API 结构完整性。</li>
-        <li><strong>分级调度</strong>：把后台任务切换到便宜模型。监控质量指标。</li>
-        <li><strong>持续优化</strong>：定期审查压缩效果，调整策略。</li>
+        <li><strong>先搞清楚你的钱花在哪。</strong>给工具输出加个 Token 计数器，按工具类型统计。大概率你会发现某一两个工具是大头。</li>
+        <li><strong>装上 RTK 和 Laconic。</strong>两个都是即插即用的，前者管命令行，后者管文档。花 10 分钟配好，立刻见效。</li>
+        <li><strong>加上头尾截断。</strong>超过一定长度的输出，保留头部 70% 和尾部 20%，中间省略。这是最安全的有损压缩。</li>
+        <li><strong>再上对话瘦身。</strong>实现渐进式压缩，注意保持 API 结构。</li>
+        <li><strong>最后考虑分级模型。</strong>把后台任务切到 Haiku/Flash，主对话保持旗舰模型。</li>
       </ol>
 
-      <p>你的智能体账单里有 40% 是噪音。三层策略能帮你把这些噪音变成节省的成本。在这个 AI 烧钱的时代，这不是可选项——是必选项。</p>
+      <p>光前三步就能干掉 40-60% 的工具相关 Token 成本。后面两步是进阶优化，等你跑起来再说也不迟。</p>
+
+      <p>Token 这东西很有意思——你不数不知道，一数吓一跳。但好消息是，浪费越多，优化空间越大。先量，再压，然后看着账单一点点掉下来。</p>
 
     </div>
   </article>
