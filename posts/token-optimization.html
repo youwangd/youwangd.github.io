@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your AI Agent Is Burning Money on Tokens. Here's How to Fix It. — Youwang Deng</title>
+<meta name="description" content="Token costs are the hidden tax on AI agents. Most of what your agent sends to the model is noise. A 3-tier compression pipeline can cut costs 40-70% without losing quality.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-03-17</time>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">optimization</span>
+        <span class="post-tag">engineering</span>
+      </div>
+      <h1 class="post-title">Your AI Agent Is Burning Money on Tokens. Here's How to Fix It.</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">Token costs are the hidden tax on AI agents. Most of what your agent sends to the model is noise. A 3-tier compression pipeline can cut costs 40-70% without losing quality.</p>
+
+    <h2>The Hidden Tax</h2>
+
+    <p>Every AI team obsesses over prompt optimization. Count the tokens in your system message. Trim unnecessary words. Use shorter variable names. Meanwhile, your agent is burning through thousands of tokens you're not even tracking.</p>
+
+    <p>The real money drain isn't your carefully crafted prompts. It's the tool output.</p>
+
+    <p>When your agent runs a <code>git diff</code>, that's 2,000 tokens of context. When it searches the web, that's another 5,000 tokens of article text, metadata, and markup. When it reads a documentation page, that's 10,000 more tokens that get fed into every subsequent model call.</p>
+
+    <p>Here's the brutal math: most tool output gets processed by the model multiple times. Every follow-up question, every clarification, every decision carries forward all the previous tool results in the context window. That git diff doesn't cost you 2,000 tokens once — it costs you 2,000 tokens times the number of remaining turns in the conversation.</p>
+
+    <p>A single web search can inflate your session cost by 10x. Teams spend weeks optimizing prompts to save 200 tokens while ignoring tool output that balloons contexts to 100K+ tokens of mostly irrelevant noise.</p>
+
+    <h2>Where Tokens Actually Go</h2>
+
+    <p>Here's the breakdown nobody talks about for a typical long-running agent session:</p>
+
+    <ul>
+      <li><strong>Tool results: ~40%</strong> — Git diffs, web search results, file contents, API responses, command output</li>
+      <li><strong>Conversation history: ~30%</strong> — Previous messages and responses that accumulate over time</li>
+      <li><strong>System prompt + context: ~20%</strong> — Your carefully optimized instructions and workspace context</li>
+      <li><strong>Current request + overhead: ~10%</strong> — The actual user message and JSON formatting</li>
+    </ul>
+
+    <p>Tool results dominate. They're also the most compressible. Yet most teams focus entirely on that 20% system prompt optimization while ignoring the 70% elephant in the room.</p>
+
+    <p>The worst part? Most tool output is signal-to-noise disaster. Your agent runs <code>npm test</code> and gets 500 lines where only 3 matter: the tests that failed. It fetches a web page and gets 50KB of article text when the answer was in the first paragraph.</p>
+
+    <h2>Tier 1: Compress at the Source</h2>
+
+    <p>The highest-leverage optimization happens before tool results enter your context. Intercept the output and compress it intelligently at ingestion time.</p>
+
+    <h3>Command Line Output: RTK</h3>
+
+    <p><a href="https://github.com/rtk-ai/rtk" target="_blank">RTK</a> is a Rust binary that specializes in compressing bash and CLI output. It understands command patterns and can reduce noise dramatically:</p>
+
+<pre><code># Before RTK
+$ git push origin feature-branch
+Enumerating objects: 23, done.
+Counting objects: 100% (23/23), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (12/12), done.
+Writing objects: 100% (13/13), 1.23 KiB | 1.23 MiB/s, done.
+Total 13 (delta 8), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (8/8), completed with 4 local objects.
+remote: Create pull request for feature-branch:
+remote:   https://github.com/company/repo/pull/new/feature-branch
+To github.com:company/repo.git
+   abc123f..def456g  feature-branch -> feature-branch
+
+# After RTK
+$ git push origin feature-branch
+✓ Pushed feature-branch (13 objects, +5/-2 changes)
+→ PR: https://github.com/company/repo/pull/new/feature-branch</code></pre>
+
+    <p>That's 200+ tokens down to ~15 tokens. RTK handles grouping (multiple similar lines), deduplication (removes repeated warnings), and extraction (pulls out the essential result).</p>
+
+    <h3>Web Content: Laconic</h3>
+
+    <p><a href="https://github.com/copyleftdev/laconic" target="_blank">Laconic</a> compresses markdown and HTML content with zero information loss:</p>
+
+<pre><code># Before Laconic
+| Feature | Supported | Notes |
+|---------|-----------|-------|
+| Authentication | ✅ | OAuth 2.0 and API keys |
+| Rate limiting | ✅ | 1000 req/hour |
+| Webhooks | ⚠️  | Beta feature |
+
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-87%25-yellowgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+## Installation
+```bash
+npm install package-name
+```
+
+# After Laconic
+Features: Authentication (OAuth 2.0, API keys), Rate limiting (1000/hr), Webhooks (beta)
+Build: passing, Coverage: 87%, License: MIT
+Installation: `npm install package-name`</code></pre>
+
+    <p>Laconic strips badges, converts HTML tables to CSV format, removes redundant whitespace, and collapses repeated formatting. It typically achieves 40-68% compression on documentation and web content.</p>
+
+    <h3>Structural Compression</h3>
+
+    <p>For output that RTK and Laconic don't handle, implement structural compression rules:</p>
+
+<pre><code># Before: Log output with repeated entries
+2024-03-17 10:15:23 INFO Starting service
+2024-03-17 10:15:23 INFO Loading config
+2024-03-17 10:15:23 INFO Connecting to database
+2024-03-17 10:15:23 ERROR Connection failed: timeout
+2024-03-17 10:15:24 INFO Retrying connection
+2024-03-17 10:15:24 ERROR Connection failed: timeout
+2024-03-17 10:15:25 INFO Retrying connection
+2024-03-17 10:15:25 ERROR Connection failed: timeout
+2024-03-17 10:15:26 INFO Retrying connection
+2024-03-17 10:15:26 ERROR Connection failed: timeout
+
+# After: Collapsed with metadata
+INFO Starting service, loading config
+ERROR Connection failed: timeout [repeated 4 times over 3 seconds]
+INFO Retrying connection [repeated 4 times]</code></pre>
+
+    <h3>Smart Truncation</h3>
+
+    <p>When you must truncate, don't just take the first N tokens. Use head+tail preservation:</p>
+
+    <ul>
+      <li><strong>70% from the beginning</strong> — Context and setup information</li>
+      <li><strong>20% from the end</strong> — Error messages and conclusions</li>
+      <li><strong>10% gap indicator</strong> — "[... 2,847 tokens truncated ...]"</li>
+    </ul>
+
+    <p>Error messages appear at the end of output. Don't cut them off with naive head-only truncation.</p>
+
+    <h3>Result Deduplication</h3>
+
+    <p>If your agent calls the same tool with identical arguments, don't re-process the output:</p>
+
+<pre><code># Instead of re-fetching
+GET https://api.example.com/status
+{
+  "status": "operational",
+  "services": [...] // 2000+ tokens
+}
+
+# Return a reference
+Reference: Same as GET /status call at 14:23:15 (still cached)</code></pre>
+
+    <h2>Tier 2: Compress the History</h2>
+
+    <p>As conversations grow, old tool results lose relevance. But you can't just delete them — the agent needs to understand what happened. Instead, implement graduated tombstones based on age.</p>
+
+    <h3>The Decay Schedule</h3>
+
+    <ul>
+      <li><strong>Age 0-2 turns:</strong> Keep full result</li>
+      <li><strong>Age 3-5 turns:</strong> Replace with preview summary (first 200 chars)</li>
+      <li><strong>Age 6+ turns:</strong> Minimal tombstone: "[tool was called: args → result type]"</li>
+    </ul>
+
+    <p>This is the inverse of "Lost in the Middle" — instead of important information getting buried in long context, old information gracefully degrades while staying accessible.</p>
+
+<pre><code># Turn 1 (fresh result)
+exec "npm test"
+FAIL src/components/Button.test.js
+  ● Button component
+    ✕ should render with correct text (24ms)
+      Expected: "Click me"
+      Received: "Clck me"
+... [full 1,200 token output] ...
+
+# Turn 4 (compressed)
+exec "npm test" → FAIL Button.test.js: typo "Clck me" vs "Click me" [+1,150 tokens compressed]
+
+# Turn 7 (tombstone)
+exec "npm test" → test failures [result tombstoned]</code></pre>
+
+    <h3>Protocol Preservation</h3>
+
+    <p>Critical insight: many AI APIs (like Bedrock Converse, Azure OpenAI) validate the toolResult structure. When you compress, maintain the JSON schema while reducing content:</p>
+
+<pre><code>{
+  "toolResult": {
+    "toolUseId": "toolu_123",
+    "content": "[COMPRESSED] Git push succeeded → PR created [original: 1,847 tokens]",
+    "isError": false
+  }
+}</code></pre>
+
+    <p>Don't break the protocol. Compress within it.</p>
+
+    <h2>Tier 3: Use the Right Model for the Job</h2>
+
+    <p>Not every task requires your expensive frontier model. Most AI agents use one model for everything — burning premium tokens on background work that could run on cheaper alternatives.</p>
+
+    <h3>The Cost Pyramid</h3>
+
+    <ul>
+      <li><strong>Agent loop + tool dispatch + user responses:</strong> Sonnet/GPT-4 (full price) — needs reasoning and tool use</li>
+      <li><strong>Memory extraction:</strong> Haiku/Flash (~1/12th cost) — pattern recognition, no tool calls</li>
+      <li><strong>Context summarization:</strong> Haiku/Flash — text compression, deterministic task</li>
+      <li><strong>Tombstone generation:</strong> Haiku/Flash — template filling</li>
+    </ul>
+
+    <p>The "Tool Model" pattern from Alma.now separates the control plane (expensive model handles decisions) from the data plane (cheap model handles processing).</p>
+
+<pre><code># Expensive model
+Tool call: web_search("latest React hooks patterns")
+Result: [15,000 tokens of search results]
+Decision: "I need to extract the key patterns and summarize"
+
+# Cheap model (background task)
+Task: "Extract main React hooks patterns from this content"
+Input: [15,000 tokens] 
+Output: [500 token summary]
+
+# Back to expensive model
+Context: "Based on latest patterns: [500 tokens]"
+Response: "Here are the modern React hooks approaches..."</code></pre>
+
+    <h3>Background Processing</h3>
+
+    <p>Most compression work doesn't need to happen in the main conversation thread. Queue it:</p>
+
+    <ul>
+      <li><strong>Immediate:</strong> Show user the raw tool result</li>
+      <li><strong>Background:</strong> Cheap model processes/compresses it</li>
+      <li><strong>Future turns:</strong> Use compressed version in context</li>
+    </ul>
+
+    <p>The user sees fast responses. You pay cheap model prices for the heavy lifting.</p>
+
+    <h2>The Compound Effect</h2>
+
+    <p>These three tiers don't just add up — they multiply. Here's a realistic before/after for a development session:</p>
+
+<pre><code># Scenario: Agent debugging a failed deployment
+
+Turn 1: git log --oneline -10
+Raw output: 800 tokens
+After Tier 1: 120 tokens (85% saved)
+
+Turn 3: kubectl describe pod failing-pod
+Raw output: 2,400 tokens  
+After Tier 1: 900 tokens (63% saved)
+
+Turn 5: Previous git log result (now age 4)
+After Tier 2: 50 tokens (95% saved from original)
+
+Turn 7: Background summary of kubectl output
+Tier 3: Processed by Haiku instead of Sonnet
+Cost per token: 12x cheaper
+
+Combined result:
+• Turn 1: 800 → 120 tokens (Tier 1: 85% saved)
+• Turn 5: 120 → 50 tokens (Tier 2: 95% saved total) 
+• Turn 7: Processed at 1/12th cost (Tier 3: 92% cost saved)</code></pre>
+
+    <p>In a 20-turn session with heavy tool use:</p>
+
+    <ul>
+      <li><strong>Baseline:</strong> 50,000 tokens at full model price</li>
+      <li><strong>After all tiers:</strong> 15,000 tokens, 60% processed by cheap models</li>
+      <li><strong>Total cost reduction:</strong> 70-85% depending on model pricing</li>
+    </ul>
+
+    <p>The savings compound because compressed results from Tier 1 get further compressed by Tier 2, and background processing from Tier 3 reduces the cost of that compression work.</p>
+
+    <h2>What Doesn't Work</h2>
+
+    <p>Be honest about the limitations. Not every compression technique works everywhere:</p>
+
+    <h3>Proxy-Only Solutions Break</h3>
+
+    <p>Tools like Kompact and Janus work by sitting between your app and OpenAI's API, compressing requests transparently. They only work if you use OpenAI directly.</p>
+
+    <p>If you're on Bedrock, Azure, Claude via Vertex, or any custom endpoint, these proxies are useless. The compression has to be built into your agent architecture, not bolted on outside.</p>
+
+    <h3>RTK Only Helps Bash</h3>
+
+    <p>RTK is fantastic for command-line tools, but it doesn't understand web search results, browser automation output, or MCP tool responses. You need compression strategies for each tool type.</p>
+
+    <h3>Lossy Compression in the Wrong Place</h3>
+
+    <p>Aggressive compression early in the pipeline can destroy information the agent needs later. Don't compress error messages, stack traces, or API responses that contain structured data the agent needs to parse.</p>
+
+    <p>Compress presentation, not data. Compress redundancy, not uniqueness.</p>
+
+    <h3>Over-Aggressive Tombstoning</h3>
+
+    <p>Turn every tool result into a one-line summary too quickly, and your agent loses the context it needs for follow-up questions. The decay schedule matters — too fast and you break reasoning, too slow and you waste tokens.</p>
+
+<pre><code># Too aggressive (breaks reasoning)
+Turn 2: exec "pytest tests/auth.py" → tests failed [tombstoned]
+Turn 3: User asks "which specific assertions failed?"
+Agent: "I don't have that information anymore"
+
+# Proper decay
+Turn 2: exec "pytest tests/auth.py" → [full 1,200 token output]
+Turn 5: exec "pytest tests/auth.py" → auth tests failed: 3 assertion errors [+1,100 tokens compressed]
+Turn 8: exec "pytest tests/auth.py" → test failures [result tombstoned]</code></pre>
+
+    <h2>Start Here</h2>
+
+    <p>You don't need to build all three tiers at once. Start with Tier 1 — the highest impact, lowest risk changes:</p>
+
+    <ol>
+      <li><strong>Audit your tool output.</strong> Log token counts by tool type. Find your biggest offenders.</li>
+      <li><strong>Add RTK</strong> for any bash/shell commands. It's a single binary, zero config.</li>
+      <li><strong>Add Laconic</strong> for web content. Works on markdown, HTML, and mixed formats.</li>
+      <li><strong>Implement head+tail truncation</strong> instead of head-only for large outputs.</li>
+      <li><strong>Add result deduplication</strong> for repeated tool calls.</li>
+    </ol>
+
+    <p>That alone will cut 40-60% of your tool-related token costs. Tier 2 and 3 are advanced optimizations for when you're running heavy agent workloads.</p>
+
+    <p>The tools exist. The techniques work. The only question is whether you'll keep burning money on noise while your competitors compress their way to better margins.</p>
+
+    <p>Every token you don't send is a token you don't pay for. Start compressing.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

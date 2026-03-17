@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你的 AI 智能体正在烧钱：Token 优化的三层策略 — Youwang Deng</title>
+<meta name="description" content="Token 成本是 AI 智能体的隐性税。大多数发送给模型的内容都是噪音。三层压缩策略可以在不损失质量的情况下降低 40-70% 的成本。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回所有文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-03-17</time>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">optimization</span>
+        <span class="post-tag">engineering</span>
+      </div>
+      <h1 class="post-title">你的 AI 智能体正在烧钱：Token 优化的三层策略</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">Token 成本是 AI 智能体的隐性税。每次 git diff、每条错误日志、每个文件读取，都在往你的账单里塞垃圾。三层压缩策略可以让你在不损失质量的情况下省下 40-70% 的钱。</p>
+
+      <h2>痛点：Token 账单的真相</h2>
+
+      <p>很多团队只盯着 prompt 优化，却忽略了真正的 Token 杀手：工具输出。</p>
+
+      <p>看看这个数字。一个重度使用工具的 session，工具输出能占到 40% 的 Token 量。一次 <code>git diff</code> 能产生上千个 Token。一个带调用栈的错误日志，几百个 Token。这些东西每轮对话都要重新处理，成本在不断累积。</p>
+
+      <p>更要命的是，这些输出大部分都是噪音：</p>
+
+      <ul>
+        <li>重复的样板文字</li>
+        <li>无意义的空行和格式</li>
+        <li>冗长的时间戳</li>
+        <li>相同的错误信息</li>
+        <li>巨型的 JSON 响应</li>
+      </ul>
+
+      <p>智能体需要的是信号，不是噪音。但现在我们把噪音全塞进上下文窗口，让模型去筛。这就像让 CEO 逐字读垃圾邮件。</p>
+
+      <h2>第一层：源头压缩</h2>
+
+      <p>最有效的压缩是在工具输出进入上下文窗口之前就动手。几个立竿见影的工具：</p>
+
+      <h3>RTK：Rust 压缩神器</h3>
+
+      <p><a href="https://github.com/rtk-ai/rtk" target="_blank">RTK</a> 专门用来压缩命令行输出。看看这个效果：</p>
+
+      <pre><code># 压缩前
+$ git push origin main
+Enumerating objects: 15, done.
+Counting objects: 100% (15/15), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (8/8), done.
+Writing objects: 100% (9/9), 1.23 KiB | 1.23 MiB/s, done.
+Total 9 (delta 4), reused 0 (delta 0)
+remote: Resolving deltas: 100% (4/4), completed with 2 local objects.
+To github.com:user/repo.git
+   abc1234..def5678  main -> main
+
+# RTK 压缩后
+✓ Pushed 9 commits to main (1.23 KiB)</code></pre>
+
+      <p>从 200 Token 压缩到 10 个。20x 的压缩比。</p>
+
+      <h3>Laconic：Markdown 瘦身</h3>
+
+      <p><a href="https://github.com/copyleftdev/laconic" target="_blank">Laconic</a> 专门清理 Markdown 文档：</p>
+
+      <ul>
+        <li>去掉无用的 badge</li>
+        <li>HTML 表格转 CSV 格式</li>
+        <li>规范化空白字符</li>
+        <li>压缩重复的分隔线</li>
+      </ul>
+
+      <h3>结构化压缩</h3>
+
+      <p>对于日志和结构化输出，你可以用更激进的策略：</p>
+
+      <pre><code># 压缩前
+[2026-03-17 10:23:45] INFO: Processing file 1/100
+[2026-03-17 10:23:46] INFO: Processing file 2/100
+[2026-03-17 10:23:47] INFO: Processing file 3/100
+...
+[2026-03-17 10:24:30] ERROR: Failed to process file 95/100: Permission denied
+
+# 压缩后
+[10:23:45-10:24:30] Processed 94/100 files
+ERROR: file 95 - Permission denied</code></pre>
+
+      <h3>智能截断</h3>
+
+      <p>对于超长输出，保留头部 70% + 尾部 20% 的内容。为什么？错误信息通常在末尾，而上下文在开头。中间的重复信息价值最低。</p>
+
+      <h3>去重机制</h3>
+
+      <p>相同工具、相同参数的调用，直接返回引用而不是完整输出：</p>
+
+      <pre><code>[参考: ls /home/user - 调用 #3，共 15 个文件]</code></pre>
+
+      <h2>第二层：历史墓碑</h2>
+
+      <p>随着对话进行，旧的工具结果价值在递减。「墓碑策略」的名字来自操作系统——在删除文件时留下一个小标记，表示「这里曾经有什么」。</p>
+
+      <p>我们对智能体记忆也用同样的思路：</p>
+
+      <ul>
+        <li><strong>0-2 轮：</strong>保留完整结果</li>
+        <li><strong>3-5 轮：</strong>压缩为摘要预览</li>
+        <li><strong>6+ 轮：</strong>最小墓碑 <code>[工具已调用: git status - 5 files changed]</code></li>
+      </ul>
+
+      <p><strong>注意：</strong>压缩时必须保留 toolResult 的 API 结构，否则模型 API 验证会报错。你需要在保持结构完整的前提下缩短内容。</p>
+
+      <pre><code># 完整版（0-2 轮）
+{
+  "toolResult": {
+    "tool": "git_status",
+    "output": "On branch main\nYour branch is up to date...",
+    "status": "success"
+  }
+}
+
+# 墓碑版（6+ 轮）
+{
+  "toolResult": {
+    "tool": "git_status", 
+    "output": "[墓碑: 5 files changed, clean working tree]",
+    "status": "success"
+  }
+}</code></pre>
+
+      <h2>第三层：分级模型</h2>
+
+      <p>不是所有任务都需要 Claude Sonnet 或 GPT-4 的智商。关键洞察：<strong>后台任务不需要前沿智能</strong>。</p>
+
+      <h3>任务分层</h3>
+
+      <ul>
+        <li><strong>对话 + 工具调度</strong> → 贵的模型（Sonnet, GPT-4）</li>
+        <li><strong>记忆提取、摘要生成</strong> → 便宜的模型（Haiku, GPT-3.5, Flash）</li>
+      </ul>
+
+      <p>成本差异有多大？Haiku 比 Sonnet 便宜 12 倍。Flash 比 GPT-4 便宜 15 倍。用便宜模型处理压缩和摘要，成本立刻下降一个数量级。</p>
+
+      <pre><code># 架构示例
+primary_agent = ClaudeAgent(model="sonnet")  # 主对话
+memory_compressor = ClaudeAgent(model="haiku")  # 后台压缩
+
+# 主智能体处理用户请求
+response = primary_agent.process(user_input)
+
+# 便宜模型在后台清理历史
+async_task: memory_compressor.compress_history()</code></pre>
+
+      <h2>三层叠加效果</h2>
+
+      <p>每一层都能带来显著节省，但真正的魔法在于叠加：</p>
+
+      <pre><code>原始成本：     10,000 Token × $0.01 = $0.10
+源头压缩：      4,000 Token × $0.01 = $0.04 (60% 节省)
+墓碑策略：        200 Token × $0.01 = $0.002 (98% 节省)
+分级模型：        200 Token × $0.001 = $0.0002 (99.8% 节省)</code></pre>
+
+      <p>综合节省：<strong>70-90% 的 Token 成本降低</strong>。</p>
+
+      <p>在生产环境，这意味着：</p>
+
+      <ul>
+        <li>月度 API 账单从 $1000 降到 $200</li>
+        <li>相同预算下能支撑 5x 的用户量</li>
+        <li>更快的响应速度（更少 Token 意味着更少延迟）</li>
+      </ul>
+
+      <h2>踩坑提醒</h2>
+
+      <p>这些策略不是银弹。诚实地说几个坑：</p>
+
+      <h3>工具兼容性有限</h3>
+
+      <p>很多代理压缩工具（比如 Kompact）只支持特定的 API 格式。RTK 目前只压缩 bash 输出。要针对你的工具栈定制压缩逻辑。</p>
+
+      <h3>有损压缩的风险</h3>
+
+      <p>过度压缩会丢失智能体需要的关键上下文。症状：智能体开始问一些之前已经回答过的问题，或者遗漏重要细节。</p>
+
+      <p>缓解方法：保守起步，逐步调激进程度。监控智能体性能指标。</p>
+
+      <h3>压缩放错位置</h3>
+
+      <p>在错误的地方做有损压缩会毁掉准确率。错误日志、代码 diff、API 响应——这些通常需要保持完整性。先压缩样板文字和格式，再考虑语义压缩。</p>
+
+      <h3>调试变难</h3>
+
+      <p>当智能体行为异常时，追踪压缩后的上下文会比较困难。建议保留原始日志的副本，用于事后调试。</p>
+
+      <h2>开始行动</h2>
+
+      <p>Token 优化不是一次性的工作，是持续的系统工程。建议的实施顺序：</p>
+
+      <ol>
+        <li><strong>测量现状</strong>：统计你的智能体 Token 消耗模式。工具输出占多少比例？</li>
+        <li><strong>低风险压缩</strong>：从 RTK、Laconic 这种成熟工具开始。先压缩样板内容。</li>
+        <li><strong>墓碑机制</strong>：实现渐进式历史压缩。小心保持 API 结构完整性。</li>
+        <li><strong>分级调度</strong>：把后台任务切换到便宜模型。监控质量指标。</li>
+        <li><strong>持续优化</strong>：定期审查压缩效果，调整策略。</li>
+      </ol>
+
+      <p>你的智能体账单里有 40% 是噪音。三层策略能帮你把这些噪音变成节省的成本。在这个 AI 烧钱的时代，这不是可选项——是必选项。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
