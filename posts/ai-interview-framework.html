@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What We Should Actually Be Testing — Youwang Deng</title>
+<meta name="description" content="Leetcode tests skills AI already does better. A practical 5-round interview framework for evaluating engineers in the AI era — judgment, evaluation, architecture, and decision-making.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-03-19</time>
+        <span class="post-tag">interviews</span>
+        <span class="post-tag">careers</span>
+        <span class="post-tag">AI</span>
+      </div>
+      <h1 class="post-title">What We Should Actually Be Testing</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">Leetcode tests skills AI already does better than humans. Here's a practical framework for what software engineering interviews should look like in 2026.</p>
+
+    <h2>The Problem</h2>
+
+    <p>Here's a scene from 2026: a senior engineer spends their entire workday reviewing AI-generated code, designing systems that orchestrate multiple agents, debugging hallucinated logic, and deciding which parts of a codebase to trust an LLM with and which to protect.</p>
+
+    <p>Then they walk into an interview and get asked to reverse a linked list on a whiteboard.</p>
+
+    <p>We're interviewing for a job that no longer exists.</p>
+
+    <p>The standard software engineering interview — leetcode, system design whiteboard, behavioral STAR stories — was designed for a world where the engineer's primary output was code they wrote by hand. That world is disappearing fast. Copilot completes 60% of keystrokes. Claude Code writes entire features from a one-line prompt. Cursor's background agent refactors while you're in standup.</p>
+
+    <p>Yet we keep testing for the old job. It's like hiring a photographer and testing whether they can mix darkroom chemicals.</p>
+
+    <h2>The Industry Is Starting to Notice</h2>
+
+    <p>Something interesting happened in early 2026: the certification landscape started redefining what "qualified engineer" means.</p>
+
+    <p><strong>Anthropic</strong> launched the "Claude Certified Architect, Foundations" on March 12, 2026 — the first official AI architect credential from a frontier lab. It's a proctored 60-question exam, 120 minutes, no access to Claude or any documentation. Prerequisites: at least six months of hands-on production experience with the Claude API, Claude Code, and Model Context Protocol (MCP). The credential expires in six months, because the field moves that fast. It's backed by Anthropic's $100M Claude Partner Network.</p>
+
+    <p><strong>AWS</strong> launched an "Agentic AI Demonstrated" microcredential and new classroom courses in January 2026, focused on building autonomous AI systems with Bedrock agents, Amazon Q, and LangChain. Their new "Generative AI Developer — Professional" certification (AIP-C01) covers RAG pipelines, Bedrock agents, knowledge bases, guardrails, and vector stores. Meanwhile, the old ML Specialty cert is retiring on March 31, 2026.</p>
+
+    <p><strong>Microsoft</strong> is retiring the Azure AI Engineer Associate (AI-102) on June 30, 2026 and replacing it with new AI-native credentials: SQL AI Developer (DP-800) and Cloud & AI Security Engineer (SC-500). <strong>Google</strong> launched a Google AI Professional Certificate in February 2026 and updated its Professional ML Engineer exam to include GenAI, Vertex AI, and MLOps.</p>
+
+    <p>The pattern is clear: every major cloud provider is replacing their old ML/AI certifications with ones that test agentic systems, prompt engineering, RAG architectures, and production AI deployment. The industry is creating a new standard for what engineers should know.</p>
+
+    <p>But most interview processes haven't caught up.</p>
+
+    <h2>What Changed</h2>
+
+    <p>The engineer's job has shifted from <strong>writing code</strong> to <strong>orchestrating systems that write code</strong>. The core skills are now:</p>
+
+    <p><strong>Judgment</strong> — Knowing what to build, what not to build, and what to let AI build. This is the skill that separates a senior from a junior in 2026, and it has nothing to do with dynamic programming.</p>
+
+    <p><strong>Evaluation</strong> — Can you look at AI-generated code and spot the subtle bug? The security hole? The O(n³) hidden behind clean variable names? AI writes plausible code. The engineer's job is knowing when plausible isn't correct.</p>
+
+    <p><strong>Architecture</strong> — AI can implement. AI cannot decide how systems should be decomposed, what the failure modes are, where the boundaries belong. The higher up the abstraction ladder, the more human the skill.</p>
+
+    <p><strong>Communication</strong> — Prompting is just communication with a different audience. Engineers who can clearly express intent — to humans and machines — multiply their output. Vague thinkers get vague code.</p>
+
+    <h2>Big Companies vs. Startups: The Adoption Gap</h2>
+
+    <p>Not everyone is moving at the same speed.</p>
+
+    <p><strong>Canva</strong> now <em>insists</em> that candidates use AI tools — Copilot, Cursor, Claude — during technical interviews for engineering roles. Their explicit position: hiring should mirror the tools engineers use daily. For non-engineering roles, they encourage AI use at every stage of their hiring process.</p>
+
+    <p><strong>Google</strong> is going the opposite direction. They're reintroducing in-person interview rounds to combat AI-assisted cheating, and rolling out a new pre-screening tool — the Google Hiring Assessment — to filter candidates before live interviews. The focus is on making the traditional process harder to game, not on reimagining what it tests.</p>
+
+    <p>This split is predictable. Big companies are cautious because leetcode scales. It's easy to train 200 engineers to evaluate leetcode solutions. It's hard to train 200 engineers to evaluate judgment. The organizational challenge of changing interview processes at FAANG scale is enormous — retraining interviewers, updating rubrics, rebuilding calibration systems.</p>
+
+    <p>Startups and mid-size companies (Canva, Anthropic partners, AI-native shops) are moving fast because they can. Smaller interviewer pools, less bureaucracy, more aligned with AI-native workflows. When your entire engineering team uses Claude Code daily, it's natural to test for that skill.</p>
+
+    <p>The irony is thick: companies building AI tools still interview engineers as if those tools don't exist.</p>
+
+    <h2>A Practical Framework</h2>
+
+    <p>So what should we actually test? Here's a five-round framework, each targeting skills that matter in the AI era:</p>
+
+    <h3>Round 1: AI-Assisted Building (90 min)</h3>
+
+    <p>Give the candidate a real problem, a laptop with Claude Code / Cursor / whatever they prefer, and 90 minutes. The deliverable isn't just working code — it's the <em>approach</em>. Did they break the problem down before prompting? Did they verify the output? Did they catch the edge case the AI missed? Did they know when to stop prompting and just write the code themselves?</p>
+
+    <p><em>What you're testing: tool fluency, judgment, problem decomposition, verification instinct.</em></p>
+
+    <h3>Round 2: Code Review of AI Output (60 min)</h3>
+
+    <p>Present three AI-generated code submissions of varying quality. One is subtly wrong (incorrect edge case handling). One has a security vulnerability. One is correct but poorly architected. The candidate reviews all three, writes feedback, and explains their reasoning.</p>
+
+    <p><em>What you're testing: evaluation skill, security awareness, architectural taste, communication clarity.</em></p>
+
+    <h3>Round 3: System Design with AI Constraints (60 min)</h3>
+
+    <p>Standard system design, but with a twist: half the system will be implemented by AI agents. The candidate must decide which components to delegate to AI, which require human implementation, and how to verify AI-generated components in production. Include cost constraints — token budgets are real.</p>
+
+    <p><em>What you're testing: architectural thinking, AI-awareness in design, cost reasoning, production mindset.</em></p>
+
+    <h3>Round 4: Debugging a Haunted Codebase (60 min)</h3>
+
+    <p>Drop the candidate into a small codebase (500–1000 lines) that was entirely AI-generated. It has three bugs: one logic error, one performance issue, one that only manifests under concurrency. They have their tools. The question isn't whether they can fix the bugs — it's how they find them.</p>
+
+    <p><em>What you're testing: debugging methodology, reading comprehension of unfamiliar code, systematic thinking under uncertainty.</em></p>
+
+    <h3>Round 5: Technical Decision-Making (45 min)</h3>
+
+    <p>Present a scenario: "Your team has been asked to rewrite a critical service. An engineer proposes using AI to generate 80% of it in a week. The alternative is three engineers spending six weeks. Walk me through how you'd decide." Follow-up questions probe trade-offs: reliability, maintainability, team knowledge, bus factor, testing strategy.</p>
+
+    <p><em>What you're testing: judgment, leadership thinking, risk assessment, ability to articulate trade-offs.</em></p>
+
+    <h2>What We Drop</h2>
+
+    <p>Notice what's missing from this framework:</p>
+
+    <p><strong>Leetcode-style algorithm puzzles.</strong> AI solves these better than humans. Testing them is like testing arithmetic in the calculator era.</p>
+
+    <p><strong>Trivia questions.</strong> "What's the difference between a process and a thread?" If you need to know, you can look it up in three seconds.</p>
+
+    <p><strong>Take-home projects without AI.</strong> Banning AI from take-homes is unenforceable and tests the wrong thing. Let them use whatever they want — then evaluate the result and the process.</p>
+
+    <h2>The Interviewer Problem</h2>
+
+    <p>Here's the uncomfortable part: this framework is harder to evaluate. Leetcode has a clear right answer. "Did they use AI effectively?" is a judgment call.</p>
+
+    <p>This means interviewers need to be engineers who work with AI daily. You can't evaluate AI-augmented engineering if you've never done it yourself. The bar for interviewers goes up, not down.</p>
+
+    <p>Companies that stick with leetcode aren't doing it because it works. They're doing it because it scales. It's easy to train 200 engineers to evaluate leetcode solutions. It's hard to train 200 engineers to evaluate judgment.</p>
+
+    <p>But easy and right are different things.</p>
+
+    <h2>The Bigger Picture</h2>
+
+    <p>The certification bodies are ahead of the interview processes. AWS, Anthropic, Google, and Microsoft have all redefined what they think engineers should know in 2026. Their new certs test agentic AI, RAG pipelines, production deployment, and architectural judgment — not memorized algorithms.</p>
+
+    <p>The interview is always a proxy. We're trying to predict: "Will this person be effective on our team?" The proxy needs to match the job.</p>
+
+    <p>In 2020, the job was: write code, review code, design systems, communicate with humans.</p>
+
+    <p>In 2026, the job is: direct AI to write code, review AI-generated code, design systems that include AI components, communicate with humans <em>and</em> machines.</p>
+
+    <p>The skills shifted. The interview should shift with them.</p>
+
+    <p>Or we can keep asking people to reverse linked lists while AI builds the future around us.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

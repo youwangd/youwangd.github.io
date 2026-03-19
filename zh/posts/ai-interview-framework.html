@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面试还在考反转链表？醒醒，2026年了 — Youwang Deng</title>
+<meta name="description" content="Leetcode考的是AI已经比人做得更好的技能。2026年了，面试该测什么？一个实用的5轮面试框架。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-03-19</time>
+        <span class="post-tag">面试</span>
+        <span class="post-tag">职业</span>
+        <span class="post-tag">AI</span>
+      </div>
+      <h1 class="post-title">面试还在考反转链表？醒醒，2026年了</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">Leetcode考的是AI已经比人类做得更好的技能。一个2026年版软件工程师面试框架——考判断力、评审能力、架构思维，而不是背算法。</p>
+
+    <h2>荒诞的现状</h2>
+
+    <p>2026年一个senior engineer的日常是什么样的？review AI生成的代码，设计多智能体协作的系统架构，debug模型幻觉产生的逻辑错误，决定哪些模块可以交给AI写、哪些必须人类把关。</p>
+
+    <p>然后走进面试间，面试官打开一道medium难度的leetcode："请实现一个LRU Cache。"</p>
+
+    <p>我们在为一个已经不存在的岗位面试。</p>
+
+    <p>标准的软件工程师面试——刷题、系统设计白板、行为面试STAR法则——是为一个工程师主要产出是手写代码的时代设计的。但那个时代正在消失。Copilot补全了60%的按键。Claude Code一行prompt写出完整feature。Cursor的background agent在你开standup的时候就把refactor做了。</p>
+
+    <p>面试没变，工作变了。这就像招一个摄影师，考试内容是暗房冲洗胶片。</p>
+
+    <h2>行业开始定义新标准</h2>
+
+    <p>2026年初，一件有意思的事情正在发生：认证体系开始重新定义「合格工程师」的含义。</p>
+
+    <p><strong>Anthropic</strong> 在3月12日发布了「Claude Certified Architect, Foundations」——第一个来自前沿AI实验室的架构师认证。闭卷考试，60道题，120分钟，不能用Claude也不能查文档。前置条件：至少6个月的Claude API + MCP生产环境实战经验。认证有效期只有6个月——因为这个领域变化太快了。背后是Anthropic一亿美金的Partner Network。</p>
+
+    <p><strong>AWS</strong> 今年1月推出了「Agentic AI Demonstrated」微认证和配套课程，重点是用Bedrock agents、Amazon Q和LangChain构建自主AI系统。新的「Generative AI Developer – Professional」认证(AIP-C01)考RAG pipeline、Bedrock agents、knowledge bases、guardrails、向量存储。同时老的ML Specialty认证(MLS-C01)在3月31日退役。</p>
+
+    <p><strong>Microsoft</strong> 将在6月30日退役Azure AI Engineer Associate (AI-102)，替换为新的AI原生认证：SQL AI Developer (DP-800)和Cloud & AI Security Engineer (SC-500)。<strong>Google</strong> 2月发布了AI Professional Certificate，并更新了Professional ML Engineer考试，加入GenAI和Vertex AI内容。</p>
+
+    <p>每一家主要云厂商都在做同一件事：用考智能体系统、prompt engineering、RAG架构、生产环境AI部署的新认证，替换考传统ML pipeline的旧认证。</p>
+
+    <p>认证体系在往前跑。面试流程还在原地站着。</p>
+
+    <h2>核心能力迁移</h2>
+
+    <p>工程师的核心工作已经从<strong>写代码</strong>变成<strong>编排写代码的系统</strong>。现在真正重要的能力是：</p>
+
+    <p><strong>判断力</strong>——知道该做什么、不该做什么、哪些可以交给AI。这是2026年区分senior和junior的关键能力，跟动态规划没有半点关系。</p>
+
+    <p><strong>评审能力</strong>——AI生成的代码看起来都很合理。能不能看出隐藏的bug？安全漏洞？藏在整洁variable name后面的O(n³)？AI写的代码是「看起来对」的代码。工程师的价值在于知道「看起来对」什么时候不等于「真的对」。</p>
+
+    <p><strong>架构思维</strong>——AI可以实现，但AI不会做系统分解、判断failure mode、决定边界在哪里。抽象层越高，越需要人。</p>
+
+    <p><strong>表达能力</strong>——prompting就是跟另一种听众沟通。能清晰表达意图的工程师——不管对象是人还是机器——产出翻倍。想不清楚的人写不出好prompt，也写不出好需求文档。</p>
+
+    <h2>大厂 vs. 创业公司：变革速度差</h2>
+
+    <p>不是所有公司都在同一个速度上。</p>
+
+    <p><strong>Canva</strong> 现在<em>要求</em>工程候选人在技术面试中使用AI工具——Copilot、Cursor、Claude。他们的态度很明确：面试应该反映工程师每天的真实工作方式。非工程岗位也鼓励在面试全流程中使用AI。</p>
+
+    <p><strong>Google</strong> 走了相反的方向。他们在恢复线下面试来防止AI作弊，并推出了新的预筛工具Google Hiring Assessment。重点不是重新设计面试内容，而是让旧流程更难被hack。</p>
+
+    <p>这个分化完全可以预料。大公司不改是因为leetcode可以规模化。培训200个面试官评价leetcode很容易，培训200个面试官评价「判断力」很难。改面试流程意味着重新培训面试官、更新rubric、重建calibration体系——在FAANG规模下，这是一个巨大的组织工程。</p>
+
+    <p>国内大厂可能更慢。字节、阿里、腾讯的面试流程已经高度标准化，刷题文化根深蒂固。笔试+多轮技术面+HR面的模板用了十年，候选人的准备方式也完全围绕这个模板。改变面试等于改变整个招聘漏斗，牵一发而动全身。</p>
+
+    <p>创业公司和中型公司（Canva、Anthropic生态伙伴、AI原生团队）可以快速变革——面试官团队小、流程灵活、工程团队本身就在daily使用AI工具。</p>
+
+    <p>最讽刺的是：做AI产品的公司，面试的时候不让用AI。</p>
+
+    <h2>一个实用框架</h2>
+
+    <p>那到底该考什么？以下是5轮面试框架，每轮针对AI时代真正重要的能力：</p>
+
+    <h3>第一轮：AI辅助开发（90分钟）</h3>
+
+    <p>给候选人一个真实问题、一台装了Claude Code / Cursor的电脑、90分钟时间。评价的不只是最终代码，而是<em>过程</em>。他是先拆解问题再prompt，还是上来就让AI生成？他验证了输出吗？他发现了AI遗漏的edge case吗？他知道什么时候该停止prompt、自己写吗？</p>
+
+    <p><em>考察：工具熟练度、判断力、问题拆解能力、验证直觉。</em></p>
+
+    <h3>第二轮：AI代码评审（60分钟）</h3>
+
+    <p>展示三份AI生成的代码提交。一份有微妙的逻辑错误（edge case处理不当）。一份有安全漏洞。一份代码正确但架构很差。候选人review这三份代码，写出feedback，解释理由。</p>
+
+    <p><em>考察：评审能力、安全意识、架构品味、表达清晰度。</em></p>
+
+    <h3>第三轮：含AI约束的系统设计（60分钟）</h3>
+
+    <p>标准系统设计，但加一个twist：系统的一半将由AI智能体实现。候选人需要决定哪些组件委托给AI、哪些必须人类实现、如何在生产环境验证AI生成的组件。加入成本约束——token budget是真实的。</p>
+
+    <p><em>考察：架构思维、设计中的AI意识、成本推理、生产思维。</em></p>
+
+    <h3>第四轮：Debug一个「闹鬼」代码库（60分钟）</h3>
+
+    <p>把候选人扔进一个500-1000行的代码库，全部由AI生成。里面有三个bug：一个逻辑错误，一个性能问题，一个只在并发场景下出现。可以用任何工具。关键不是能不能修好——而是怎么找到它们的。</p>
+
+    <p><em>考察：debug方法论、阅读陌生代码的能力、不确定条件下的系统性思维。</em></p>
+
+    <h3>第五轮：技术决策（45分钟）</h3>
+
+    <p>场景题：「团队需要重写一个核心服务。有人提议用AI生成80%的代码，一周搞定。另一个方案是三个工程师花六周。你怎么决定？」追问trade-off：可靠性、可维护性、团队知识沉淀、bus factor、测试策略。</p>
+
+    <p><em>考察：判断力、技术领导力思维、风险评估、trade-off表达能力。</em></p>
+
+    <h2>该丢掉什么</h2>
+
+    <p>注意这个框架里没有什么：</p>
+
+    <p><strong>Leetcode算法题。</strong> AI解这些比人快也比人好。考这个就像计算器时代考心算。</p>
+
+    <p><strong>八股文。</strong>「进程和线程的区别是什么？」如果需要知道，三秒钟查到。</p>
+
+    <p><strong>禁止用AI的take-home项目。</strong> 不可能执行，而且测的是错误的东西。让候选人用任何想用的工具，然后评价结果和过程。</p>
+
+    <h2>面试官的困境</h2>
+
+    <p>这个框架有一个不舒服的真相：它更难评价。Leetcode有标准答案。「他是否有效地使用了AI？」是一个判断题。</p>
+
+    <p>这意味着面试官自己得是每天用AI工作的工程师。你不可能评价AI辅助工程能力，如果你自己从来没这样工作过。面试官的门槛提高了，不是降低了。</p>
+
+    <p>大公司坚持用leetcode不是因为它有效，而是因为它可以规模化。培训200个面试官评价leetcode很容易。培训200个面试官评价判断力很难。</p>
+
+    <p>但「容易」和「正确」是两回事。</p>
+
+    <h2>大趋势</h2>
+
+    <p>认证体系走在了面试流程前面。AWS、Anthropic、Google、Microsoft都重新定义了2026年工程师应该具备的技能——智能体系统、RAG pipeline、生产环境部署、架构判断力。而不是背下来的算法。</p>
+
+    <p>面试永远是一个proxy。我们在预测：「这个人能不能在我们团队里产出价值？」这个proxy得跟实际工作匹配。</p>
+
+    <p>2020年的工作：写代码、review代码、设计系统、跟人沟通。</p>
+
+    <p>2026年的工作：指挥AI写代码、review AI生成的代码、设计包含AI组件的系统、跟人<em>和机器</em>沟通。</p>
+
+    <p>能力变了。面试也该变了。</p>
+
+    <p>不然就继续考反转链表吧，反正AI正在替我们建未来。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
