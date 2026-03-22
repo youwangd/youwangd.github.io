@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI能无限迭代，但得先告诉它什么叫"搞定了" — Youwang Deng</title>
+<meta name="description" content="AI智能体可以计划、重试、无限循环。瓶颈不是智能——是怎么定义"完成"。机械化验证标准才是关键。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-03-22</time>
+        <span class="post-tag">智能体</span>
+        <span class="post-tag">架构</span>
+        <span class="post-tag">洞察</span>
+      </div>
+      <h1 class="post-title">AI能无限迭代，但得先告诉它什么叫"搞定了"</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">AI智能体可以计划、重试、跑到天荒地老。瓶颈不是它够不够聪明，而是它不知道自己做完了没有。</p>
+
+    <h2>一个三文件的repo，五天25000 star</h2>
+
+    <p>2026年3月，Karpathy发了<a href="https://github.com/karpathy/autoresearch">autoresearch</a>。思路很简单：让AI智能体自主跑LLM训练实验。改代码，跑5分钟，看validation loss降了没，降了就留，没降就回滚，然后再来。你睡一觉起来，100个实验跑完了，模型变好了。</p>
+
+    <p>五天25000 star。三个文件，一个指标。</p>
+
+    <p>厉害的不是智能体本身。是那个指标。<code>val_bpb</code>，一个数字，越低越好。没有歧义，不用判断，一行grep就能检查。智能体永远不用问"我做完了吗"——数字告诉它。</p>
+
+    <h2>所有AI的重大突破，都长一个样</h2>
+
+    <p>回头看AI在哪些领域做到了超越人类：</p>
+
+    <ul>
+      <li><strong>AlphaGo</strong> — 赢了就是赢了，输了就是输了。几百万盘自我对弈，每盘都有明确结果。</li>
+      <li><strong>大模型训练</strong> — loss往下走，benchmark往上走。跑几周不需要人插手。</li>
+      <li><strong>编译器优化</strong> — 生成的代码跑得更快就留，更慢就扔。benchmark说了算。</li>
+      <li><strong>蛋白质折叠 (AlphaFold)</strong> — 预测的结构跟实验数据对不对得上。精度到埃级别。</li>
+      <li><strong>代码生成</strong> — SWE-bench、HumanEval。测试过了就是过了。</li>
+    </ul>
+
+    <p>共同点：一个紧凑的循环，加上一个机械化的验证器。智能体干活，一个确定性检查说行不行，智能体调整。没有人类在回路里，没有主观判断，就是一个数字或一个布尔值。</p>
+
+    <h2>大部分人用AI的方式，卡在哪</h2>
+
+    <p>再看看大多数人怎么用coding agent的：</p>
+
+    <pre><code>你：修一下登录的bug
+Agent：*干了10分钟* → "搞定了！"
+你：*一看* → "没搞定啊，测试还挂着。"
+Agent：*又干了一轮* → "这次好了！"
+你：*再看* → "换了个错误而已。"
+... 20轮之后 ...
+你："行，终于好了。"</code></pre>
+
+    <p>你就是那个验证器。这才是瓶颈。</p>
+
+    <p>不是agent不够聪明——现在的coding agent能力很强。问题在于agent没有办法确认自己真的做完了。它跑了一遍，看起来对了，就说"搞定"。但"看起来对"不是机械判断，是感觉。</p>
+
+    <p>Autoresearch没有这个问题。<code>val_bpb</code>不在乎你的感觉。数字降了就是降了。</p>
+
+    <h2>想通了这个，就想通了AI能做什么</h2>
+
+    <p>一句话：<strong>任何有机械化终点线的事情，都可以被AI无限迭代优化。</strong></p>
+
+    <p>如果你能写一个函数，返回true或false表示"做完了没"，你就可以把AI智能体放进一个循环里然后去睡觉。它会迭代到收敛或者用完重试次数。不需要人。</p>
+
+    <p>如果你写不出这个函数——"做完了"需要人来判断——那智能体的迭代速度就被人类的注意力限制住了。不是算力不够，是人不够。</p>
+
+    <p>这就是AI能完全自动化的任务和还需要人的任务之间的分界线：</p>
+
+    <table>
+      <thead><tr><th>有机械终点线</th><th>需要人来判断</th></tr></thead>
+      <tbody>
+        <tr><td>测试通过</td><td>"界面感觉对不对"</td></tr>
+        <tr><td>Benchmark分数提升</td><td>"文案读起来自然吗"</td></tr>
+        <tr><td>编译成功</td><td>"架构够不够优雅"</td></tr>
+        <tr><td>API返回预期结果</td><td>"报错信息够不够友好"</td></tr>
+        <tr><td>Linter通过</td><td>"变量名起得好不好"</td></tr>
+        <tr><td>性能在预算内</td><td>"这层抽象合不合理"</td></tr>
+      </tbody>
+    </table>
+
+    <p>左边这列，是AI智能体会吃掉的领域。右边这列，是人类还有用的地方。工程师的工作是尽量把右边的东西往左边搬——把主观标准变成可测量的检查。</p>
+
+    <h2>智能体架构该怎么设计</h2>
+
+    <p>如果机械化验证是关键，那智能体系统就该围绕它来设计：</p>
+
+    <pre><code>1. 人用自然语言描述目标
+2. 系统生成机械化验证检查
+3. 人审批一次
+4. Worker智能体自主迭代
+5. 机械验证器每轮检查
+6. 通过就停，不通过就继续，卡住就上报</code></pre>
+
+    <p>几个关键设计决策：</p>
+
+    <p><strong>验证器必须独立于worker。</strong> 让智能体验证自己的活，等于让学生批自己的卷子。另一个进程——最好是确定性脚本，不是另一个LLM——提供诚实反馈。Autoresearch就是这样：训练脚本产生一个数字，智能体读这个数字。数字不归智能体管。</p>
+
+    <p><strong>状态存磁盘，不存上下文。</strong> Autoresearch用<code>results.tsv</code>当记忆，用git branch管状态。智能体的context window保持干净，因为每轮都从文件重建状态。跑20+轮的长任务，不这样做context会爆。</p>
+
+    <p><strong>每轮用新的context。</strong> 每次重试起一个新的智能体会话。给它上一轮的摘要和最新的失败信息——但不要把10万token的历史debug记录带过来。磁盘上的代码是真相，不是聊天记录。</p>
+
+    <p><strong>转圈检测很重要。</strong> 同一个错误出现三次，说明智能体卡住了。上报给人，别傻跑20轮一模一样的重试。智能体不一定能自己跳出局部最优。</p>
+
+    <h2>实际落地：SageCLI的Goal Loop</h2>
+
+    <p><a href="https://github.com/youwangd/SageCLI">SageCLI</a>实现了这个模式，一个<code>--goal</code>参数：</p>
+
+    <pre><code class="language-bash">sage task debug app.py tests.py \
+  --goal "All pytest tests pass" \
+  --retries 5</code></pre>
+
+    <p>背后发生的事：</p>
+
+    <ol>
+      <li>LLM把自然语言目标翻译成机械检查：<code>pytest test_app.py</code> exit code为0。</li>
+      <li>用户审批。</li>
+      <li>Worker智能体（Claude Code via ACP）领任务，改代码。</li>
+      <li>Sage（一个bash脚本——不是LLM）跑机械检查。</li>
+      <li>没过的话，把失败输出喂给一个新的worker会话。</li>
+      <li>循环，直到通过、转圈检测触发、或者重试次数用完。</li>
+    </ol>
+
+    <p>三个东西是刻意做成机械化的：</p>
+
+    <ul>
+      <li><strong>验证</strong>——bash跑测试命令，检查exit code。没有LLM参与。</li>
+      <li><strong>日志</strong>——每轮结果由bash追加写入<code>run.md</code>，不是智能体写的。确定性，不靠prompt。</li>
+      <li><strong>决策逻辑</strong>——通过/失败/重试/上报是bash的if语句，不是LLM的判断。</li>
+    </ul>
+
+    <p>唯一用到LLM的地方：worker写代码，以及最开始从自然语言目标生成检查项。其他全是确定性的。</p>
+
+    <h2>下一步：把更多东西变成机械的</h2>
+
+    <p>现在AI智能体领域最有价值的工程，不是让智能体更聪明，而是让验证更机械。</p>
+
+    <p>视觉回归测试把"UI对不对"变成像素diff。性能预算把"够不够快"变成Lighthouse分数。无障碍审计把"好不好用"变成axe-core报告。类型检查把"代码对不对"变成编译器输出。</p>
+
+    <p>每次把一个主观检查变成机械检查，就解锁一个新的AI自主迭代领域。智能体不需要变聪明——它只需要更清楚的终点线。</p>
+
+    <p>Autoresearch的<code>val_bpb</code>，AlphaGo的胜负，你的test suite的exit code。都是一回事：一个机械信号，把AI的无限迭代从空转变成了收敛搜索。</p>
+
+    <p>对任何任务，问的不是"AI够不够聪明"。是"你能不能定义什么叫做完"。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

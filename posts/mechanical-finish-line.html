@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Only Thing That Matters Is a Mechanical Finish Line — Youwang Deng</title>
+<meta name="description" content="AI agents can plan, retry, and iterate endlessly. The bottleneck isn't intelligence — it's knowing when you're done. Mechanical validation is the unlock.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-03-22</time>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">architecture</span>
+        <span class="post-tag">insight</span>
+      </div>
+      <h1 class="post-title">The Only Thing That Matters Is a Mechanical Finish Line</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">AI agents can plan, retry, and iterate forever. The bottleneck was never intelligence. It's knowing when you're done.</p>
+
+    <h2>The Pattern Hiding in Plain Sight</h2>
+
+    <p>In March 2026, Andrej Karpathy released <a href="https://github.com/karpathy/autoresearch">autoresearch</a> — a repo that lets an AI agent autonomously run LLM training experiments overnight. The agent modifies the training code, runs a 5-minute experiment, checks whether the validation loss improved, keeps or reverts, and repeats. You go to sleep, wake up to 100 experiments and a better model.</p>
+
+    <p>It got 25,000 stars in five days. Three files. One metric.</p>
+
+    <p>The brilliance isn't the agent. It's the metric. <code>val_bpb</code> is a number. Lower is better. No ambiguity. No judgment call. A bash script can check it. The agent never needs to ask "am I done?" — the number tells it.</p>
+
+    <p>Now look at where AI has produced superhuman results:</p>
+
+    <ul>
+      <li><strong>AlphaGo / AlphaZero</strong> — Win or lose. Binary. Millions of self-play games with mechanical feedback.</li>
+      <li><strong>LLM training</strong> — Loss goes down. Benchmarks go up. Training runs for weeks with no human in the loop.</li>
+      <li><strong>Compiler optimization</strong> — The output is faster or it isn't. Measure, compare, keep or discard.</li>
+      <li><strong>Protein folding (AlphaFold)</strong> — Structure matches experimental data or it doesn't. Angstrom-level metrics.</li>
+      <li><strong>Code generation benchmarks</strong> — SWE-bench, HumanEval. Tests pass or they don't.</li>
+    </ul>
+
+    <p>Every breakthrough has the same structure: a tight loop with a mechanical validator. The agent does work, a deterministic check says pass or fail, and the agent adjusts. No human in the loop. No subjective judgment. Just a number or a boolean.</p>
+
+    <h2>The Problem with Most Agent Work</h2>
+
+    <p>Now look at how most people use AI agents for software engineering:</p>
+
+    <pre><code>Human: "Fix the login bug"
+Agent: *works for 10 minutes* → "Done!"
+Human: *checks* → "No it's not. Tests still fail."
+Agent: *works again* → "Fixed now!"
+Human: *checks* → "Different error this time."
+... 20 iterations later ...
+Human: "OK finally."</code></pre>
+
+    <p>The human is the validator. That's the bottleneck.</p>
+
+    <p>Not because the agent is dumb — modern coding agents are remarkably capable. The problem is that the agent has no way to know it's actually done. It runs the code, it looks right to the agent, it says "done." But "looks right" isn't mechanical. It's vibes.</p>
+
+    <p>Autoresearch doesn't have this problem because <code>val_bpb</code> doesn't care about vibes. The number goes down or it doesn't. That's the whole feedback loop.</p>
+
+    <h2>The Insight: Mechanical Validation Is the Unlock</h2>
+
+    <p>Here's the principle: <strong>anything with a mechanical finish line can be optimized by endless turns of AI iteration.</strong></p>
+
+    <p>If you can write a function that returns true or false for "is this done?", you can put an AI agent in a loop and walk away. The agent will iterate until it converges or exhausts its retry budget. No human needed.</p>
+
+    <p>If you can't write that function — if "done" requires human judgment — then the agent is bounded by how often a human can check its work. The loop speed is limited by human attention, not compute.</p>
+
+    <p>This is the dividing line between tasks AI can fully automate and tasks that still need human involvement:</p>
+
+    <table>
+      <thead><tr><th>Mechanical Finish Line</th><th>Human Judgment Required</th></tr></thead>
+      <tbody>
+        <tr><td>Tests pass</td><td>"The UI feels right"</td></tr>
+        <tr><td>Benchmark score improves</td><td>"The copy reads naturally"</td></tr>
+        <tr><td>Compilation succeeds</td><td>"The architecture is clean"</td></tr>
+        <tr><td>API returns expected response</td><td>"The error message is helpful"</td></tr>
+        <tr><td>Linter passes</td><td>"The variable names are intuitive"</td></tr>
+        <tr><td>Performance within budget</td><td>"This is the right abstraction"</td></tr>
+      </tbody>
+    </table>
+
+    <p>The left column is where AI agents will eat the world. The right column is where humans stay relevant. The engineering challenge is moving as many things as possible from right to left — turning subjective criteria into measurable checks.</p>
+
+    <h2>What This Means for Agent Architecture</h2>
+
+    <p>If mechanical validation is the unlock, then agent systems should be designed around it. The architecture becomes:</p>
+
+    <pre><code>1. Human describes goal in natural language
+2. System generates mechanical validation checks
+3. Human approves the checks (one-time)
+4. Worker agent iterates autonomously
+5. Mechanical validator checks after each attempt
+6. Loop until pass or escalate</code></pre>
+
+    <p>The key decisions in this architecture:</p>
+
+    <p><strong>The validator must be external to the worker.</strong> If the agent validates its own work, it's grading its own homework. A separate process — ideally a deterministic script, not another LLM — provides honest feedback. Autoresearch gets this right: the training script produces a number, the agent reads the number. The agent doesn't get to decide whether the number is good enough.</p>
+
+    <p><strong>State lives on disk, not in context.</strong> Autoresearch uses <code>results.tsv</code> as the agent's memory and git branches as state management. The agent's context window stays clean because it reconstructs state from files each iteration. For long-running tasks (20+ iterations), this prevents context window exhaustion.</p>
+
+    <p><strong>Fresh context per iteration.</strong> Each retry cycle should spawn a fresh agent session. Feed it a summary of previous attempts and the latest failure — but don't carry forward 100K tokens of stale debugging history. The code on disk is the source of truth, not the conversation history.</p>
+
+    <p><strong>Circle detection matters.</strong> If the same failure appears three times in a row, the agent is stuck. Escalate to a human rather than burning through 20 identical retries. The agent can't always break out of local minima on its own.</p>
+
+    <h2>Practical Example: SageCLI Goal Loop</h2>
+
+    <p><a href="https://github.com/youwangd/SageCLI">SageCLI</a> implements this pattern with a <code>--goal</code> flag on its task command:</p>
+
+    <pre><code class="language-bash">sage task debug app.py tests.py \
+  --goal "All pytest tests pass" \
+  --retries 5</code></pre>
+
+    <p>What happens under the hood:</p>
+
+    <ol>
+      <li>An LLM translates the natural language goal into mechanical checks: <code>pytest test_app.py</code> exits 0.</li>
+      <li>The user approves the checks.</li>
+      <li>A worker agent (Claude Code via ACP) gets the task and fixes the code.</li>
+      <li>Sage (a bash script — not an LLM) runs the mechanical checks.</li>
+      <li>If checks fail, the failure output is fed back to a fresh worker session.</li>
+      <li>Loop until pass, circle detection triggers, or retries exhaust.</li>
+    </ol>
+
+    <p>Three things are deliberately mechanical:</p>
+
+    <ul>
+      <li><strong>The validation</strong> — bash runs the test command and checks the exit code. No LLM involved.</li>
+      <li><strong>The logging</strong> — every cycle is appended to <code>run.md</code> by bash, not by the agent. Deterministic, not prompted.</li>
+      <li><strong>The decision logic</strong> — pass/fail/retry/escalate is a bash if-statement, not an LLM judgment call.</li>
+    </ul>
+
+    <p>The only LLM calls are: (1) the worker doing the actual coding work, and (2) the initial check generation from the natural language goal. Everything else is deterministic.</p>
+
+    <h2>The Frontier: Making More Things Mechanical</h2>
+
+    <p>The most impactful engineering work in the AI agent space right now isn't making agents smarter. It's making validation more mechanical.</p>
+
+    <p>Visual regression testing turns "the UI looks right" into pixel-diff comparison. Performance budgets turn "the page is fast enough" into a Lighthouse score threshold. Accessibility audits turn "the app is usable" into axe-core violations. Type checkers turn "the code is correct" into compiler output.</p>
+
+    <p>Every time you convert a subjective check into a mechanical one, you unlock another domain for autonomous AI iteration. The agent doesn't need to get better — it just needs a clearer finish line.</p>
+
+    <p>Autoresearch's <code>val_bpb</code>. AlphaGo's win/loss. Your test suite's exit code. They're all the same thing: a mechanical signal that turns infinite AI iteration from a spinning loop into a convergent search.</p>
+
+    <p>The question for any task isn't "is the AI smart enough?" It's "can you define done?"</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
