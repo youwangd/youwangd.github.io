@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI能无限迭代，但得先告诉它什么叫"搞定了" — Youwang Deng</title>
-<meta name="description" content="AI智能体可以计划、重试、无限循环。瓶颈不是智能——是怎么定义"完成"。机械化验证标准才是关键。">
+<meta name="description" content="AI智能体可以计划、重试、无限循环。瓶颈不是智能——是怎么定义"完成"。确定性验证标准才是关键。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -63,7 +63,7 @@
       <li><strong>代码生成</strong> — SWE-bench、HumanEval。测试过了就是过了。</li>
     </ul>
 
-    <p>共同点：一个紧凑的循环，加上一个机械化的验证器。智能体干活，一个确定性检查说行不行，智能体调整。没有人类在回路里，没有主观判断，就是一个数字或一个布尔值。</p>
+    <p>共同点：一个紧凑的循环，加上一个确定性的验证器。智能体干活，一个确定性检查说行不行，智能体调整。没有人类在回路里，没有主观判断，就是一个数字或一个布尔值。</p>
 
     <h2>大部分人用AI的方式，卡在哪</h2>
 
@@ -79,13 +79,13 @@ Agent：*又干了一轮* → "这次好了！"
 
     <p>你就是那个验证器。这才是瓶颈。</p>
 
-    <p>不是agent不够聪明——现在的coding agent能力很强。问题在于agent没有办法确认自己真的做完了。它跑了一遍，看起来对了，就说"搞定"。但"看起来对"不是机械判断，是感觉。</p>
+    <p>不是agent不够聪明——现在的coding agent能力很强。问题在于agent没有办法确认自己真的做完了。它跑了一遍，看起来对了，就说"搞定"。但"看起来对"不是硬判断，是感觉。</p>
 
     <p>Autoresearch没有这个问题。<code>val_bpb</code>不在乎你的感觉。数字降了就是降了。</p>
 
     <h2>想通了这个，就想通了AI能做什么</h2>
 
-    <p>一句话：<strong>任何有机械化终点线的事情，都可以被AI无限迭代优化。</strong></p>
+    <p>一句话：<strong>任何有硬指标的事情，都可以被AI无限迭代优化。</strong></p>
 
     <p>如果你能写一个函数，返回true或false表示"做完了没"，你就可以把AI智能体放进一个循环里然后去睡觉。它会迭代到收敛或者用完重试次数。不需要人。</p>
 
@@ -94,7 +94,7 @@ Agent：*又干了一轮* → "这次好了！"
     <p>这就是AI能完全自动化的任务和还需要人的任务之间的分界线：</p>
 
     <table>
-      <thead><tr><th>有机械终点线</th><th>需要人来判断</th></tr></thead>
+      <thead><tr><th>有硬指标</th><th>需要人来判断</th></tr></thead>
       <tbody>
         <tr><td>测试通过</td><td>"界面感觉对不对"</td></tr>
         <tr><td>Benchmark分数提升</td><td>"文案读起来自然吗"</td></tr>
@@ -109,13 +109,13 @@ Agent：*又干了一轮* → "这次好了！"
 
     <h2>智能体架构该怎么设计</h2>
 
-    <p>如果机械化验证是关键，那智能体系统就该围绕它来设计：</p>
+    <p>如果确定性验证是关键，那智能体系统就该围绕它来设计：</p>
 
     <pre><code>1. 人用自然语言描述目标
-2. 系统生成机械化验证检查
+2. 系统生成确定性验证检查
 3. 人审批一次
 4. Worker智能体自主迭代
-5. 机械验证器每轮检查
+5. 确定性验证器每轮检查
 6. 通过就停，不通过就继续，卡住就上报</code></pre>
 
     <p>几个关键设计决策：</p>
@@ -139,15 +139,15 @@ Agent：*又干了一轮* → "这次好了！"
     <p>背后发生的事：</p>
 
     <ol>
-      <li>LLM把自然语言目标翻译成机械检查：<code>pytest test_app.py</code> exit code为0。</li>
+      <li>LLM把自然语言目标翻译成确定性检查：<code>pytest test_app.py</code> exit code为0。</li>
       <li>用户审批。</li>
       <li>Worker智能体（Claude Code via ACP）领任务，改代码。</li>
-      <li>Sage（一个bash脚本——不是LLM）跑机械检查。</li>
+      <li>Sage（一个bash脚本——不是LLM）跑确定性检查。</li>
       <li>没过的话，把失败输出喂给一个新的worker会话。</li>
       <li>循环，直到通过、转圈检测触发、或者重试次数用完。</li>
     </ol>
 
-    <p>三个东西是刻意做成机械化的：</p>
+    <p>三个东西是刻意做成确定性的：</p>
 
     <ul>
       <li><strong>验证</strong>——bash跑测试命令，检查exit code。没有LLM参与。</li>
@@ -157,15 +157,15 @@ Agent：*又干了一轮* → "这次好了！"
 
     <p>唯一用到LLM的地方：worker写代码，以及最开始从自然语言目标生成检查项。其他全是确定性的。</p>
 
-    <h2>下一步：把更多东西变成机械的</h2>
+    <h2>下一步：把更多东西变成可量化的</h2>
 
-    <p>现在AI智能体领域最有价值的工程，不是让智能体更聪明，而是让验证更机械。</p>
+    <p>现在AI智能体领域最有价值的工程，不是让智能体更聪明，而是让验证更确定。</p>
 
     <p>视觉回归测试把"UI对不对"变成像素diff。性能预算把"够不够快"变成Lighthouse分数。无障碍审计把"好不好用"变成axe-core报告。类型检查把"代码对不对"变成编译器输出。</p>
 
-    <p>每次把一个主观检查变成机械检查，就解锁一个新的AI自主迭代领域。智能体不需要变聪明——它只需要更清楚的终点线。</p>
+    <p>每次把一个主观检查变成确定性检查，就解锁一个新的AI自主迭代领域。智能体不需要变聪明——它只需要更清楚的终点线。</p>
 
-    <p>Autoresearch的<code>val_bpb</code>，AlphaGo的胜负，你的test suite的exit code。都是一回事：一个机械信号，把AI的无限迭代从空转变成了收敛搜索。</p>
+    <p>Autoresearch的<code>val_bpb</code>，AlphaGo的胜负，你的test suite的exit code。都是一回事：一个确定性信号，把AI的无限迭代从空转变成了收敛搜索。</p>
 
     <p>对任何任务，问的不是"AI够不够聪明"。是"你能不能定义什么叫做完"。</p>
 
