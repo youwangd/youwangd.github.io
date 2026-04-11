@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>平台开始收网了 — Youwang Deng</title>
+<meta name="description" content="Anthropic对OpenClaw收费、推出Agent Teams、筑起Claude Code的围墙。开源AI工具生态迎来第一次真正的警钟。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-11</time>
+        <span class="post-tag">开源</span>
+        <span class="post-tag">智能体</span>
+        <span class="post-tag">平台</span>
+      </div>
+      <h1 class="post-title">平台开始收网了</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">4月4号，Anthropic通知Claude Code用户：以后用OpenClaw得额外付费。一周后，steipete发推说"以后让OpenClaw兼容Anthropic的模型只会越来越难"——4600个赞。开源AI工具生态，第一次被平台方正面捅了一刀。</p>
+
+    <h2>到底发生了什么</h2>
+
+    <p>两周内，三件事撞到了一起：</p>
+
+    <p><strong>第一刀：Anthropic把第三方工具踢出订阅。</strong>Claude Code的订阅额度不再适用于OpenClaw等外部工具。想用OpenClaw调Claude？可以，按token另外付钱。Anthropic的Claude Code负责人Boris Cherny说这是"工程约束"和"可持续增长"。OpenClaw创始人Steinberger（已经跳槽去了OpenAI）直接开怼："先抄你的功能做进自家产品，再把开源的路堵死。"</p>
+
+    <p><strong>第二刀：Anthropic上线了Agent Teams。</strong>官方多智能体编排，内置在Claude Code里。一个session当组长，分配任务，协调工作。<a href="https://code.claude.com/docs/en/agent-teams">文档</a>写得很漂亮。sage、claude-flow、Claude Squad这些外部编排工具一直在做的事，现在平台自己做了。</p>
+
+    <p><strong>第三刀：MCP vs Skills大战。</strong>一篇<a href="https://david.coffee/i-still-prefer-mcp-over-skills/">"我还是更喜欢MCP"</a>的博客在Hacker News拿了262分、227条评论。核心观点：Skills依赖CLI和本地执行环境，MCP提供干净的远程API，带认证、发现机制、跨平台。与此同时，有人把Anthropic官方的skill-creator<a href="https://www.reddit.com/r/LocalLLaMA/comments/1si03l9/i_ported_anthropics_official_skillcreator_from/">移植到了OpenCode</a>——让它能跑任何模型，不只是Claude。</p>
+
+    <p>这三件事不是巧合，是同一个故事：<strong>平台在收网。</strong></p>
+
+    <h2>老剧本了</h2>
+
+    <p>科技平台最经典的四步走：</p>
+
+    <ol>
+      <li>平台开放API，鼓励第三方生态</li>
+      <li>第三方工具验证市场，找到用户真正想要什么</li>
+      <li>平台把最火的第三方功能做成内置</li>
+      <li>平台让第三方用起来更贵、更麻烦</li>
+    </ol>
+
+    <p>Twitter对第三方客户端干过。Apple对Sherlock干过。Salesforce对AppExchange的合作伙伴干过。现在轮到Anthropic对OpenClaw了。</p>
+
+    <p>套路一模一样。OpenClaw证明了开发者想要一个开源、可扩展的Claude前端。Anthropic看着，学着，把最受欢迎的功能（skills、多文件编辑、智能体编排）做进Claude Code，然后让开源替代品在经济上变得不划算。</p>
+
+    <p>Steinberger看到了这一天。他二月份就去了OpenAI。四月份，Anthropic关上了门。</p>
+
+    <h2>对智能体工具意味着什么</h2>
+
+    <p>如果你做的工具只能跑在一家AI厂商上面，你就是在别人的地上盖房子。这不再是假设性风险——它刚刚发生了，公开地，发生在全世界最火的开源AI编程工具身上。</p>
+
+    <p>连锁反应很清楚：</p>
+
+    <p><strong>只支持Claude的编排工具很危险。</strong>Claude Squad、ruflo（前claude-flow，31K star）——如果Anthropic觉得Agent Teams够用了，它可以让外部编排越来越难用。限速、API改动、定价分层。不需要直接封杀你，只需要让官方方案零摩擦，让外部方案处处碰壁。</p>
+
+    <p><strong>MCP比Skills安全——至少目前是。</strong>HN上的辩论说清楚了一件事：MCP是协议，跨厂商通用。Skills往往绑定在特定智能体的执行环境里。MCP server能同时给Claude、GPT、Gemini、本地模型用。Claude Code的skill只能给Claude Code用。协议活得比产品久。</p>
+
+    <p><strong>跨runtime不再是锦上添花，而是生存策略。</strong>我做<a href="https://github.com/youwangd/SageCLI">sage</a>的时候，用纯bash写了一个能调Claude Code、Cline、Gemini CLI、任何ACP兼容智能体的编排器。当时总有人问"为什么不直接用Claude Code内置功能？"现在答案很明显了：因为内置功能自带内置锁定。</p>
+
+    <h2>三层防御</h2>
+
+    <p>不管你是独立开发者还是创业公司，在AI智能体生态里做东西，平台风险得这么想：</p>
+
+    <p><strong>第一层：选协议，不选产品。</strong>基于MCP、ACP、A2A来构建——不要基于Claude Code的API或OpenClaw的插件。协议能扛住平台变脸，产品扛不住。MCP兼容所有主流模型厂商，ACP兼容25+个智能体。一家卡你脖子，换个后端就行，不用重写工具。</p>
+
+    <p><strong>第二层：编排权握在自己手里。</strong>别让模型厂商决定你的智能体怎么协作。如果Anthropic的Agent Teams是你的编排层，Anthropic就控制了你的工作流。如果你的编排是一个能调任何runtime的脚本，你自己控制工作流。编排器应该比智能体"笨"——只做路由、调度、状态管理，控制面不调LLM。</p>
+
+    <p><strong>第三层：数据存在自己的磁盘上。</strong>智能体上下文、任务历史、结果、记忆——全部是你自己目录里的文件。不在厂商的云上，不在进程死了就消失的session里。sage把任务状态存成<code>~/.sage/agents/</code>下的JSON文件，这不是bash的局限——这是刻意的架构选择。你的数据能扛住任何厂商变动。</p>
+
+    <h2>接下来会怎样</h2>
+
+    <p>未来12个月，AI工具生态会分成三类：</p>
+
+    <p><strong>平台内置工具</strong>——活在Claude Code、Codex或Gemini里面。上手快，迁移不了。你是租户。</p>
+
+    <p><strong>厂商绑定工具</strong>——比如OpenClaw（现在有OpenAI撑腰）或Copilot扩展。比内置好一点，但还是被一个生态的引力拽着。</p>
+
+    <p><strong>协议原生工具</strong>——说MCP/ACP，能对接任何后端。更难做，更难推广（"什么都能用"的卖点不如"跟Claude完美配合"来得响亮）。但只有这类工具能扛住平台收网。</p>
+
+    <p>OpenClaw的遭遇是第三类工具的最好广告。每个被Anthropic锁定伤到的开发者，现在都在问："我用的工具里，还有哪些会这样对我？"两周前没人想这个问题。现在它是第一反应。</p>
+
+    <p>Steinberger做出了了不起的东西。几万开发者每天在用OpenClaw。然后Anthropic一封邮件，一夜之间改变了经济模型。这不是OpenClaw的失败——这是"建在单一平台善意之上"的结构性脆弱。</p>
+
+    <p>教训不是"别做开源"。教训是：<strong>做不需要平台许可就能存在的开源。</strong></p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

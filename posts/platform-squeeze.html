@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Platform Squeeze Is Here — Youwang Deng</title>
+<meta name="description" content="Anthropic is charging extra for OpenClaw, shipping Agent Teams, and building walls around Claude Code. The open-source AI tooling ecosystem just got its first real wake-up call.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-11</time>
+        <span class="post-tag">open-source</span>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">platforms</span>
+      </div>
+      <h1 class="post-title">The Platform Squeeze Is Here</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">On April 4, Anthropic told Claude Code subscribers they'd need to pay extra to use OpenClaw. One week later, steipete posted "it's gonna be harder in the future to ensure OpenClaw still works with Anthropic models" — and got 4,600 hearts. The open-source AI tooling ecosystem just hit its first real inflection point.</p>
+
+    <h2>What Actually Happened</h2>
+
+    <p>Three things converged in the same two-week window:</p>
+
+    <ol>
+      <li><strong>Anthropic locked out third-party harnesses.</strong> Claude Code subscribers can no longer use their subscription limits for OpenClaw or other external tools. Want to use OpenClaw with Claude? Pay separately, per-token. Boris Cherny, Anthropic's head of Claude Code, <a href="https://x.com/bcherny/status/2040206441756471399">framed it</a> as "engineering constraints" and "sustainable growth." Peter Steinberger, OpenClaw's creator (who'd already joined OpenAI), <a href="https://x.com/steipete/status/2040209434019082522">called it out</a>: "First they copy some popular features into their closed harness, then they lock out open source."</li>
+
+      <li><strong>Anthropic shipped Agent Teams.</strong> Official multi-agent orchestration, built into Claude Code. One session acts as team lead, coordinates work, assigns tasks. The <a href="https://code.claude.com/docs/en/agent-teams">docs</a> are polished. It does what external orchestrators like sage, claude-flow, and Claude Squad have been doing — but natively, with no extra tooling.</li>
+
+      <li><strong>The MCP vs Skills debate exploded.</strong> A <a href="https://david.coffee/i-still-prefer-mcp-over-skills/">blog post</a> titled "I Still Prefer MCP Over Skills" hit 262 points and 227 comments on Hacker News. The author's core argument: Skills require CLIs and local execution, while MCP provides clean remote APIs with auth, discovery, and portability. Meanwhile, someone <a href="https://www.reddit.com/r/LocalLLaMA/comments/1si03l9/i_ported_anthropics_official_skillcreator_from/">ported Anthropic's skill-creator to OpenCode</a> — making it work with any model, not just Claude.</li>
+    </ol>
+
+    <p>These aren't isolated events. They're the same story: <strong>the platform is pulling up the ladder.</strong></p>
+
+    <h2>The Playbook We've Seen Before</h2>
+
+    <p>This is the oldest pattern in tech platforms:</p>
+
+    <ol>
+      <li>Platform launches with open APIs and encourages third-party tools</li>
+      <li>Third-party tools prove the market and discover what users want</li>
+      <li>Platform builds native versions of the most popular tools</li>
+      <li>Platform makes it harder (or more expensive) to use the third-party versions</li>
+    </ol>
+
+    <p>Twitter did it to third-party clients. Apple did it to Sherlock. Salesforce did it to countless AppExchange partners. Now Anthropic is doing it to OpenClaw.</p>
+
+    <p>The sequence is textbook. OpenClaw proved that developers want an open-source, extensible harness for Claude. Anthropic watched, learned what features resonated (skills, multi-file editing, agent orchestration), built Claude Code with those features, and then made it economically painful to use the open-source alternative.</p>
+
+    <p>Steinberger saw it coming. He joined OpenAI in February. By April, Anthropic had locked the door.</p>
+
+    <h2>What This Means for Agent Tooling</h2>
+
+    <p>If you're building tools that depend on a single AI provider, you're building on rented land. This isn't a hypothetical risk anymore — it happened, publicly, to the most popular open-source AI coding tool in the world.</p>
+
+    <p>The implications cascade:</p>
+
+    <p><strong>Orchestrators that only work with Claude are vulnerable.</strong> Claude Squad, claude-flow (now ruflo at 31K stars) — if Anthropic decides Agent Teams is good enough, they can make external orchestration progressively harder. Rate limits, API changes, pricing tiers. They don't need to block you outright. They just need to make the native option frictionless and the external option annoying.</p>
+
+    <p><strong>MCP is safer than Skills — for now.</strong> The HN debate crystallized something important. MCP is a protocol — it works across providers. Skills are often tied to a specific agent's execution environment. When david.coffee writes "I don't want a future where every single service integration requires a dedicated CLI and a markdown manual," he's describing the fragility of provider-specific tooling. MCP servers work with Claude, GPT, Gemini, local models. A Claude Code skill works with Claude Code.</p>
+
+    <p><strong>Runtime-agnostic is no longer a nice-to-have.</strong> It's a survival strategy. When I built <a href="https://github.com/youwangd/SageCLI">sage</a> as a pure-bash orchestrator that works with Claude Code, Cline, Gemini CLI, and any ACP-compatible agent, the "why not just use Claude Code's built-in features?" question was fair. Now the answer is obvious: because Claude Code's built-in features come with Claude Code's built-in lock-in.</p>
+
+    <h2>The Three-Layer Defense</h2>
+
+    <p>If you're building in the AI agent ecosystem — whether you're an individual developer or a startup — here's how to think about platform risk:</p>
+
+    <p><strong>Layer 1: Protocol over product.</strong> Build on MCP, ACP, and A2A — not on Claude Code APIs or OpenClaw plugins. Protocols survive platform shifts. Products don't. MCP works with every major model provider. ACP works with 25+ agents. If one provider squeezes you, you swap the backend without rewriting your tools.</p>
+
+    <p><strong>Layer 2: Own your orchestration.</strong> Don't let the model provider decide how your agents coordinate. If Anthropic's Agent Teams is your orchestration layer, Anthropic controls your workflow. If your orchestration is a bash script that dispatches to any runtime, you control your workflow. The orchestrator should be dumber than the agents — just routing, scheduling, and state management. No LLM calls in the control plane.</p>
+
+    <p><strong>Layer 3: State lives on your disk.</strong> Agent context, task history, results, memory — all of it should be files you own, in directories you control. Not in a provider's cloud. Not in a session that evaporates when the process dies. When sage stores task state as JSON files in <code>~/.sage/agents/</code>, that's not a limitation of bash — it's a deliberate architectural choice. Your data survives any provider change.</p>
+
+    <h2>Where This Goes</h2>
+
+    <p>The next 12 months will sort the AI tooling ecosystem into three categories:</p>
+
+    <p><strong>Platform-native tools</strong> that live inside Claude Code, Codex, or Gemini. Fast to adopt, impossible to migrate. You're a tenant.</p>
+
+    <p><strong>Provider-aligned tools</strong> like OpenClaw (now OpenAI-backed) or Copilot extensions. Better than native, but still gravitationally bound to one ecosystem.</p>
+
+    <p><strong>Protocol-native tools</strong> that speak MCP/ACP and work with any backend. Harder to build, harder to market ("works with everything" is a weaker pitch than "works perfectly with Claude"). But they're the only ones that survive a platform squeeze.</p>
+
+    <p>The OpenClaw situation is a gift to the third category. Every developer who got burned by the Anthropic lockout is now asking: "What tools do I use that won't do this to me?" That question didn't exist two weeks ago. Now it's the first thing people think about.</p>
+
+    <p>Steinberger built something remarkable with OpenClaw. Tens of thousands of developers relied on it daily. And one email from Anthropic changed the economics overnight. That's not a failure of OpenClaw — it's a structural vulnerability of building on a single provider's goodwill.</p>
+
+    <p>The lesson isn't "don't build open source." The lesson is: <strong>build open source that doesn't need permission from the platform to exist.</strong></p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
