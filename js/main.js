@@ -6,8 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const posts = document.querySelectorAll('.post-card');
   if (posts.length === 0) return;
 
-  // Build the "ls" output from actual post titles
-  const titles = Array.from(posts).map(p => {
+  // Build the "ls" output from actual post titles (latest 5 only)
+  const titles = Array.from(posts).slice(0, 5).map(p => {
     const title = p.querySelector('.post-title');
     return title ? title.textContent.trim() : '';
   });
