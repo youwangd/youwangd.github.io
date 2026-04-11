@@ -21,11 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function type() {
       if (i < text.length) {
         output += text[i];
-        cursor.textContent = output + '_';
+        cursor.innerHTML = output.replace(/\n/g, '<br>') + '_';
         i++;
         setTimeout(type, 15 + Math.random() * 25);
       } else {
-        cursor.innerHTML = output;
+        cursor.innerHTML = output.replace(/\n/g, '<br>');
         cursor.classList.add('blink-cursor');
       }
     }
