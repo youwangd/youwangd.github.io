@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码已死，脚手架永生：Harness Engineering 到底在搞什么 — Youwang Deng</title>
+<meta name="description" content="OpenAI用零人工代码发了100万行。真正的产品不是代码，是脚手架——AGENTS.md、skills、cron jobs、memory才是真正在增值的东西。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-17</time>
+        <span class="post-tag">AI工程</span>
+        <span class="post-tag">智能体编排</span>
+        <span class="post-tag">开发者工具</span>
+      </div>
+      <h1 class="post-title">代码已死，脚手架永生：Harness Engineering 到底在搞什么</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">OpenAI Frontier 团队发了100万行代码，人类一行没写。1500个 PR，agent 自己跑6小时，工程师睡觉去了。这个标题很炸，但标题本身就是个误导。真正值得关注的不是 agent 写了什么代码——而是人类写了什么<em>不是代码的东西</em>：AGENTS.md、skill 定义、lint 规则、质量评分表、执行计划。这些东西有个统称：<strong>脚手架</strong>。我自己搞了两个月 agent harness 之后，越来越确信一件事：脚手架才是产品，代码只是副产品。</p>
+
+    <h2>100万行代码的实验</h2>
+
+    <p>Ryan Lopopolo 二月份发的那篇 <a href="https://openai.com/index/harness-engineering/">harness engineering</a> 文章，基本上定义了一个新学科。约束条件很简单：人类不许写代码。不是因为写不了，而是这个约束逼着团队把 agent 独立工作所需的一切都造出来。</p>
+
+    <p>回报曲线很有意思：</p>
+
+    <ul>
+      <li>第1个月：比手写代码<strong>慢10倍</strong>。agent 缺积木，什么都搭不起来。</li>
+      <li>第3个月：每人每天 3.5 个 PR。人类还在逐个 review。</li>
+      <li>第5个月：每人每天 5-10 个 PR。agent 互相 review。人类只做 post-merge 抽查。</li>
+    </ul>
+
+    <p>拐点不是模型变强了。是脚手架变厚了。每次 agent 犯错，团队问的不是"怎么改 prompt"，而是：<em>"缺了什么能力、上下文、还是结构？"</em>——然后把它造出来，作为 repo 里的持久化资产。</p>
+
+    <p>Lopopolo 在 <a href="https://www.latent.space/p/harness-eng">Latent Space 播客</a>里说了句很到位的话：<em>"我没法对代码有什么深层意见了。感觉就像在 tech lead 一个500人的组织。"</em> 工作性质变了——从写代码变成设计系统。</p>
+
+    <h2>AGENTS.md 是目录，不是百科全书</h2>
+
+    <p>大多数人搞错的地方就在这里。听到"给 agent 上下文"，就写一个2000行的 AGENTS.md，把所有规则、约定、架构决策全塞进去。OpenAI 试过。失败了。</p>
+
+    <blockquote>一个巨大的指令文件会挤掉任务本身、代码和相关文档——agent 要么漏掉关键约束，要么开始优化错误的目标。当所有东西都"重要"的时候，什么都不重要。</blockquote>
+
+    <p>他们的方案：把 AGENTS.md 当<strong>目录</strong>，不当百科全书。大概100行。指向 <code>docs/</code> 目录里更深层的真相源。渐进式披露——agent 从一个小而稳定的入口开始，学会往哪里找。</p>
+
+    <p>我在给公司的 FeesDomainService 写 AGENTS.md 时踩了一模一样的坑。第一版是一面墙的文字。agent 要么忽略一半，要么被几周前写的互相矛盾的段落搞糊涂。最后管用的是：一张短地图，链接到权威来源。agent 导航，不背书。</p>
+
+    <h2>脚手架才是产品</h2>
+
+    <p>OpenAI 团队一共就6个 skill。就这么多。开发循环里有什么没覆盖到的，第一反应是塞进现有 skill——不是新建一个。改 agent 行为比改人类行为便宜。</p>
+
+    <p>我跑 MeshClaw 两个月了，模式完全一样。真正在增值的不是 agent 产出的代码，是元层：</p>
+
+    <table>
+      <thead>
+        <tr><th>脚手架层</th><th>干什么的</th><th>为什么能复利</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Skills</strong></td><td>可复用的 agent 能力（blog-writer、web-search、qlib）</td><td>每个新 skill 让未来所有任务更便宜</td></tr>
+        <tr><td><strong>Memory</strong></td><td>持久化的教训、项目上下文、语义事实</td><td>agent 不再跨 session 重复犯错</td></tr>
+        <tr><td><strong>Cron jobs</strong></td><td>定时自主工作（研究、监控、发布）</td><td>你睡觉的时候价值在累积</td></tr>
+        <tr><td><strong>Hooks</strong></td><td>代码变更时自动刷新上下文的触发器</td><td>知识自动保鲜，不用手动更新</td></tr>
+        <tr><td><strong>Linters &amp; tests</strong></td><td>品味的机械化执行</td><td>编码一次，永远执行在每一行上</td></tr>
+      </tbody>
+    </table>
+
+    <p>agent 写的代码？用完即弃。Lopopolo 原话：<em>"我对代码本身已经没什么执念了。如果是垃圾，扔掉就好。"</em> Symphony——他们的 Elixir 编排器——有个"rework"状态，直接把整个 work tree 删了从头来。代码是临时的。脚手架是永久的。</p>
+
+    <p>libGDX 作者 @badlogicgames 最近发了条推：<em>"我的下一个项目是 cloud agent 的 terraform。"</em> 不是 agent 本身——是管理 agent 的基础设施层。脚手架。</p>
+
+    <h2>Ghost Libraries：依赖要死了</h2>
+
+    <p>播客里最疯狂的想法：<strong>ghost libraries</strong>。不再以 package 形式分发软件，而是以 spec 形式分发。一份高保真规格说明，coding agent 可以在本地复现。没有依赖地狱，没有传递性漏洞，不用等上游打补丁。</p>
+
+    <p>Symphony 自己就是这么分发的：</p>
+
+    <ol>
+      <li>Agent 从参考 repo 读 spec</li>
+      <li>Agent 在新 worktree 里实现 spec</li>
+      <li>第二个 agent 对照 spec review 实现</li>
+      <li>循环，直到实现高保真匹配</li>
+    </ol>
+
+    <p>OpenAI 董事长 Brett Taylor 的回应：<em>"软件依赖正在消失。"</em> 当代码免费的时候，你可以只要你需要的那部分，100%测试覆盖，和你自己的 telemetry 深度集成。不用再忍受通用 package 里90%你用不到的东西。</p>
+
+    <h2>对你意味着什么</h2>
+
+    <p>不需要 OpenAI 的预算，不需要 Codex。模式是通用的：</p>
+
+    <p><strong>1. 写地图，不写手册。</strong> AGENTS.md 应该是100行的目录，指向更深的文档。如果你在 AGENTS.md 里写规则，方向就错了——写在专门的文件里，然后链接过去。</p>
+
+    <p><strong>2. 把品味编码成 lint，不是文档。</strong> 文档会腐烂，linter 不会。抓到 agent 犯错的时候，不要只修——写一条 lint 规则，错误信息里教 agent 下次怎么修。OpenAI 专门为 agent 消费写 linter 错误信息。</p>
+
+    <p><strong>3. 每次 agent 失败都是一个缺失的能力。</strong> 问题永远不是"怎么改 prompt"，而是"什么工具、上下文或结构能让这件事变得 trivial？"然后把那个东西造出来。</p>
+
+    <p><strong>4. 让构建循环快起来。</strong> OpenAI 强制一分钟构建上限。构建变慢了就换工具——一周内从 Make 换到 Bazel 换到 Turbo 换到 NX。因为 agent 对构建系统没有意见，它只需要速度。</p>
+
+    <p><strong>5. 投资元层。</strong> Skills、memory、定时任务、hooks。这些才是复利的东西。它们产出的代码是一次性的。产出代码的脚手架才是你真正的产品。</p>
+
+    <p>我们正在进入一个时代：最好的工程师不是写最多代码的人，而是为 agent 构建最好环境的人。脚手架是产品，其他的都只是 token。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由一个人类和他的智能体们共同构建。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

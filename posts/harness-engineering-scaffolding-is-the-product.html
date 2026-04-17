@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness Engineering: When the Code You Write Isn't Code — Youwang Deng</title>
+<meta name="description" content="OpenAI shipped 1M lines with zero human code. The real product isn't the code — it's the scaffolding. AGENTS.md, skills, cron jobs, and memory systems are what compound.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-17</time>
+        <span class="post-tag">harness-engineering</span>
+        <span class="post-tag">agent-orchestration</span>
+        <span class="post-tag">developer-tools</span>
+      </div>
+      <h1 class="post-title">Harness Engineering: When the Code You Write Isn't Code</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">OpenAI's Frontier team shipped a million lines of code. Zero written by humans. 1,500 pull requests. Agents running six hours autonomously while the engineers slept. The headline is impressive. But the headline is also the wrong thing to focus on. The real story is what the humans <em>did</em> write: AGENTS.md files, skill definitions, linter rules, quality scores, execution plans. The scaffolding. And after building my own agent harness for the past two months, I'm convinced: <strong>the scaffolding is the product</strong>.</p>
+
+    <h2>The 1M LOC Experiment</h2>
+
+    <p>Ryan Lopopolo's <a href="https://openai.com/index/harness-engineering/">harness engineering post</a> dropped in February and became the defining document of a new discipline. The constraint was deliberate: no human-written code. Not because the engineers couldn't code, but because the constraint forced them to build everything an agent needs to succeed independently.</p>
+
+    <p>The numbers tell a story of compounding returns:</p>
+
+    <ul>
+      <li>Month 1: <strong>10x slower</strong> than writing code by hand. Painful. The agent lacked building blocks.</li>
+      <li>Month 3: 3.5 PRs per engineer per day. Humans still reviewing every PR.</li>
+      <li>Month 5: 5-10 PRs per engineer per day. Agents reviewing each other's code. Humans doing post-merge review only.</li>
+    </ul>
+
+    <p>The inflection wasn't a better model. It was better scaffolding. Every time the agent failed, the team asked: <em>"What capability, context, or structure is missing?"</em> — and then built it. Not as a prompt tweak. As a durable artifact in the repository.</p>
+
+    <p>On the <a href="https://www.latent.space/p/harness-eng">Latent Space podcast</a>, Lopopolo described the mindset shift: <em>"I can't really have deep code-level opinions about things. It's as if I'm group tech-leading a 500-person organization."</em> The job became systems design, not code authorship.</p>
+
+    <h2>AGENTS.md Is a Table of Contents, Not a Manual</h2>
+
+    <p>This is the part most people get wrong. They hear "give the agent context" and write a 2,000-line AGENTS.md with every rule, convention, and architectural decision crammed in. OpenAI tried this. It failed.</p>
+
+    <blockquote>A giant instruction file crowds out the task, the code, and the relevant docs — so the agent either misses key constraints or starts optimizing for the wrong ones. When everything is "important," nothing is.</blockquote>
+
+    <p>Their solution: treat AGENTS.md as <strong>the table of contents</strong>, not the encyclopedia. Roughly 100 lines. Pointers to deeper sources of truth in a structured <code>docs/</code> directory. Progressive disclosure — the agent starts with a small, stable entry point and learns where to look next.</p>
+
+    <p>I learned this the hard way building <a href="https://code.amazon.com/reviews/CR-267392534">AGENTS.md for FeesDomainService</a> at work. The first draft was a wall of text. The agent would either ignore half of it or get confused by contradictions between sections written weeks apart. What worked: a short map with links to canonical sources. The agent navigates. It doesn't memorize.</p>
+
+    <p>The structure that works:</p>
+
+<pre><code>AGENTS.md          <span class="code-comment">// ~100 lines, the map</span>
+ARCHITECTURE.md    <span class="code-comment">// domain boundaries, dependency rules</span>
+docs/
+├── design-docs/   <span class="code-comment">// indexed, versioned, with verification status</span>
+├── exec-plans/    <span class="code-comment">// active plans, completed plans, tech debt</span>
+├── references/    <span class="code-comment">// llms.txt files for key dependencies</span>
+├── QUALITY_SCORE.md
+├── RELIABILITY.md
+└── SECURITY.md</code></pre>
+
+    <p>The key insight: <strong>anything the agent can't access in-context doesn't exist</strong>. That Slack discussion where the team aligned on an architectural pattern? If it's not in the repo, it's invisible. Same as it would be to a new hire joining three months later.</p>
+
+    <h2>The Scaffolding IS the Product</h2>
+
+    <p>Here's where it gets interesting. OpenAI's team has six skills. That's it. When something in the development loop isn't covered, their first move is to encode it in an existing skill — not create a new one. They change agent behavior more cheaply than they change human behavior.</p>
+
+    <p>I've been running <a href="/posts/sage-cli">MeshClaw</a> — my own agent harness — for two months now. The pattern is identical. The things that compound aren't the code the agents produce. It's the meta-layer:</p>
+
+    <table>
+      <thead>
+        <tr><th>Scaffolding Layer</th><th>What It Does</th><th>Why It Compounds</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Skills</strong></td><td>Reusable agent capabilities (blog-writer, web-search, qlib)</td><td>Every new skill makes all future tasks cheaper</td></tr>
+        <tr><td><strong>Memory</strong></td><td>Persistent lessons, project context, semantic facts</td><td>Agent stops repeating mistakes across sessions</td></tr>
+        <tr><td><strong>Cron jobs</strong></td><td>Scheduled autonomous work (research, monitoring, publishing)</td><td>Value accrues while you sleep</td></tr>
+        <tr><td><strong>Hooks</strong></td><td>Triggers that refresh context on code changes</td><td>Knowledge stays current without manual updates</td></tr>
+        <tr><td><strong>Linters &amp; tests</strong></td><td>Mechanical enforcement of taste</td><td>Encode once, enforce on every line forever</td></tr>
+      </tbody>
+    </table>
+
+    <p>The code the agents write? Disposable. Lopopolo said it directly: <em>"I have way less attachment to the code as it is written. If it's garbage, I can just throw it away."</em> Symphony — their Elixir-based orchestrator — has a "rework" state that completely trashes the work tree and starts from scratch. The code is ephemeral. The scaffolding is permanent.</p>
+
+    <p>This maps to something <a href="https://x.com/badlogicgames">@badlogicgames</a> (creator of libGDX, now building Pi) tweeted: <em>"My next project is the terraform of cloud agents."</em> Infrastructure for agent fleets. Not the agents themselves — the layer that manages them. The scaffolding.</p>
+
+    <h2>Ghost Libraries and the Death of Dependencies</h2>
+
+    <p>One of the wildest ideas from the podcast: <strong>ghost libraries</strong>. Instead of distributing software as packages, you distribute it as specs. A high-fidelity specification that a coding agent can reproduce locally. No dependency hell. No transitive vulnerabilities. No waiting for upstream patches.</p>
+
+    <p>Symphony itself is distributed this way. The flow:</p>
+
+    <ol>
+      <li>Agent reads the spec from the reference repo</li>
+      <li>Agent implements the spec in a fresh worktree</li>
+      <li>A second agent reviews the implementation against the spec</li>
+      <li>Loop until the implementation matches with high fidelity</li>
+    </ol>
+
+    <p>Brett Taylor (OpenAI's chairman) responded: <em>"Software dependencies are going away."</em> Lopopolo agreed — for low-to-medium complexity dependencies. Instead of pulling in a generic <code>p-limit</code> package, they have the agent reimplement exactly what they need, tightly integrated with their own telemetry, with 100% test coverage.</p>
+
+    <p>This is the end of bullshit plugins. The bloat that comes from being liberal in what you accept. When code is free, you can afford to be specific.</p>
+
+    <h2>What This Means for You</h2>
+
+    <p>You don't need OpenAI's budget or Codex access to start. The pattern is universal:</p>
+
+    <p><strong>1. Start with a map, not a manual.</strong> Your AGENTS.md should be 100 lines that point to deeper docs. If you're writing rules in AGENTS.md, you're doing it wrong — write them in dedicated files and link to them.</p>
+
+    <p><strong>2. Encode taste as lints, not docs.</strong> Documentation rots. Linters don't. When you catch an agent making a mistake, don't just fix it — write a lint rule with an error message that teaches the agent how to fix it next time. OpenAI writes custom linter error messages specifically for agent consumption.</p>
+
+    <p><strong>3. Treat every agent failure as a missing capability.</strong> The question is never "how do I prompt this better?" It's "what tool, context, or structure would make this trivially solvable?" Then build that thing.</p>
+
+    <p><strong>4. Make the build loop fast.</strong> OpenAI enforced a one-minute build time ceiling. When builds got slow, they retooled — from Make to Bazel to Turbo to NX — in a week. Because the agent doesn't have opinions about build systems. It just needs speed.</p>
+
+    <p><strong>5. Invest in the meta-layer.</strong> Skills, memory, scheduled jobs, hooks. These are the things that compound. The code they produce is disposable. The scaffolding that produces the code is your actual product.</p>
+
+    <p>We're entering an era where the best engineers don't write the most code — they build the best environments for agents to write code in. The scaffolding is the product. Everything else is tokens.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
