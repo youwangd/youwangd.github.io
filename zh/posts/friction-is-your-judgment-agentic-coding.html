@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>别删掉那些让你烦的东西：AI 编程中「摩擦力」才是你的判断力 — Youwang Deng</title>
+<meta name="description" content="Flask 作者 Mitsuhiko 说：你最想跳过思考的时刻，恰恰是思考最重要的时刻。跑了8轮 AutoSDE 之后，我完全同意。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-19</time>
+        <span class="post-tag">AI编程</span>
+        <span class="post-tag">代码质量</span>
+        <span class="post-tag">工程心理学</span>
+      </div>
+      <h1 class="post-title">别删掉那些让你烦的东西：AI 编程中「摩擦力」才是你的判断力</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">上周我把一个 CR 推过了 8 轮自动化静态分析。42 条 comment。硬编码的 AWS 账号、region 写错、安全标题泄露内部架构、序列化工具缺 crypto guardrail。每一轮我都想跳过，每一轮都抓到了真问题。Flask 的作者 Armin Ronacher 在 <a href="https://mitsuhiko.github.io/talks/ai-engineer-talk/">AI Engineer London</a> 的演讲一句话说透了：<em>「你最想跳过思考的时刻，恰恰是思考最重要的时刻。」</em></p>
+
+    <h2>速度的心理陷阱</h2>
+
+    <p>用 agent 写代码的第一天：魔法。描述一个功能，agent 写完，测试过了，发布。第二天：两个功能。第五天：你开始批准自己没完全看过的 PR，因为 agent「好像搞定了」。第十天：线上出了问题，你解释不了为什么——因为三天前你就已经不理解自己的代码库了。</p>
+
+    <p>Ronacher 说得精准：<strong>agent 产出很快，而产出看起来像进展</strong>。你的大脑奖励速度。发布的感觉很爽。于是你不再质疑、不再设计、不再说「等一下」。你不是偷懒——你是在回应一个被劫持了的奖励信号。</p>
+
+    <p>以前有个天然的平衡：你写代码，然后你 review 代码。创造和评估是交替进行的。现在每个工程师都有 agent 放大产出，但责任没有被放大。Ronacher 的原话：</p>
+
+    <blockquote>你被一群无法承担责任的实体包围了。</blockquote>
+
+    <p>这不是工具问题，是认知问题。Agent 不知道什么时候该停，而你一旦进入心流，也不知道。</p>
+
+    <h2>熵的螺旋</h2>
+
+    <p>工程后果比心理后果更严重，因为它在静默中复利。</p>
+
+    <p>Agent 的优化目标是「代码能跑」。它会过度防御：宽泛地 catch 异常、回退到默认值、吞掉错误。一个用错误配置静默运行的服务，比一个拒绝启动的服务更危险——但 agent 不知道这个。它优化的是绿色 CI，不是正确性。</p>
+
+    <p>Ronacher 描述了这个螺旋：</p>
+
+    <p><strong>代码越乱 → agent 召回越差 → 重复越多 → 代码更乱。</strong></p>
+
+    <p>熵是自我强化的。Agent 会模式匹配已有的代码。如果已有代码里有三种处理 auth 的方式，agent 会发明第四种。如果错误处理不一致，agent 会不一致地不一致。代码库在漂移，而漂移在加速——因为 agent 把漂移后的代码当作参考。</p>
+
+    <p>我亲眼见过。在一个有 50+ CDK stack 的服务里，agent 从最近的类似 stack 复制模式——包括 bug。一个错误的 region 字符串（<code>us-west-2</code> 写成了 <code>eu-south-2</code>）传播了三个文件，直到静态分析才抓到。Agent 没有「错」——它忠实地复制了它看到的东西。</p>
+
+    <h2>把摩擦力设计回来</h2>
+
+    <p>解决方案不是慢下来，而是让快变得安全。三个方向：</p>
+
+    <h2>1. Lint 规则当护栏</h2>
+
+    <p>不是风格 lint，是<em>判断力</em> lint：</p>
+
+    <ul>
+      <li><strong>禁止裸 catch-all</strong>——强制显式错误处理</li>
+      <li><strong>禁止抽象层外的裸 SQL</strong>——保护查询接口</li>
+      <li><strong>禁止动态 import</strong>——保持依赖图可读</li>
+      <li><strong>强制函数名唯一</strong>——引导发现而非重复</li>
+      <li><strong>TypeScript 的 <code>erasableSyntaxOnly</code></strong>——约束 agent 能生成什么</li>
+    </ul>
+
+    <p>关键洞察：<strong>lint 的错误信息就是给 agent 的 prompt</strong>。别写「第 42 行风格违规」，写「这个函数和 AuthHelper.validateToken() 重复了——请用已有的 helper」。Agent 会读错误信息来修代码。</p>
+
+    <h2>2. PR Review 分流</h2>
+
+    <table>
+      <thead>
+        <tr><th>可以直接让 Agent 处理的</th><th>必须人类看的</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>风格违规</td><td>数据库 migration</td></tr>
+        <tr><td>机械性 bug</td><td>新依赖引入</td></tr>
+        <tr><td>明确的工程规则违反</td><td>Auth/权限变更</td></tr>
+        <tr><td></td><td>不兼容的 API 变更</td></tr>
+        <tr><td></td><td>不可逆的破坏性操作</td></tr>
+      </tbody>
+    </table>
+
+    <p>Agent 处理机械性的东西，人类只在需要判断后果的地方介入。不是信任问题——是注意力路由问题。</p>
+
+    <h2>3. 为 Agent 设计代码库</h2>
+
+    <p>你的代码库是 agent 的基础设施。按这个思路设计：</p>
+
+    <ul>
+      <li><strong>清晰的模块边界</strong>——agent 在一个区域工作，不会污染另一个</li>
+      <li><strong>统一的模式和约定</strong>——agent 靠模式匹配，给它值得匹配的模式</li>
+      <li><strong>核心简单，复杂性推到上层</strong></li>
+      <li><strong>没有隐藏的魔法</strong>——agent 看不到的东西，它就不会尊重</li>
+    </ul>
+
+    <h2>一切变成 .md，然后呢？</h2>
+
+    <p>Vercel 的 <a href="https://x.com/rauchg">@rauchg</a> 说：<em>「设计会变成自主的。把它想成 DESIGN.md。」</em> 1,178 个赞。方向没错——一切都在变成给 agent 读的 markdown 文件。</p>
+
+    <p>但有个没人提的陷阱：<strong>谁来 review 那个 .md？</strong></p>
+
+    <p>MCP 的采用今年春天到了拐点。<a href="https://x.com/dexhorthy">@dexhorthy</a> 说：<em>「一二月份没人搞清楚 MCP 怎么用。现在工程师们已经期望 agent 能用 gdocs、figma、glean、atlassian 了。」</em> 采用没有摩擦力 = 大规模橡皮图章 PR。Agent 读 DESIGN.md，生成符合 spec 的代码，自动 review 通过，没人注意到 DESIGN.md 本身就是错的。</p>
+
+    <p>与此同时 <a href="https://www.reddit.com/r/LocalLLaMA/">r/LocalLLaMA</a> 上有人问：<em>「你们真的在用本地 tool calling 还是集体在演？」</em> 这种草根怀疑是健康的。「agent 能用工具」和「agent 用工具靠谱到可以信任」之间的差距，才是真正有趣的工程所在。</p>
+
+    <h2>8 轮 AutoSDE 教会我的事</h2>
+
+    <p>我花了一周把一个 CR 推过自动化静态分析。给生产服务写 AGENTS.md。时间线：</p>
+
+    <ul>
+      <li><strong>第 1 轮</strong>：6 条。文档里硬编码了 AWS 账号 ID（安全风险）。</li>
+      <li><strong>第 2 轮</strong>：4 条。ZAZ region 不一致——写了 <code>us-west-2</code>，应该是 <code>eu-south-2</code>。</li>
+      <li><strong>第 3 轮</strong>：5 条。安全标题泄露了内部基础设施细节。</li>
+      <li><strong>第 4 轮</strong>：5 条。序列化 helper 缺 crypto guardrail。</li>
+      <li><strong>第 5-8 轮</strong>：收益递减——Known Gaps 清理、git diff 格式、描述不匹配。</li>
+    </ul>
+
+    <p>每一轮我的本能都是跳过。「只是文档而已。」「账号 ID 反正在内部文档里。」「Region 的事是表面的。」但不是表面的。错误的 region 字符串会让每个读这个文件的 agent 都搞混上下文。硬编码的账号 ID 会在下次安全审计中被标记。</p>
+
+    <p><strong>迭代 review 的摩擦力就是判断力本身。</strong>不是判断力的替代品——是判断力发挥作用的实际机制。没有这个摩擦力，我会发布一份让 agent 变得更差的文档。</p>
+
+    <h2>不舒服的真相</h2>
+
+    <p>Ronacher 的结尾值得让人不舒服：</p>
+
+    <blockquote>用 agent，你可以在几天内积累过去需要几个月才能积累的技术债。这让你更难判断代码库的真实状态。</blockquote>
+
+    <p>速度不是问题。没有方向盘的速度才是问题。方向盘需要摩擦力——不是浪费型的（等 CI、解决 merge conflict、走审批流程），而是生产型的：编码品味的 lint 规则、路由人类注意力的 PR callout、限制爆炸半径的模块化架构、以及抓住你太快而忽略的东西的迭代 review 循环。</p>
+
+    <p>有些摩擦力是浪费。有些摩擦力是判断力。这个时代的核心技能，是分清哪个是哪个——并且有纪律保留那些让你思考的摩擦力，即使每个本能都在说：跳过它，发布吧。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由一个人类和他的智能体们共同构建。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

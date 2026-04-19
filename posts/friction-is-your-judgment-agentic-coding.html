@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Friction Is Your Judgment: Why Agentic Speed Without Steering Produces Invisible Debt — Youwang Deng</title>
+<meta name="description" content="Mitsuhiko argues the moments you want to skip thinking are exactly when thinking matters most. After 8 rounds of AutoSDE on one CR, I agree — friction is judgment.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-19</time>
+        <span class="post-tag">agentic-coding</span>
+        <span class="post-tag">developer-experience</span>
+        <span class="post-tag">code-quality</span>
+      </div>
+      <h1 class="post-title">The Friction Is Your Judgment: Why Agentic Speed Without Steering Produces Invisible Debt</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">Last week I pushed a CR through 8 rounds of automated static analysis. 42 comments. Hardcoded account IDs, region inconsistencies, security heading leaks, missing crypto guardrails. Every round, I wanted to skip the review and just ship. Every round, the friction caught something real. Armin Ronacher — the creator of Flask — gave a <a href="https://mitsuhiko.github.io/talks/ai-engineer-talk/">talk at AI Engineer London</a> that crystallized why that friction matters: <em>"The moments where you want to skip thinking are exactly the moments where thinking matters most."</em></p>
+
+    <h2>The Psychology Trap</h2>
+
+    <p>Here's what actually happens when you start coding with agents. Day one: magic. You describe a feature, the agent writes it, tests pass, you ship. Day two: you describe two features. Day five: you're approving PRs you haven't fully read because the agent "seems to get it." Day ten: something breaks in production and you can't explain why, because you stopped understanding your own codebase three days ago.</p>
+
+    <p>Ronacher nails the mechanism: <strong>agents produce output fast, and output feels like progress</strong>. Your brain rewards velocity. Shipping feels good. So you stop questioning, stop designing, stop saying "wait." You're not lazy — you're responding to a reward signal that's been hijacked.</p>
+
+    <p>The old balance was natural. You wrote code, then you reviewed code. Creation and evaluation were interleaved. Now every engineer has an agent amplifying their output, but responsibility hasn't been amplified. As Ronacher puts it:</p>
+
+    <blockquote>You are outnumbered by entities that cannot carry responsibility.</blockquote>
+
+    <p>This isn't a tooling problem. It's a cognitive one. The agent doesn't know when to stop, and once you're in the flow, neither do you.</p>
+
+    <h2>The Entropy Spiral</h2>
+
+    <p>The engineering consequence is worse than the psychological one, because it compounds silently.</p>
+
+    <p>Agents are optimized to produce code that runs. They over-protect locally: catching exceptions broadly, falling back to defaults, swallowing errors. A service silently running with wrong config is worse than a service that refuses to start — but the agent doesn't know that. It optimizes for green CI, not for correctness.</p>
+
+    <p>Ronacher describes the spiral:</p>
+
+    <p><strong>Messier codebase → worse agent recall → more duplication → more mess.</strong></p>
+
+    <p>Entropy is self-reinforcing. The agent pattern-matches against what's already there. If what's already there is three different ways to handle auth, the agent will invent a fourth. If error handling is inconsistent, the agent will be inconsistently inconsistent. The codebase drifts, and the drift accelerates because the agent uses the drifted code as its reference.</p>
+
+    <p>I've seen this firsthand. On a service with 50+ CDK stacks, the agent would copy patterns from the nearest similar stack — including bugs. A wrong region string (<code>us-west-2</code> instead of <code>eu-south-2</code>) propagated through three files before static analysis caught it. The agent wasn't wrong per se — it was faithfully reproducing what it saw.</p>
+
+    <h2>Designing Friction Back In</h2>
+
+    <p>The fix isn't slowing down. It's making speed safe. Ronacher and Poncela propose three categories of mechanical friction:</p>
+
+    <h2>1. Lint Rules as Guardrails</h2>
+
+    <p>Not style lints. <em>Judgment</em> lints. Rules that force the agent (and you) to think:</p>
+
+    <ul>
+      <li><strong>No bare catch-alls</strong> — forces explicit error handling instead of swallowing failures</li>
+      <li><strong>No raw SQL outside the abstraction layer</strong> — preserves the query interface</li>
+      <li><strong>No dynamic imports</strong> — keeps the dependency graph legible</li>
+      <li><strong>Unique function names enforced</strong> — nudges toward discovery over duplication</li>
+      <li><strong><code>erasableSyntaxOnly</code> in TypeScript</strong> — constrains what the agent can generate</li>
+    </ul>
+
+    <p>The key insight: <strong>lint error messages are agent prompts</strong>. When a lint rule fires, the agent reads the error message and uses it to fix the code. Write your lint messages for agent consumption. Not "style violation on line 42" but "this function duplicates AuthHelper.validateToken() — use the existing helper instead."</p>
+
+    <h2>2. PR Review Splitting</h2>
+
+    <p>Not all review is equal. Ronacher splits it cleanly:</p>
+
+    <table>
+      <thead>
+        <tr><th>Immediately Actionable → Agent</th><th>Call-outs → Human</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Style violations</td><td>Database migrations</td></tr>
+        <tr><td>Mechanical bugs</td><td>New dependencies</td></tr>
+        <tr><td>Clear engineering rule breaks</td><td>Auth/permissions changes</td></tr>
+        <tr><td></td><td>Backwards-incompatible API changes</td></tr>
+        <tr><td></td><td>Irreversible destructive operations</td></tr>
+      </tbody>
+    </table>
+
+    <p>The agent handles the mechanical stuff. The human gets pulled in only for decisions that require judgment about consequences the agent can't model. This isn't about trust — it's about routing attention to where it has the highest leverage.</p>
+
+    <h2>3. Agent-Legible Codebases</h2>
+
+    <p>Your codebase is infrastructure for the agent. Design it that way:</p>
+
+    <ul>
+      <li><strong>Modularization with clear boundaries</strong> — agents work in one area without corrupting another</li>
+      <li><strong>Known patterns and conventions</strong> — agents pattern-match; give them patterns worth matching</li>
+      <li><strong>Simple core, complexity pushed to layers above</strong></li>
+      <li><strong>No hidden magic</strong> — if the agent can't see it, it can't respect it</li>
+    </ul>
+
+    <p>Ronacher identifies where agents excel (compact API surface, tight constraints, stable core) versus where they struggle (interacting concerns like flags + permissions + billing, features that span multiple files, context that doesn't fit in one window). The implication: <strong>refactor your codebase to maximize the first category and minimize the second</strong>.</p>
+
+    <h2>The .md Future and Its Trap</h2>
+
+    <p>Guillermo Rauch (<a href="https://x.com/rauchg">@rauchg</a>) tweeted: <em>"Design will become autonomous. Think of it as DESIGN.md."</em> 1,178 likes. The vision: everything becomes markdown files for agents. AGENTS.md, DESIGN.md, ARCHITECTURE.md, QUALITY_SCORE.md.</p>
+
+    <p>He's right about the direction. But there's a trap nobody's talking about: <strong>who reviews the .md?</strong></p>
+
+    <p>MCP adoption hit an inflection point this spring. As <a href="https://x.com/dexhorthy">@dexhorthy</a> noted: <em>"In Jan/Feb nobody had their MCP story sorted out. Since then engineers expect agents to use gdocs, figma, glean, atlassian."</em> Adoption without friction means rubber-stamped PRs at scale. The agent reads DESIGN.md, generates code that matches the spec, the PR passes automated review, and nobody notices that DESIGN.md itself was wrong.</p>
+
+    <p>Meanwhile, on <a href="https://www.reddit.com/r/LocalLLaMA/">r/LocalLLaMA</a>, someone asked: <em>"Are you guys actually using local tool calling or is it a collective prank?"</em> The grassroots skepticism is healthy. The gap between "agents can use tools" and "agents use tools reliably enough to trust" is where all the interesting engineering lives.</p>
+
+    <h2>What 8 Rounds of AutoSDE Taught Me</h2>
+
+    <p>I spent a week pushing <a href="https://code.amazon.com/reviews/CR-267392534">CR-267392534</a> through automated static analysis. AGENTS.md for a production service. Here's the timeline:</p>
+
+    <ul>
+      <li><strong>Round 1</strong>: 6 comments. Hardcoded AWS account IDs in documentation (security risk).</li>
+      <li><strong>Round 2</strong>: 4 comments. ZAZ region inconsistency — <code>us-west-2</code> where it should be <code>eu-south-2</code>.</li>
+      <li><strong>Round 3</strong>: 5 comments. Security heading leaking internal infrastructure details.</li>
+      <li><strong>Round 4</strong>: 5 comments. Missing crypto guardrails for serialization helpers.</li>
+      <li><strong>Rounds 5-8</strong>: Diminishing returns — Known Gaps cleanup, git diff formatting, description mismatches.</li>
+    </ul>
+
+    <p>Every single round, my instinct was to skip it. "It's just docs." "The account IDs are in internal docs anyway." "The region thing is cosmetic." But it wasn't cosmetic. The wrong region string would have confused every agent that read that file for context. The hardcoded account IDs would have been a security finding in the next audit.</p>
+
+    <p><strong>The friction of iterative review IS the judgment.</strong> Not a substitute for judgment — the actual mechanism by which judgment gets applied. Without the friction, I would have shipped a document that actively made agents worse at their jobs.</p>
+
+    <h2>The Uncomfortable Truth</h2>
+
+    <p>Ronacher closes with something that deserves to be uncomfortable:</p>
+
+    <blockquote>With agents, you can accumulate in days the debt that used to take months. That makes it much harder to judge the actual state of the codebase.</blockquote>
+
+    <p>Speed is not the problem. Speed without steering is the problem. And steering requires friction — not the wasteful kind (waiting for CI, fighting merge conflicts, navigating bureaucratic review processes), but the productive kind: lint rules that encode taste, PR callouts that route human attention, modular architectures that limit blast radius, and iterative review loops that catch what you're too fast to notice.</p>
+
+    <p>Some friction is waste. Some friction is judgment. The skill of this era is knowing which is which — and having the discipline to keep the friction that makes you think, even when every instinct says skip it and ship.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
