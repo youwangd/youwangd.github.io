@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Accidentally Shipped the Best Agent Coding Language — Youwang Deng</title>
+<meta name="description" content="Hashimoto says go doc and gopls are agent superpowers. He's not praising Go — he's describing a 2012-era language whose boring tooling is accidentally the best interface for LLMs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-21</time>
+        <span class="post-tag">agentic-coding</span>
+        <span class="post-tag">golang</span>
+        <span class="post-tag">developer-tooling</span>
+      </div>
+      <h1 class="post-title">Go Accidentally Shipped the Best Agent Coding Language — Here's Why</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">On Monday, Mitchell Hashimoto — the guy who built HashiCorp's entire product line and then spent three years evangelizing Zig — tweeted that he's <em>writing Go again</em>, and that <code>go doc</code> and <code>gopls</code> are "agent superpowers." 2,398 likes. The quiet part: he's not praising Go. He's describing a language whose 2012-era design decisions happen to be the exact interface an LLM agent needs. Nobody planned this. That's what makes it interesting.</p>
+
+      <h2>The 2,398-Like Tweet</h2>
+
+      <p>Here's the text, verbatim:</p>
+
+      <blockquote>"I'm writing Go again... <code>go doc</code> and <code>gopls</code> are like agent superpowers and its shocking how productive agents are out of the box at writing good Go code versus other languages I've used (including the JS ecosystem). Also, Go + Zig is a good mix." — <a href="https://x.com/mitchellh/status/2046319366489407803" target="_blank">@mitchellh, 2026-04-21</a></p>
+
+      <p>Read that carefully. Hashimoto isn't saying Go is a good language — he already knew that. He's saying <strong>agents are shockingly productive at writing Go without any special setup</strong>. Out of the box. Compared to JS, which has an order of magnitude more training data, more libraries, more Stack Overflow answers. The surprise isn't Go's quality. It's the delta.</p>
+
+      <p>I went and looked at his <a href="https://github.com/mitchellh/go-libghostty/tree/main/.agents/skills" target="_blank">go-libghostty repo</a> to see what he's actually doing. There are two custom agent skills in <code>.agents/skills/</code>: <code>discovering-upstream-apis</code> and <code>upstream-api-feedback</code>. Both are built around querying Go's tooling. Not prompt engineering. Not RAG. Just teaching the agent which <code>go</code> subcommand answers which question.</p>
+
+      <h2>What Agents Actually Do All Day</h2>
+
+      <p>Forget benchmarks for a second. Watch an agent edit a real codebase. Its inner loop, every single turn, looks like this:</p>
+
+      <ol>
+        <li>Find the function I'm supposed to change.</li>
+        <li>Read its signature and docstring — what does it promise?</li>
+        <li>Find its callers — what will I break?</li>
+        <li>Edit.</li>
+        <li>Verify it still compiles.</li>
+        <li>Run the relevant tests.</li>
+      </ol>
+
+      <p>That's six queries. Each one has to resolve against the codebase in a way the agent can consume. The question isn't "does the language have great tooling" — every serious language has tooling. The question is: <strong>can a naive agent, with no setup, get the answer from one CLI command?</strong></p>
+
+      <p>Rank them honestly:</p>
+
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Go</th><th>Python</th><th>TypeScript</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Find the function</td><td><code>gopls symbol</code></td><td>grep + guess</td><td><code>tsc</code> + LSP</td></tr>
+          <tr><td>Read its contract</td><td><code>go doc pkg.Fn</code></td><td><code>pydoc</code> (if docstring exists)</td><td>hover in editor</td></tr>
+          <tr><td>Find callers</td><td><code>gopls call-hierarchy</code></td><td>grep, pray</td><td>tsserver (if lucky)</td></tr>
+          <tr><td>Compile check</td><td><code>go build ./...</code></td><td>— (no compile step)</td><td><code>tsc --noEmit</code></td></tr>
+          <tr><td>Static analysis</td><td><code>go vet ./...</code></td><td>mypy? pyright? ruff? all 3?</td><td><code>tsc</code> covers it</td></tr>
+          <tr><td>Run tests</td><td><code>go test ./...</code></td><td>pytest, unittest, nose, or tox?</td><td>jest, vitest, node:test?</td></tr>
+        </tbody>
+      </table>
+
+      <p>Six operations. Go answers each with one canonical command, shipped in the language toolchain, zero config. Python — the language with the most AI libraries — requires the agent to first <em>guess which linter this project uses</em> before it can even lint.</p>
+
+      <h2>The 2012 Design Decisions Paying Off in 2026</h2>
+
+      <p>Rob Pike and Ken Thompson weren't thinking about LLMs in 2012. They were thinking about Google-scale monorepos and new-hire onboarding. But the decisions they made — boring, almost religiously boring — turned out to be what a context-starved agent needs:</p>
+
+      <ul>
+        <li><strong>One way to format code.</strong> <code>gofmt</code> is mandatory and non-configurable. An agent never has to infer style. Style doesn't exist as a decision.</li>
+        <li><strong>Docs are first-class.</strong> Godoc comments live above the function. <code>go doc</code> reads them. There's no "did the team use Sphinx or MkDocs or nothing?"</li>
+        <li><strong>One build command.</strong> <code>go build</code>. Not make, not cmake, not <code>./gradlew --refresh-dependencies clean build -x test</code>.</li>
+        <li><strong>Flat, discoverable stdlib.</strong> 150 packages, each answering an obvious question. <code>net/http</code>, not <code>@tanstack/router-react-async-experimental</code>.</li>
+        <li><strong>Errors as values.</strong> The agent <em>sees</em> the error path because it's in the return signature. No hidden control flow through try/except.</li>
+      </ul>
+
+      <p>Every one of these was a trade-off against expressiveness. Every one of them makes the code <em>boring to read and easy to machine-inspect</em>. That was an aesthetic choice in 2012. It's an alignment choice in 2026.</p>
+
+      <h2>The Python Counter-Argument (and Why It's Weaker Than It Looks)</h2>
+
+      <p>The obvious objection: "But agents are trained on Python. More Python = more competent on Python." True, but this is a one-time advantage. Training data is a fixed cost. Tooling legibility is a <em>per-query</em> cost. Every time your agent re-enters the codebase, it pays again.</p>
+
+      <p>I live this at work. SageCLI is Python + shell. Our production monorepo has a Kotlin CDK package. When I ask an agent to modify a Python function, it reads 3–5 files hunting the call graph. When I ask it to modify the Kotlin CDK, <code>gradle dependencies</code> plus explicit imports let it work from one file. The Python agent burns 40K tokens exploring. The Kotlin agent burns 8K and ships.</p>
+
+      <p>Armin Ronacher — the guy who wrote Flask — made a <a href="https://newsletter.pragmaticengineer.com/p/python-go-rust-typescript-and-ai" target="_blank">similar argument on Pragmatic Engineer last October</a>: the production AI stack is bifurcating. TypeScript and Rust/Go for the infrastructure (agents, runtimes, protocols), Python stays on the library bench. And look at what's shipping. Cloudflare's agent SDK? Go. Anthropic's <code>mcp-go</code>? Go. HashiCorp's entire line? Go. The <a href="https://modelcontextprotocol.io" target="_blank">MCP spec</a> now has ten official SDKs — Go is tier one alongside Python and TypeScript.</p>
+
+      <p>DHH disagrees, loudly. His <a href="https://x.com/dhh" target="_blank">tweet from 04-20</a> (652 likes): "AI models are still not good enough to one-shot implementations you'd want to merge to master on large, critical applications." He's right — and also missing the point. Nobody's one-shotting. The argument is about the iterative inner loop, not the final artifact. Ruby's problem isn't that it's a bad language. It's that <code>bundle</code> and <code>rails</code> and <code>rspec</code> and <code>rubocop</code> and <code>sorbet</code> are five separate tools with five separate config surfaces. An agent has to learn each project's dialect before it can even start.</p>
+
+      <h2>What to Build If Your Language Isn't Go</h2>
+
+      <p>Most of us don't get to pick the language. I don't. SageCLI is Python because SageCLI has to run where the user's Python already runs. So what do you do?</p>
+
+      <p>Build the meta-command your language didn't ship with. Specifically:</p>
+
+      <ol>
+        <li><strong>One <code>project doctor</code> command</strong> that aggregates format, lint, type-check, and test into a single agent-queryable output. Make it a Makefile target, a <code>just</code> recipe, whatever — just make it one command with stable output.</li>
+        <li><strong>One canonical dep-graph query.</strong> If your agent has to choose between <code>pipdeptree</code>, <code>uv tree</code>, <code>poetry show --tree</code>, you've already lost. Pick one, alias it, document it.</li>
+        <li><strong>AGENTS.md that points to these commands.</strong> Not a prose description of your codebase. A <em>command reference</em> the agent can grep.</li>
+      </ol>
+
+      <p>I spent the last week doing exactly this on a Kotlin CDK package at work. Wrote <code>AGENTS.md</code>, ran it through eight rounds of AutoSDE static analysis, accumulated 40+ comments, fixed every one. The content of that document matters less than what the process did: it forced the codebase to become <strong>agent-queryable</strong>. Every "the agent can't figure this out" was a signal that a human couldn't either, given only the CLI.</p>
+
+      <p>That's the lesson hiding inside Hashimoto's tweet. Go didn't win because Rob Pike predicted LLMs. Go won because he hated ambiguity, and an LLM is the ultimate stress test for ambiguity. The language that makes the fewest choices for you — and exposes the choices it does make through a clean CLI — is the language your agent will feel "shockingly productive" in.</p>
+
+      <p>The rest of us just have to build the CLI ourselves.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

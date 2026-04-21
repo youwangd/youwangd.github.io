@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 写 Go 比写 Python 还猛 — Youwang Deng</title>
+<meta name="description" content="Hashimoto 说 go doc 和 gopls 是 agent 的超能力。他不是在夸 Go——他是在描述一门 2012 年设计的语言，它那套'无聊到极致'的工具链，恰好是 LLM 最需要的接口。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-21</time>
+        <span class="post-tag">AI编程</span>
+        <span class="post-tag">Go语言</span>
+        <span class="post-tag">开发工具</span>
+      </div>
+      <h1 class="post-title">Agent 写 Go 比写 Python 还猛，是因为 Go 早在 2012 年就"预埋"了 AI 需要的东西</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">周一 Mitchell Hashimoto——就是那个一手搞出 HashiCorp 全线产品、这几年满世界安利 Zig 的人——发了条推特：他<em>又开始写 Go 了</em>，而且说 <code>go doc</code> 和 <code>gopls</code> 是 agent 的"超能力"。2398 个赞。推文背后真正有意思的一句没说出来：<strong>他不是在夸 Go，他是在描述一门 2012 年设计的老语言，它那套设计决策恰好就是 LLM 写代码时最需要的接口</strong>。没人计划过这件事。所以才值得聊。</p>
+
+      <h2>那条 2398 赞的推特</h2>
+
+      <p>原文照抄：</p>
+
+      <blockquote>"我又开始写 Go 了……<code>go doc</code> 和 <code>gopls</code> 简直是 agent 的超能力。开箱即用的情况下，agent 写 Go 的生产力高得离谱——比我用过的其他语言（包括整个 JS 生态）都猛。另外 Go + Zig 是很好的搭配。" — <a href="https://x.com/mitchellh/status/2046319366489407803" target="_blank">@mitchellh, 2026-04-21</a></p>
+
+      <p>仔细读一下。Hashimoto 不是在说 Go 是门好语言——这个他早就知道。他是在说：<strong>agent 在 Go 上的表现好到让他自己都吃惊，而且是零配置、开箱即用</strong>。对比对象是 JS——训练数据多了一个数量级、库多、Stack Overflow 答案多。让他惊讶的不是 Go 的质量，是这个<em>差距</em>。</p>
+
+      <p>我点进他那个 <a href="https://github.com/mitchellh/go-libghostty/tree/main/.agents/skills" target="_blank">go-libghostty</a> 仓库看了下他到底怎么搞的。<code>.agents/skills/</code> 里有两个自定义 skill：<code>discovering-upstream-apis</code> 和 <code>upstream-api-feedback</code>。两个都是围绕"怎么查 Go 的工具链"写的。没有 prompt engineering，没有 RAG，就是告诉 agent：哪个 <code>go</code> 子命令回答哪个问题。</p>
+
+      <h2>agent 一整天到底在干什么</h2>
+
+      <p>先把 benchmark 分数放一边。你盯着一个 agent 改真实代码库的时候，它的内循环每一轮都长这样：</p>
+
+      <ol>
+        <li>找到要改的函数。</li>
+        <li>看函数签名和文档——它承诺的是什么？</li>
+        <li>找所有调用方——我改了会破坏什么？</li>
+        <li>改。</li>
+        <li>确认还能编译。</li>
+        <li>跑相关测试。</li>
+      </ol>
+
+      <p>六次查询。每次查询都得以 agent 能消化的形式返回结果。重点问题不是"这门语言工具链强不强"——但凡正经语言都有工具链。重点问题是：<strong>一个没做任何配置的 agent，能不能用<em>一条 CLI 命令</em>就拿到答案？</strong></p>
+
+      <p>老实排一下：</p>
+
+      <table>
+        <thead>
+          <tr><th>步骤</th><th>Go</th><th>Python</th><th>TypeScript</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>找函数</td><td><code>gopls symbol</code></td><td>grep + 猜</td><td><code>tsc</code> + LSP</td></tr>
+          <tr><td>看契约</td><td><code>go doc pkg.Fn</code></td><td><code>pydoc</code>（如果有 docstring）</td><td>编辑器 hover</td></tr>
+          <tr><td>找调用方</td><td><code>gopls call-hierarchy</code></td><td>grep，祈祷</td><td>tsserver（看运气）</td></tr>
+          <tr><td>编译检查</td><td><code>go build ./...</code></td><td>—（没有编译步骤）</td><td><code>tsc --noEmit</code></td></tr>
+          <tr><td>静态分析</td><td><code>go vet ./...</code></td><td>mypy？pyright？ruff？三个都要跑？</td><td><code>tsc</code> 覆盖掉</td></tr>
+          <tr><td>跑测试</td><td><code>go test ./...</code></td><td>pytest、unittest、nose、还是 tox？</td><td>jest、vitest、还是 node:test？</td></tr>
+        </tbody>
+      </table>
+
+      <p>六个操作。Go 每一个都是一条<em>标准命令</em>，随语言工具链自带，零配置。而 Python——AI 库最多的那门语言——agent 要先<em>猜出这个项目用的是哪个 linter</em>，才能开始 lint。</p>
+
+      <h2>2012 年的设计决策，2026 年开始收租</h2>
+
+      <p>Rob Pike 和 Ken Thompson 在 2012 年根本没想过 LLM。他们想的是 Google 那种巨型单体仓库，还有怎么让新员工快速上手。但他们做的那些决策——无聊得近乎强迫症——恰好就是一个"上下文极度匮乏"的 agent 需要的东西：</p>
+
+      <ul>
+        <li><strong>代码格式只有一种。</strong> <code>gofmt</code> 是强制的，不可配置。agent 根本不需要推断代码风格——因为"风格"这个决策点根本不存在。</li>
+        <li><strong>文档是一等公民。</strong> Godoc 注释就写在函数上面，<code>go doc</code> 直接读。不存在"这个团队用的是 Sphinx 还是 MkDocs 还是啥都没用"这种问题。</li>
+        <li><strong>一条命令构建。</strong> <code>go build</code>。不是 make，不是 cmake，不是 <code>./gradlew --refresh-dependencies clean build -x test</code>。</li>
+        <li><strong>stdlib 扁平、好发现。</strong> 150 个包，每个包解决一个显而易见的问题。<code>net/http</code>，而不是 <code>@tanstack/router-react-async-experimental</code>。</li>
+        <li><strong>错误作为返回值。</strong> agent 能<em>看见</em>错误路径，因为它就在函数签名里。没有 try/except 那种隐藏的控制流。</li>
+      </ul>
+
+      <p>这些决策在 2012 年都是在牺牲表达力。每一条都让代码<em>读起来无聊、但机器看起来清晰</em>。当年是审美选择，现在是对齐选择。</p>
+
+      <h2>Python 的反驳，以及为什么没看起来那么站得住脚</h2>
+
+      <p>最明显的反驳：agent 是在 Python 上训练的，Python 多 = agent 写 Python 厉害。这话没错，但这是<em>一次性优势</em>。训练数据是固定成本。工具链的"机器可读性"是<em>每次查询</em>都要付的成本。你的 agent 每次重新进入代码库，都要再付一次。</p>
+
+      <p>这事我在工作里天天体验。SageCLI 是 Python + shell。公司的生产 monorepo 里有个 Kotlin CDK 包。我让 agent 改 Python 函数的时候，它要读 3-5 个文件才能拼出调用图。我让它改 Kotlin CDK 的时候，<code>gradle dependencies</code> 加上 Kotlin 显式的 import 声明，让它只读一个文件就能干活。Python 那边的 agent 烧 4 万 token 探索，Kotlin 这边 8 千 token 就发 PR 了。</p>
+
+      <p>Armin Ronacher——写 Flask 那位——去年十月在 <a href="https://newsletter.pragmaticengineer.com/p/python-go-rust-typescript-and-ai" target="_blank">Pragmatic Engineer 上也提过类似观点</a>：生产级 AI 栈正在分叉。TypeScript 和 Rust/Go 负责基础设施（agent、runtime、协议），Python 被推回到"库板凳"的位置。看看现在在发车的东西：Cloudflare 的 agent SDK？Go。Anthropic 的 <code>mcp-go</code>？Go。HashiCorp 全线？Go。<a href="https://modelcontextprotocol.io" target="_blank">MCP 协议</a>现在有十个官方 SDK——Go 和 Python、TypeScript 一起在第一梯队。</p>
+
+      <p>DHH 当然不同意。他 <a href="https://x.com/dhh" target="_blank">4-20 那条推特</a>（652 赞）说："AI 模型还没好到能在大型关键应用上一发入魂生成可以合并到 master 的代码。"他说得没错，也没说到点子上。没人在搞"一发入魂"。我们讨论的是<em>迭代的内循环</em>，不是最终产物。Ruby 的问题不是语言差，而是 <code>bundle</code>、<code>rails</code>、<code>rspec</code>、<code>rubocop</code>、<code>sorbet</code>——五个独立工具五套配置。agent 得先学会这个项目的"方言"才能开工。</p>
+
+      <h2>如果你用的语言不是 Go，该怎么办？</h2>
+
+      <p>我们大多数人没得选语言。我就没得选。SageCLI 必须是 Python，因为它得跑在用户已经有 Python 的地方。那怎么办？</p>
+
+      <p>自己造那条语言没给你造的"元命令"。具体来说：</p>
+
+      <ol>
+        <li><strong>一条 <code>project doctor</code> 命令</strong>，把 format、lint、类型检查、测试全部聚合进去，输出成 agent 能查的单一格式。Makefile target、<code>just</code> recipe，什么都行——只要是<em>一条命令，输出稳定</em>。</li>
+        <li><strong>一个标准依赖图查询。</strong> 如果 agent 要在 <code>pipdeptree</code>、<code>uv tree</code>、<code>poetry show --tree</code> 之间做选择，你就已经输了。挑一个，起别名，写文档。</li>
+        <li><strong>AGENTS.md 指向这些命令。</strong> 不要写成散文式的"代码库介绍"。要写成一份<em>命令手册</em>，agent 能 grep 的那种。</li>
+      </ol>
+
+      <p>上周我在公司一个 Kotlin CDK 包上就是这么干的。写了 <code>AGENTS.md</code>，跑了 8 轮 AutoSDE 静态分析，累计 40+ 条 comment，一条一条都改了。那份文档的<em>内容</em>没那么重要——这个过程本身才重要：它逼着代码库变得<strong>可被 agent 查询</strong>。每一条"agent 搞不清楚"的 comment 背后，都是一个"光靠 CLI 一个人类也搞不清楚"的信号。</p>
+
+      <p>这就是 Hashimoto 那条推特里藏着的道理。Go 赢不是因为 Rob Pike 预见到了 LLM。Go 赢是因为他讨厌歧义，而 LLM 正好是对歧义最极端的压力测试。那门"替你做最少决策、而且把做过的决策用干净的 CLI 暴露出来"的语言，就是你的 agent 感觉"生产力离谱地高"的那门语言。</p>
+
+      <p>剩下的人——我们这些没赶上 2012 年设计决策的人——就得自己造这条 CLI 了。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由一个人类和他的 agents 共建 · <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
