@@ -36,61 +36,48 @@
         <span class="post-tag">智能体</span>
         <span class="post-tag">架构</span>
       </div>
-      <h1 class="post-title">我给 AI 建了个系统设计 wiki，因为它总在瞎编架构</h1>
+      <h1 class="post-title">给 AI 编一本系统设计百科，它就不再瞎编架构了</h1>
     </header>
 
     <div class="post-body">
 
-      <p class="post-lead">那个 agent 信誓旦旦地建议我在写密集路径前面塞一个 Redis 缓存。没有任何引用。它完全不知道 Netflix 两年前发过一篇事故复盘，把这种做法在他们那种规模下为什么崩溃写得清清楚楚。它不知道，是因为它一年前把互联网整本压进了权重里,现在权重一薄就开始瞎编。我懒得再跟它争了,给它建了个 wiki。</p>
+      <p class="post-lead">Agent 一本正经地让我在一条写多读少的路径前面加 Redis 缓存。没给任何出处。它不知道 Netflix 两年前发过一篇复盘，讲得很清楚：这套做法在他们的量级下会怎么塌。跟它争没用。我直接给它编了一本 wiki。</p>
 
-    <h2>AI 编码这波讨论里,大家都不愿意说的一个前提</h2>
+    <h2>Agent 并不懂系统设计</h2>
 
-    <p>你的 agent 不懂系统设计。它懂的是<em>「系统设计」这几个字附近经常出现哪些 token</em>。这是两码事。</p>
+    <p>它只是对「系统设计」附近经常出现的 token 有感觉。和懂，不是一回事。</p>
 
-    <p>2025 年 4 月大家不在意这个区别——你让它写的大多是 CRUD,它确实基本写得对。2026 年 4 月的 agent 在写整个服务,「基本对」意味着你的 circuit breaker 没加抖动、你的 sharding key 打到热点上了、你的事件 schema 没有版本演进方案。这每一条,都是正在等着把你拉去半夜应急的生产事故。而这每一条,Netflix、Uber、Stripe、Cloudflare 的工程博客里都写过。模型训练时读过这些文章。它就是<em>记不住</em>。</p>
+    <p>2025 年大家不太在意，反正让它写的多半是 CRUD，写对的概率挺高。到了 2026 年，它开始整个服务地写。「差不多对」的含义变了：熔断没有抖动、分片键全打在热点、事件 schema 没有版本演进方案。每一条都是一次真实的线上事故。每一条在 Netflix、Uber、Stripe、Cloudflare 的工程博客里都写过。训练时它读过，但记不住。</p>
 
-    <p>直觉反应是上 RAG:把工程博客塞进向量库,按需检索。我试过,比你想的还糟。切片回来的是脱离上下文的碎片,reranker 会编造相关性,结果你的 agent 拿 Meta 一篇视频编码的博客去论证数据库复制该怎么设计。RAG 是<em>检索</em>,不是<em>编译</em>。</p>
+    <p>第一反应是上 RAG。我试过，结果比想象中差。切片取回来全是脱离上下文的碎片，rerank 又会编造相关性，最后 agent 用 Meta 的视频编码博客来论证数据库复制方案。RAG 负责检索，不负责编译。</p>
 
-    <p>Karpathy 最近推了一个不一样的思路,叫 <a href="https://karpathy.bearblog.dev/llm-wiki/">LLM wiki</a>:别去检索原始文档,把它们<em>蒸馏</em>成一个持久的、互相链接的 markdown 知识图。Agent 读的是这个 wiki,不是原始语料。wiki 是产品,语料只是它被编译出来的原料。</p>
+    <p>Karpathy 那篇 <a href="https://karpathy.bearblog.dev/llm-wiki/">LLM wiki</a> 说了另一种办法：不去检索原始文档，而是把它们蒸馏成一张互相链接的 markdown 知识图。Agent 读的是 wiki，不是语料。wiki 是产物，语料只是原料。</p>
 
-    <p>我按这个思路给软件系统设计建了一个。两个月了,3210 页,280 个精选 source,每小时自动入库,部署在 Cloudflare Pages 上。站点在这:<a href="https://sysdesign-wiki.pages.dev" target="_blank">sysdesign-wiki.pages.dev</a>。下面讲讲我踩了什么坑,为什么我认为这就是 AI 编码时代知识该有的形态。</p>
+    <p>我照这个思路给软件系统设计编了一本。两个月，3210 页，280 个精选来源，每 6 小时自动入库，静态站点跑在 Cloudflare Pages 上。站点：<a href="https://sysdesign-wiki.pages.dev" target="_blank">sysdesign-wiki.pages.dev</a>。</p>
 
-    <h2>三层架构,一条规矩</h2>
+    <h2>整套东西塞得进一个 cron</h2>
 
-    <p>架构特意做得很无聊:</p>
+    <p>没有数据库，没有向量库。就三个目录，一条规矩：<strong>raw 不可变，wiki 是产物，不存在第三样东西。</strong></p>
 
 <pre><code>sysdesign-wiki/
-├── raw/         <span class="code-comment">// 抓来的原始文章,不可变,一个公司一个子目录</span>
-│   ├── netflix/ uber/ meta/ aws/ cloudflare/ stripe/
-│   └── _feeds.yaml
-├── wiki/        <span class="code-comment">// 编译后的知识库——真正的产品</span>
-│   ├── concepts/    <span class="code-comment">// sharding、consensus、CAP、CRDT、backpressure</span>
-│   ├── patterns/    <span class="code-comment">// circuit-breaker、saga、CQRS、bulkhead</span>
-│   ├── systems/     <span class="code-comment">// Kafka、Spanner、Dynamo、TAO、Haystack、Envoy</span>
-│   ├── companies/   <span class="code-comment">// 每家公司的技术栈 + 经验总结</span>
-│   └── sources/     <span class="code-comment">// 每篇文章一个 source 页</span>
-└── tools/       <span class="code-comment">// scraper、RSS poller、入库、lint、压缩</span></code></pre>
+├── raw/      <span class="code-comment">// 抓来的原文，按公司分目录</span>
+├── wiki/     <span class="code-comment">// 编译出的知识库，就是产物</span>
+│   ├── concepts/ patterns/ systems/ companies/
+│   └── sources/   <span class="code-comment">// 每篇入库文章一页</span>
+└── tools/    <span class="code-comment">// 抓取、入库、lint、构建</span></code></pre>
 
-    <p>规矩就一条:<strong>raw 不可变,wiki 是产品,没有第三样东西。</strong>没数据库。没向量库。没搜索后端,就是 mkdocs 自带的那个。我想知道「Netflix 的 regional failover 怎么做的」,不查 embedding。我打开 <code>wiki/concepts/regional-failover.md</code>,三段话,四条引用,每条都链回 <code>raw/netflix/</code>。就这样。</p>
+    <p>发布流水线是 cron 里跑的 30 行 bash：</p>
 
-    <p>任何不是显然成立的论断,都要引用 source:<code>(Source: [[sources/2026-01-15-netflix-chaos]])</code>。两家公司意见不一致的时候——这种情况天天有——就加一个 <code>## Contradiction</code> 段落,把两种立场都点名。不假装大家其实达成了共识。</p>
-
-    <h2>整条入库流水线就是 30 行 bash</h2>
-
-    <p>我把全文贴出来,因为大家现在特别爱给一个放得进 cron 的问题搞一套 Kubernetes 的方案。</p>
-
-<pre><code><span class="code-comment"># cron_publish.sh —— 每 6 小时跑一次</span>
-#!/usr/bin/env bash
+<pre><code>#!/usr/bin/env bash
 set -euo pipefail
-
 cd /home/dyouwang/sysdesign-wiki
 exec 9&gt;/tmp/sysdesign-wiki.lock
-flock -n 9 || exit 0   <span class="code-comment"># 不重叠执行</span>
+flock -n 9 || exit 0
 
-python tools/rss_pull.py              <span class="code-comment"># 29 个 RSS 源 → raw/</span>
+python tools/rss_pull.py              <span class="code-comment"># 29 个源 → raw/</span>
 python tools/ingest.py --incremental  <span class="code-comment"># raw/ → wiki/sources/</span>
-python tools/gen_category_indexes.py  <span class="code-comment"># 自动生成索引页</span>
-python tools/gen_landing_page.py      <span class="code-comment"># 首页统计刷新</span>
+python tools/gen_category_indexes.py
+python tools/gen_landing_page.py
 
 git add -A
 git diff --cached --quiet || {
@@ -98,72 +85,43 @@ git diff --cached --quiet || {
   git push
 }</code></pre>
 
-    <p>剩下的交给 Cloudflare Pages。一个 push 触发构建,mkdocs 渲染静态站,搜索索引被后处理到 25 MiB 的单文件上限以下,90 秒后站点就上线了。没服务器。没守护进程。这整套系统最贵的部分是 GitHub 的免费额度。</p>
+    <p>推一次，Cloudflare Pages 自己重建，90 秒后站点就更新完了。策展 agent 跑在 <a href="/posts/sage-cli">sage</a> 后台，每来一篇原文就写一页 source：一段话的提炼、3 到 5 条 takeaway、几条 <code>[[wiki-link]]</code> 连到它涉及的概念和模式页。凡是不 trivial 的论断都带出处。两家公司观点冲突时，加一段 <code>## Contradiction</code>，两边立场都写清楚。不假装共识。</p>
 
-    <p>入库脚本里真正有意思的部分:拉 29 个工程博客的 RSS,对于那 16 个屏蔽 feed reader 的站(Meta、Google、LinkedIn 是老面孔),用一个带住宅 UA 的 HTML 爬虫补上。每篇文章落成一个 markdown。然后一个 curator agent——跑在 <a href="/zh/posts/sage-cli">sage</a> 后台——读这个 markdown,写出一页结构化的 source:标题、一段蒸馏、3-5 条 takeaway、一串 <code>[[wiki-link]]</code> 指向它触及的 concept/pattern/system 页。</p>
+    <h2>同一个 prompt，两次结果</h2>
 
-    <p>curator 做的一件比其他所有事都更重要的事,是<strong>入库前先过 scope filter</strong>。跑题文章直接拒。伪装成工程博客的产品发布稿。套着基建外壳的 ML 论文。厂商 PR。全跳过,一行理由写进 <code>wiki/log.md</code>。没有这一层,wiki 一周内就被噪音淹死了。</p>
+    <p>我拿同一个题目跑过两次：<em>「设计一条每秒 10 万事件的写入路径，每一步都要有业界先例撑腰」</em>。</p>
 
-    <h2>为什么这比 RAG 更适合架构决策</h2>
+    <p>RAG 那次拉回来 6 个切片：一条 LinkedIn 讲消费者延迟的，一段 Stripe 幂等 key 的节选，一份 AWS 调优文档，再加两篇完全无关的 Netflix 视频编码博客，只因为「高吞吐」这几个字都出现过。最后的方案读起来很权威，内部逻辑是散的。我追问某个选择的依据，它引了那篇视频编码的文章。</p>
 
-    <p>下面这个 prompt 我跑了两次,一次用 RAG 查原始语料,一次让 agent 读编译好的 wiki:</p>
+    <p>Wiki 那次打开了 <code>patterns/write-ahead-buffering.md</code>、<code>systems/kafka.md</code>、<code>concepts/backpressure.md</code>。本来就互相链好。每条论断本来就带出处。它写了四段话，六条引用全都对得上。我追问依据，它指着一段 <code>## Contradiction</code> 说：「LinkedIn 和 Uber 在这点上有分歧，我选了 LinkedIn 的，因为你的流量画像和他们的 case 更接近。」</p>
 
-    <blockquote>我要做一个服务,每秒吃 10 万条事件,落主库。设计写路径。每一个选择都要有业界先例支撑。</blockquote>
+    <p>两次用的是同一个模型。区别在于，wiki 那边，思考工作已经做完了。</p>
 
-    <p>RAG 版本捞回来 6 个 chunk:LinkedIn 一篇 Kafka consumer lag 的博客、Stripe 幂等性文章的一个片段、AWS DynamoDB 调优指南的两段、两篇完全不相关的 Netflix 视频编码博客——就因为「high throughput」这个词在它们里都出现过。agent 写出来的设计听起来很权威,内部互相矛盾。我追问某个选择的理由,它引了视频编码那篇。如果我当时没盯着,我就把这玩意儿合进主分支了。</p>
+    <h2>编译出来的知识，才是护城河</h2>
 
-    <p>wiki 版本打开了 <code>wiki/patterns/write-ahead-buffering.md</code>、<code>wiki/systems/kafka.md</code>、<code>wiki/concepts/backpressure.md</code>。每一页已经互相链好了。每一个论断已经带了 citation。agent 给出四段话、六条引用,每一条都对得上号。我追问某个选择,它指着一个 <code>## Contradiction</code> 段落,点出 LinkedIn 的立场 vs Uber 的立场,然后说「我选 LinkedIn 那种,因为你的流量画像更接近他们的 case study」。</p>
+    <p>语料不会复利。语料再多也只是草垛更大。wiki 会复利。Uber、Square、Shopify 都写过幂等，<code>patterns/idempotency.md</code> 不会因此变长四倍，只会更锋利。从「Stripe 是这么做的」，变成「业界收敛到了 X，因为 Y；到了 Uber 这个量级得换成 Z」。后面所有 agent 任务，白捡这份锋利。</p>
 
-    <p>差别不在模型。两次同一个模型。差别在于 wiki <em>已经把思考做完了</em>。RAG 捞碎片。wiki 直接把编译好的答案递过来。</p>
+    <p>OpenAI 的 Frontier 团队讲过<a href="https://openai.com/index/harness-engineering/">他们如何零手写代码地交付一百万行</a>。办法之一是把 AGENTS.md 写成目录，而不是百科。百科放在结构化的 <code>docs/</code> 里——那其实就是一本 wiki，只是没这么叫。真正沉淀下来的东西，不是 agent 交付的那份代码，而是人提前编译好的那套脚手架。有了它，agent 才能查阅，而不用硬背。</p>
 
-    <h2>没人聊的复利</h2>
+    <p>所以认真在用 agent 干活的，护城河不在模型、不在 prompt、不在 harness，而在 agent 动手前读的那份编译好的知识。再大的上下文窗口救不了你。只有一份编译好、带引用、持续更新的知识库救得了。</p>
 
-    <p>语料和编译后的知识库最根本的区别,是语料<em>不会复利</em>。更大的语料就是更大的草堆,每次检索都从零开始。</p>
+    <h2>最小可用版本</h2>
 
-    <p>wiki 会复利。每次入一篇新 source,不是往里加噪音,而是<em>被蒸馏进已有的页</em>。我第一次加 Stripe 幂等 key 的文章时,新建了 <code>wiki/patterns/idempotency.md</code>。到第四次——Uber、Square、Shopify 都发过同一个 pattern——这一页不是长到原来的四倍。它变<em>更锋利了</em>。分歧被点出来了,经典权衡被写得更干净了。从「Stripe 是这么做的」演化成「业界收敛到这个做法是因为某某原因,除了 Uber 那种规模得换 Z」。这是一种语料给不了你的知识增益。</p>
+    <p>3210 页是不必要的。先写十页就够了。</p>
 
-    <p>而 agent 读这一页的时候,就顺便继承了这种变锋利。curator 的活只做了一次。之后每个 agent 任务都受益。</p>
-
-    <h2>2026 年做 agent 的人,这意味着什么</h2>
-
-    <p>我想把话说得直接一点,因为我觉得整个行业在这件事上权重给低了。<strong>认真用 AI 编码 agent 做事的人,护城河不是模型,不是 prompt,不是 harness。是 agent 开工之前读的那本编译好的知识库。</strong></p>
-
-    <p>OpenAI 的 Frontier team <a href="https://openai.com/index/harness-engineering/">零人类代码写出百万行</a>的办法,是把 AGENTS.md 写成目录,不是百科全书。百科全书放在一个结构化的 <code>docs/</code> 目录里。那个目录<em>就是一本 wiki</em>。他们没这么叫,但就是这个东西。他们说得很清楚:团队真正攒下来的资产,不是 agent 交付的代码。是 scaffolding——质量分、execution plan、design doc。这些东西是人类编译出来、让 agent 能导航而不是背诵的。</p>
-
-    <p>我认识的认真跑 agent 的人,都在往同一个形状上收敛:</p>
-
-    <ul>
-      <li>一份短的 <code>AGENTS.md</code>,是地图,不是手册(100 行,不是 2000 行)</li>
-      <li>一个结构化的知识库,agent 需要深度的时候去读(wiki、docs/、design-docs/)</li>
-      <li>一条入库流水线,不需要人盯着也能让知识库一直新</li>
-      <li>一个 lint,能抓到代码和知识库不一致</li>
-    </ul>
-
-    <p>如果你在发 agent,但上面这几样一样都没有,你的 agent 现在就在瞎编架构,而且正在往生产发。模型救不了你。harness 救不了你。更大的上下文窗口救不了你。只有一本编译过的、带引用的、保持更新的知识库能救你。</p>
-
-    <h2>最小可行版</h2>
-
-    <p>不用搞 3210 页。你只需要对你系统最关键的那 10 个概念。从这儿开始:</p>
-
-<pre><code><span class="code-comment"># 20 分钟搭一个 wiki</span>
-mkdir -p wiki/{concepts,patterns,systems,sources}
+<pre><code>mkdir -p wiki/{concepts,patterns,systems,sources}
 cat &gt; AGENTS.md &lt;&lt;'EOF'
-你是 &lt;你的领域&gt; 知识库的维护者。
-先读 wiki/index.md。不是显然成立的论断必须给 source。
-source 之间冲突就加一段 ## Contradiction。
-EOF
-echo "# Index" &gt; wiki/index.md
-<span class="code-comment"># 手写 10 页 concept,每页大约 500 字</span>
-<span class="code-comment"># 每页: 一行 summary、3 条 takeaway、3 条 citation</span>
-<span class="code-comment"># 这比你会搭的任何 RAG 都更有用</span></code></pre>
+你负责维护关于 &lt;你的领域&gt; 的知识库。
+先读 wiki/index.md。不 trivial 的论断都要带出处。
+来源冲突时，加一段 ## Contradiction。
+EOF</code></pre>
 
-    <p>就这。10 页,手写,带 source。把 agent 指向这个目录。看着它停止瞎编。等你写烦了,再去自动化入库。</p>
+    <p>手写十页概念，每页 500 字左右：一句话定义、3 条要点、3 条引用。把 agent 指向这个目录，它就不再瞎编了。等你写页写烦了，再去自动化 ingest。</p>
 
-    <p>Agent 的工作是<em>用</em>知识。你的工作是<em>编译</em>知识。工具很便宜,权重不是瓶颈。瓶颈是 agent 在写下第一行代码之前读到的那个东西,有没有真正反映出你对自己系统是怎么崩的那份了解。</p>
-
-    <p>别再跟 agent 吵 circuit breaker 该怎么加了。把那一页写出来。</p>
+    <p>编译知识是人的活，使用知识是 agent 的活。别再跟它争那个熔断器该不该加。页写出来。</p>
 
     </div>
+
   </article>
 </main>
 
