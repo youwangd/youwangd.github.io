@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I Built a System-Design Wiki So My Agents Stop Hallucinating Architecture — Youwang Deng</title>
+<meta name="description" content="3,210 pages of distilled engineering knowledge, ingested hourly, rendered to a static site. Why agents need a compiled knowledge base, not RAG.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-23</time>
+        <span class="post-tag">knowledge-systems</span>
+        <span class="post-tag">agentic-coding</span>
+        <span class="post-tag">system-design</span>
+      </div>
+      <h1 class="post-title">I Built a System-Design Wiki So My Agents Stop Hallucinating Architecture</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">The agent was confidently telling me to put a Redis cache in front of a write-heavy path. It cited nothing. It had no idea Netflix had published a post-mortem two years ago explaining exactly why that pattern falls over at their scale. The agent didn't know, because the agent had read the internet once, a year ago, compressed it into weights, and now hallucinates whenever the weights are thin. I got tired of arguing with it. So I built it a wiki.</p>
+
+    <h2>The premise nobody in AI-coding discourse wants to say out loud</h2>
+
+    <p>Your agent does not know system design. It knows <em>tokens that appear near the phrase "system design."</em> That is not the same thing.</p>
+
+    <p>In April 2025 nobody cared about the distinction — the code you wrote was mostly CRUD and the agent mostly got it right. In April 2026 the agent is writing entire services, and "mostly right" means your circuit breaker has no jitter, your sharding key picks a hot cell, and your event schema has no versioning story. Every one of those is a real production outage waiting to happen. Every one is documented somewhere in Netflix, Uber, Stripe, or Cloudflare's engineering blog. The agent has seen those posts during training. It does not <em>remember</em> them.</p>
+
+    <p>The obvious answer is RAG — dump engineering blogs into a vector DB, retrieve on demand. I tried it. It's worse than you think. The chunks come back context-free, the rerankers hallucinate relevance, and your agent ends up citing a Meta post about video encoding to justify a decision about database replication. RAG retrieves. It does not <em>compile</em>.</p>
+
+    <p>Karpathy has been pushing a different idea he calls <a href="https://karpathy.bearblog.dev/llm-wiki/">the LLM wiki</a>: don't retrieve raw documents, <em>distill</em> them into a persistent, interlinked knowledge graph in markdown. The agent reads the wiki, not the corpus. The wiki is the artifact. The corpus is just the source of truth it was compiled from.</p>
+
+    <p>I built one for software system design. Two months in, 3,210 pages, 280 curated sources, hourly auto-ingest, deployed on Cloudflare Pages. Live at <a href="https://sysdesign-wiki.pages.dev" target="_blank">sysdesign-wiki.pages.dev</a>. Here's what it actually takes and why I think this is the shape knowledge will take in the AI-coding era.</p>
+
+    <h2>Three layers, one rule</h2>
+
+    <p>The architecture is boring on purpose:</p>
+
+<pre><code>sysdesign-wiki/
+├── raw/         <span class="code-comment">// immutable scraped articles, one per company</span>
+│   ├── netflix/ uber/ meta/ aws/ cloudflare/ stripe/
+│   └── _feeds.yaml
+├── wiki/        <span class="code-comment">// the compiled knowledge base — the product</span>
+│   ├── concepts/    <span class="code-comment">// sharding, consensus, CAP, CRDTs, backpressure</span>
+│   ├── patterns/    <span class="code-comment">// circuit-breaker, saga, CQRS, bulkhead</span>
+│   ├── systems/     <span class="code-comment">// Kafka, Spanner, Dynamo, TAO, Haystack, Envoy</span>
+│   ├── companies/   <span class="code-comment">// per-company stack + lessons summary</span>
+│   └── sources/     <span class="code-comment">// one page per ingested article</span>
+└── tools/       <span class="code-comment">// scraper, rss poller, ingest, lint, shrink</span></code></pre>
+
+    <p>The rule: <strong>raw is immutable, wiki is the product, nothing else exists.</strong> No database. No vector store. No search backend beyond what mkdocs ships. When I want to know "what does Netflix do for regional failover," I don't query embeddings. I open <code>wiki/concepts/regional-failover.md</code> and it's three paragraphs with four citations linking back to <code>raw/netflix/</code>. That's it.</p>
+
+    <p>Every non-obvious claim cites its source: <code>(Source: [[sources/2026-01-15-netflix-chaos]])</code>. When two companies disagree — and they do, constantly — there's a <code>## Contradiction</code> section that names both positions. No synthesis pretends consensus exists where it doesn't.</p>
+
+    <h2>The ingest pipeline is 30 lines of bash</h2>
+
+    <p>I'm going to show you the whole thing because people keep writing Kubernetes-shaped solutions for problems that fit in a cron job.</p>
+
+<pre><code><span class="code-comment"># cron_publish.sh — runs every 6 hours</span>
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd /home/dyouwang/sysdesign-wiki
+exec 9&gt;/tmp/sysdesign-wiki.lock
+flock -n 9 || exit 0   <span class="code-comment"># no overlapping runs</span>
+
+python tools/rss_pull.py              <span class="code-comment"># 29 feeds → raw/</span>
+python tools/ingest.py --incremental  <span class="code-comment"># raw/ → wiki/sources/</span>
+python tools/gen_category_indexes.py  <span class="code-comment"># auto-index pages</span>
+python tools/gen_landing_page.py      <span class="code-comment"># update homepage stats</span>
+
+git add -A
+git diff --cached --quiet || {
+  git commit -m "auto-ingest $(date -u +%FT%H:%MZ)"
+  git push
+}</code></pre>
+
+    <p>Cloudflare Pages does the rest. A push triggers a build, mkdocs renders the static site, the search index gets post-processed to fit under the 25 MiB per-file limit, and the site is live in 90 seconds. No server. No daemon. The most expensive part of this system is the GitHub free tier.</p>
+
+    <p>The ingest script does the interesting part: it pulls RSS for 29 engineering blogs, and for the 16 blogs that block feed readers (Meta, Google, LinkedIn are the usual suspects), an HTML scraper with a residential user-agent does the job. Each article lands as a raw markdown file. Then a curator agent — running via <a href="/posts/sage-cli">sage</a> in the background — reads the raw file and writes a structured source page: title, one-paragraph distillation, 3-5 takeaways, and a list of <code>[[wiki-link]]</code> references to the concept/pattern/system pages the article touches.</p>
+
+    <p>The curator does one thing that matters more than anything else: it applies a <strong>scope filter</strong> before distilling. Off-topic articles get rejected on sight. Product launches pretending to be engineering posts. ML research thinly disguised as infra content. Vendor PR. All skipped with a one-line rationale logged to <code>wiki/log.md</code>. Without this filter, the wiki would drown in noise within a week.</p>
+
+    <h2>Why this beats RAG for architecture decisions</h2>
+
+    <p>Here is a real prompt I ran twice — once with RAG over the raw corpus, once with the agent reading the compiled wiki:</p>
+
+    <blockquote>I'm building a service that ingests 100k events/sec and writes to a primary DB. Design the write path. Justify every choice with industry precedent.</blockquote>
+
+    <p>RAG version pulled six chunks: a LinkedIn blog about Kafka consumer lag, a fragment of a Stripe idempotency post, two paragraphs from an AWS DynamoDB tuning guide, and two completely unrelated Netflix posts about video encoding because the phrase "high throughput" appeared in both. The agent wrote a design that sounded authoritative and was internally incoherent. When I asked it to defend a specific choice, it cited the video encoding post. I would have shipped this if I hadn't been paying attention.</p>
+
+    <p>Wiki version opened <code>wiki/patterns/write-ahead-buffering.md</code>, <code>wiki/systems/kafka.md</code>, and <code>wiki/concepts/backpressure.md</code>. Every page was already cross-linked. Every claim already had a citation. The agent produced a design in four paragraphs with six citations and every one checked out. When I asked it to defend a choice, it pointed at a <code>## Contradiction</code> section that named LinkedIn's position versus Uber's position and said "I chose LinkedIn's because your traffic profile matches their case study."</p>
+
+    <p>The difference isn't the model. Same model both times. The difference is that the wiki had <em>already done the thinking</em>. RAG retrieves fragments. The wiki hands over the compiled answer.</p>
+
+    <h2>The compounding that nobody talks about</h2>
+
+    <p>Here's the thing about a compiled knowledge base versus a corpus: corpora don't compound. A bigger corpus is just a bigger haystack. Every retrieval still starts from zero.</p>
+
+    <p>A wiki compounds. Every new source that gets ingested doesn't add noise — it gets <em>distilled into existing pages</em>. The first time I added an article about Stripe's idempotency keys, it created <code>wiki/patterns/idempotency.md</code>. The fourth time — when Uber, Square, and Shopify all published on the same pattern — the page didn't quadruple in length. It got <em>sharper</em>. Disagreements got named. The canonical trade-off got cleaner. The page went from "Stripe does X" to "the industry converged on X because Y, except at Uber scale where Z." That's a knowledge gain that a corpus can't give you.</p>
+
+    <p>And the agent, reading that page, inherits the sharpening. The curator did the work once. Every future agent task benefits.</p>
+
+    <h2>What this means for anyone building with agents in 2026</h2>
+
+    <p>I am going to say this bluntly because I think the industry is under-indexing on it. <strong>The moat for anyone doing serious work with AI coding agents is not the model, not the prompt, not the harness. It is the compiled knowledge the agent reads before it starts work.</strong></p>
+
+    <p>OpenAI's Frontier team <a href="https://openai.com/index/harness-engineering/">shipped a million lines</a> of zero-human-written code by writing AGENTS.md files that were a table of contents, not an encyclopedia. The encyclopedia lived in a structured <code>docs/</code> directory. That directory <em>is a wiki</em>. They didn't call it that, but that's what it is. And they were very clear: the durable artifact the team built wasn't the code the agent shipped. It was the scaffolding — the quality scores, the execution plans, the design docs. The stuff a human compiled so the agent could navigate instead of memorize.</p>
+
+    <p>Every serious agent operator I know is converging on the same shape:</p>
+
+    <ul>
+      <li>A short <code>AGENTS.md</code> that is a map, not a manual (100 lines, not 2000)</li>
+      <li>A structured knowledge base the agent reads when it needs depth (wiki, docs/, design-docs/)</li>
+      <li>An ingest pipeline that keeps the knowledge base current without a human babysitter</li>
+      <li>A lint that catches drift between the code and the knowledge base</li>
+    </ul>
+
+    <p>If you are shipping agents and you have none of these, your agent is hallucinating architecture right now and you are shipping it to production. The model will not save you. The harness will not save you. A bigger context window will not save you. Only a compiled, cited, current knowledge base will.</p>
+
+    <h2>The minimum viable version</h2>
+
+    <p>You don't need 3,210 pages. You need the ten concepts that matter for your system. Start there:</p>
+
+<pre><code><span class="code-comment"># a wiki in 20 minutes</span>
+mkdir -p wiki/{concepts,patterns,systems,sources}
+cat &gt; AGENTS.md &lt;&lt;'EOF'
+You are the maintainer of a knowledge base on &lt;your domain&gt;.
+Read wiki/index.md first. Every non-obvious claim cites a source.
+When sources conflict, add a ## Contradiction section.
+EOF
+echo "# Index" &gt; wiki/index.md
+<span class="code-comment"># now write 10 concept pages by hand, ~500 words each</span>
+<span class="code-comment"># each page has: one-line summary, 3 takeaways, 3 citations</span>
+<span class="code-comment"># this is more useful than any RAG you will build</span></code></pre>
+
+    <p>That's the MVP. Ten pages, hand-written, cited. Point your agent at the directory. Watch it stop hallucinating. Then automate the ingest when you run out of patience writing pages.</p>
+
+    <p>The agent's job is to <em>use</em> knowledge. Your job is to <em>compile</em> it. The tooling is cheap. The weights are not the bottleneck. The bottleneck is whether the thing the agent reads before it writes a single line of code reflects what you actually know about how your systems fail.</p>
+
+    <p>Stop arguing with the agent about the circuit breaker. Write the page.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
