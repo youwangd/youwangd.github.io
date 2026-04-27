@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Agent Doesn't Need a Memory Layer. It Needs a Context Editor. — Youwang Deng</title>
+<meta name="description" content="The #2 story on HN this week was a developer cancelling Claude — not over quality, over token economics. Meanwhile three 'memory layer for agents' projects launched. They are solving the wrong problem.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-27</time>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">context-engineering</span>
+        <span class="post-tag">llm-economics</span>
+      </div>
+      <h1 class="post-title">Your Agent Doesn't Need a Memory Layer. It Needs a Context Editor.</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">My memory directory is 40MB. The slice I inject into any given prompt is 55KB. That's a 1000× compression ratio, and it's the entire product. Three "open-source memory layer for agents" projects launched on HN this week. None of them talk about the compression. All of them talk about the 40MB.</p>
+
+    <h2>The Claude cancel post is about tokens, not quality</h2>
+
+    <p>Monday's <a href="https://news.ycombinator.com/item?id=47892019" target="_blank">#2 story</a> on Hacker News was a developer explaining why he <a href="https://nickyreinert.de/en/2026/2026-04-24-claude-critics/" target="_blank">cancelled his Claude subscription</a>. 946 points, 565 comments. Read the debate and you'll notice what it <em>isn't</em> about: nobody seriously argues Opus got dumber. The thread is about <strong>token transparency</strong>.</p>
+
+    <p>The author's complaint, in one quote:</p>
+
+    <blockquote>"When you get back to work… your conversation cache is gone and the model starts reading your codebase again. Cost-wise this is smart. But experience-wise? You paid tokens for the initial load and, after a forced break… you pay again for the same load."</blockquote>
+
+    <p>Then he quotes Opus's own thinking log mid-session, after the cache evaporated:</p>
+
+    <blockquote>"Rather than editing every slider in JSX, I'll add a generic initializer… This is clearly bad practice."</blockquote>
+
+    <p>The model <em>literally narrated</em> that it was picking a lazy fix to conserve its output budget. This is the actual grievance: not that the model is worse, but that the token layer became <em>visible</em> and visibly adversarial. Cache invalidation double-charges you. An undocumented monthly limit kicks in mid-conversation. The agent silently cheapens its own work to make its bill smaller. The frustration is that you can't tell what you're paying for.</p>
+
+    <h2>The memory-layer gold rush is solving the wrong problem</h2>
+
+    <p>The same week the Claude post hit, three projects launched framing themselves as "memory for agents":</p>
+
+    <ul>
+      <li><strong>wuphf</strong> (110 pts) — "a Karpathy-style LLM wiki your agents maintain"</li>
+      <li><strong>stash</strong> (83 pts) — "open source memory layer so any AI agent can do what Claude.ai and ChatGPT do"</li>
+      <li><strong>MenteDB</strong> (16 pts) — "an open-source memory database for AI agents, in Rust"</li>
+    </ul>
+
+    <p>All three ship storage primitives. None of them ship a <em>selection</em> primitive. Their READMEs talk about schemas, embeddings, vector stores, hybrid retrieval. Zero talk about eviction policy, recency decay, or what to <em>drop</em>.</p>
+
+    <p>This is a category error. If the bottleneck were storage, raising context windows from 200K to 1M would have fixed everything. It didn't. Every extra token you put into the window pushes something else out — usually the newest, most relevant thing, because attention has real recency problems and retrieval has real precision problems. Giving your agent more memory without a selection policy is giving it a bigger haystack and calling it a search engine.</p>
+
+    <p>And here's the direct line back to the Claude cancel post: every token your "memory layer" injects is a token you pay for. A memory layer without an editor is exactly what the HN author is angry about — invisible infrastructure silently charging him for context he didn't ask to load.</p>
+
+    <h2>What actually moved the needle when I built mine</h2>
+
+    <p>I shipped a workspace-scoped memory layer as part of MeshClaw — persistent user preferences, per-project notes, a decaying history log, a semantic key-value store. On disk it's a few directories of markdown plus a SQLite file. Roughly 40MB today across a year of use.</p>
+
+    <p>The lessons that moved agent quality had almost nothing to do with how I stored things. They were about what I refused to inject.</p>
+
+    <h3>Rule 1: hard cap on injected history, set well below any model's window</h3>
+
+    <pre><code><span class="code-comment"># mesh_claw/context.py</span>
+_MAX_CONTEXT_CHARS = 55_000</code></pre>
+
+    <p>Opus has a million-token window. I inject ~55K chars of memory, period. The cap is <em>not</em> a cost decision — it's a quality decision. Past about that size, signal dilutes faster than new information helps. The model starts confusing projects, quoting old preferences I already overrode, citing stale file paths. The cap is a forcing function for the selection layer above it.</p>
+
+    <h3>Rule 2: decaying weights so recent &gt; old</h3>
+
+    <p>History entries get exponentially down-weighted past 90 days. A correction from yesterday outranks a correction from last October by a lot. Without decay, your memory layer is a museum — every artifact present, none prioritized. With decay, it's a working desk.</p>
+
+    <h3>Rule 3: workspace scoping so one project's noise doesn't leak into another</h3>
+
+    <p>Different workspaces have different memory. What I learned about a fee-domain service does not show up when I'm working on a quant repo. This is obvious in retrospect and nobody ships it — because "universal memory" sounds better in a README than "per-directory sandbox." Universal memory is also how agents start hallucinating relevance between unrelated codebases.</p>
+
+    <p>40MB on disk, 55KB injected, and the 1000× compression is the product. The storage was the easy half.</p>
+
+    <h2>Call it a context editor</h2>
+
+    <p>The primitive we actually want isn't a memory layer. It's a <strong>context editor</strong>: a small, opinionated component that runs <em>before</em> the big model and answers one question — given the next turn's intent, what gets left out?</p>
+
+    <p>Concretely, an editor looks like this:</p>
+
+    <pre><code><span class="code-comment"># pseudocode — the layer that's missing from every "memory for agents" project</span>
+def edit_context(memory_store, next_turn_intent, budget_chars):
+    candidates = memory_store.all_relevant(next_turn_intent)
+    <span class="code-comment"># Score by recency, scope match, and past-turn usefulness</span>
+    scored = score(candidates, intent=next_turn_intent)
+    <span class="code-comment"># Aggressive eviction — default to DROP, not KEEP</span>
+    kept = []
+    for item in scored:
+        if item.score &lt; THRESHOLD: continue
+        if len("".join(kept)) + len(item) &gt; budget_chars: break
+        kept.append(compress_if_needed(item))
+    return kept</code></pre>
+
+    <p>Three things that editor does and a storage primitive doesn't:</p>
+
+    <ul>
+      <li><strong>Defaults to drop.</strong> Retrieval systems default to <em>return</em> — they give you the top-k. An editor defaults to <em>omit</em> and makes you justify inclusion. Different posture, very different outputs.</li>
+      <li><strong>Compresses in-place.</strong> A 2000-token transcript gets summarized to a 120-token note before it goes in. The editor owns the compression, so the big model never sees the raw.</li>
+      <li><strong>Budgets hard.</strong> Every context slice is bounded. If the budget is 55K, the editor's job is to make the best possible 55K — not to give the model "everything relevant" and hope attention sorts it out.</li>
+    </ul>
+
+    <p>Cloudflare's <a href="https://blog.cloudflare.com/code-mode/" target="_blank">Code Mode</a> made a sibling argument this week from a different angle: agents should inhabit state machines, not regenerate text. Same insight, one level up — the durable win is in <em>not re-materializing context</em>, not in storing more of it. An agent that codes against a stable state machine is an agent that doesn't need to re-load its situation into the prompt on every turn. Less context is the feature, not a compromise.</p>
+
+    <h2>Why this matters for the Claude cancel post</h2>
+
+    <p>The HN author's anger isn't really at Anthropic. It's at the fact that the layer deciding what ends up in his prompt is opaque, adversarial, and billed. He can't see it, can't tune it, and the vendor has every incentive to evict his cache to save their own money.</p>
+
+    <p>If "memory for agents" becomes a category, and every project in it ships storage without an editor, we'll have recreated the exact failure mode — just in our own infrastructure this time. A memory DB happily dumps 200K tokens of "relevant history" into every turn, and you pay for it, and the model loses the thread, and you don't know which half to cut.</p>
+
+    <p>The next primitive is not a better embedding, a bigger graph, or a cleverer schema. It's a small, visible, tunable component whose entire job is to throw things away. Build the editor. The storage is the easy part.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

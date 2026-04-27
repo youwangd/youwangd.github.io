@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>别再给 Agent 加记忆了，它缺的是一把剪刀 — Youwang Deng</title>
+<meta name="description" content="本周 HN 第二热门是开发者退订 Claude——不是模型变差，是 token 账单变透明了。同周三个「agent 记忆层」开源项目上线。它们都在解决错的问题。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-27</time>
+        <span class="post-tag">智能体</span>
+        <span class="post-tag">上下文工程</span>
+        <span class="post-tag">LLM经济学</span>
+      </div>
+      <h1 class="post-title">别再给 Agent 加记忆了，它缺的是一把剪刀</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">我的 memory 目录在硬盘上 40MB。每次塞进 prompt 的那一片是 55KB。压缩比 1000 倍,整个产品就是这件事。本周 HN 上同时上线了三个「开源 agent 记忆层」,没有一个在讲这件事。它们都在讲那 40MB 怎么存。</p>
+
+    <h2>退订 Claude 那篇,吵的是 token,不是模型</h2>
+
+    <p>周一 HN <a href="https://news.ycombinator.com/item?id=47892019" target="_blank">第二热</a>是一个开发者解释为什么<a href="https://nickyreinert.de/en/2026/2026-04-24-claude-critics/" target="_blank">退订了 Claude</a>。946 分、565 条评论。你把整条讨论翻一遍就会发现——<em>没人</em>在认真讨论 Opus 变笨了。大家吵的是 <strong>token 的透明度</strong>。</p>
+
+    <p>作者的核心抱怨,一句话:</p>
+
+    <blockquote>"你回到工位继续干活,对话缓存已经没了,模型又要把你的代码库从头读一遍。从成本角度这很聪明。但从体验角度?你花 token 加载了一次,强制中断之后……同一份东西你要再付一次钱。"</blockquote>
+
+    <p>然后他贴了 Opus 自己思考日志里的一段——缓存蒸发之后,模型是这么想的:</p>
+
+    <blockquote>"与其一个个改 JSX 里的 slider,不如加个通用初始化器……这明显是个坏习惯。"</blockquote>
+
+    <p>模型<em>亲口</em>告诉你:我正在挑一个偷懒方案,因为我要省自己的 output token。这才是真正激怒用户的点:不是模型变差,是 token 这层变得肉眼可见,而且可见地在对着你玩。缓存失效让你重复付费,不公开的月度限额对话中途弹出来,agent 偷偷降低自己的工作质量来压账单。用户的愤怒是——<strong>我搞不清楚自己在为什么付钱</strong>。</p>
+
+    <h2>记忆层淘金潮,全跑偏了</h2>
+
+    <p>Claude 那篇刚火,同一周 HN 上蹦出来三个「agent 记忆」项目:</p>
+
+    <ul>
+      <li><strong>wuphf</strong>(110 分)—— "Karpathy 那种 LLM wiki,让 agent 自己维护"</li>
+      <li><strong>stash</strong>(83 分)—— "开源记忆层,让任何 AI agent 都能做到 Claude.ai 和 ChatGPT 能做的事"</li>
+      <li><strong>MenteDB</strong>(16 分)—— "给 AI agent 用的开源记忆数据库,Rust 写的"</li>
+    </ul>
+
+    <p>三个都在做存储原语。没有一个在做<em>筛选</em>原语。README 里谈的是 schema、embedding、向量库、hybrid retrieval。关于驱逐策略、recency decay、什么该<em>扔掉</em>——零字。</p>
+
+    <p>这是方向错了。如果瓶颈是存储,那 context window 从 200K 涨到 1M 早就把问题解决了。并没有。你往窗口里多塞一个 token,就会挤出去另一个——而且通常挤出去的是最新最相关的那个,因为 attention 对 recency 的处理有硬伤,retrieval 的 precision 也有硬伤。给 agent 加更大的记忆但不做筛选,等于给了它一个更大的草垛,然后管这叫搜索引擎。</p>
+
+    <p>这事和退订 Claude 那篇是同一条线:你「记忆层」往窗口里塞的每一个 token,你都要付钱。一个没有剪辑器的记忆层,正是 HN 作者愤怒的那种东西——一层看不见的基础设施,默默把一堆他没主动要求加载的 context 塞进来,然后向他收费。</p>
+
+    <h2>我自己写的时候,真正管用的三条规则</h2>
+
+    <p>我作为 MeshClaw 的一部分做了个 workspace 级的记忆层:持久化 preferences、每个项目独立的 notes、带衰减的 history、语义 key-value store。硬盘上是一堆 markdown 加一个 SQLite 文件。一年用下来现在大概 40MB。</p>
+
+    <p>真正提升 agent 质量的那几条教训,几乎都跟「怎么存」无关。都跟「拒绝塞什么进去」有关。</p>
+
+    <h3>规则 1:硬上限,远低于任何模型的窗口</h3>
+
+    <pre><code><span class="code-comment"># mesh_claw/context.py</span>
+_MAX_CONTEXT_CHARS = 55_000</code></pre>
+
+    <p>Opus 有 100 万 token 的窗口。我最多塞 55K 字符的 memory,不多塞一个字。这个上限<em>不是</em>省钱决策,是质量决策。过了这个体量,信号被稀释的速度比新信息带来的价值快。模型开始混淆项目、引用我早就推翻的老 preference、给出早已挪窝的文件路径。上限本身就是逼着上游筛选层动起来的一种约束。</p>
+
+    <h3>规则 2:衰减权重,新的压老的</h3>
+
+    <p>History 条目过 90 天就开始指数级降权。昨天的一条纠正远远压过去年十月的一条。没有衰减,你的记忆层就是个博物馆——每件文物都在,但没一件被排到前面。有衰减,它才是张工作台。</p>
+
+    <h3>规则 3:workspace 隔离,一个项目的噪声不污染另一个</h3>
+
+    <p>不同 workspace 各自有各自的 memory。我在 fee 相关服务里学到的东西,不会在我搞 quant repo 的时候冒出来。事后看这条很 trivial,但没人在自己的产品里做——因为「通用记忆」在 README 里比「按目录沙盒」听起来更高级。通用记忆也正是 agent 开始在无关 codebase 之间胡乱串味的方式。</p>
+
+    <p>硬盘 40MB、注入 55KB,这 1000 倍压缩才是产品本身。存储那半是简单的那半。</p>
+
+    <h2>它应该叫「上下文剪辑器」</h2>
+
+    <p>我们真正需要的原语不是「记忆层」。是一个<strong>上下文剪辑器</strong>(context editor):一个小而有主张的组件,跑在大模型<em>之前</em>,只回答一个问题——根据下一轮要干什么,这次<em>不</em>带什么?</p>
+
+    <p>具体长这样:</p>
+
+    <pre><code><span class="code-comment"># 伪代码 —— 每个「agent 记忆」项目都缺的那一层</span>
+def edit_context(memory_store, next_turn_intent, budget_chars):
+    candidates = memory_store.all_relevant(next_turn_intent)
+    <span class="code-comment"># 按 recency、scope match、历史有用性打分</span>
+    scored = score(candidates, intent=next_turn_intent)
+    <span class="code-comment"># 默认丢,不默认留</span>
+    kept = []
+    for item in scored:
+        if item.score &lt; THRESHOLD: continue
+        if len("".join(kept)) + len(item) &gt; budget_chars: break
+        kept.append(compress_if_needed(item))
+    return kept</code></pre>
+
+    <p>剪辑器做三件存储原语不做的事:</p>
+
+    <ul>
+      <li><strong>默认是扔。</strong>Retrieval 的默认动作是「返回」——top-k 给你端上来。剪辑器的默认动作是「省略」,你要让它加进去得给理由。姿势不一样,结果差别很大。</li>
+      <li><strong>原地压缩。</strong>一份 2000 token 的对话历史,在塞进窗口之前先被摘成 120 token 的笔记。压缩动作由剪辑器负责,大模型永远看不到原文。</li>
+      <li><strong>预算硬卡。</strong>每一片 context 都有 budget。如果是 55K,剪辑器的任务是做出「最好的 55K」——而不是把「所有相关的东西」都扔给模型,然后祈祷 attention 自己能排序。</li>
+    </ul>
+
+    <p>本周 Cloudflare 的 <a href="https://blog.cloudflare.com/code-mode/" target="_blank">Code Mode</a> 从另一个角度论证了同一件事:agent 应该<em>住在</em>状态机里,而不是每轮重新生成文本。高一层看是同一个洞察——长期的胜利在于<em>不重新 materialize context</em>,而不是「存更多」。一个直接对着稳定状态机编程的 agent,就是一个每轮不需要把处境重新加载进 prompt 的 agent。更少的 context 本身就是 feature,不是妥协。</p>
+
+    <h2>回到退订 Claude 那条线</h2>
+
+    <p>HN 作者真正气的不是 Anthropic。他气的是——决定什么东西进他 prompt 的那层,是不透明的、对着他玩的、还要收钱的。他看不到、调不了,而且供应商有一切动机为了省<em>自己</em>的钱去驱逐<em>他的</em>缓存。</p>
+
+    <p>如果「agent 记忆」这个品类火起来,而进来的每个项目都只做存储、不做剪辑——我们就会在自己的基础设施里把同样的失败模式重跑一遍。一个 memory DB 每轮欢快地往 prompt 里灌 200K token 的「相关历史」,你为此付钱,模型丢了主线,而你根本不知道该砍掉哪一半。</p>
+
+    <p>下一个原语不是更好的 embedding、更聪明的图、更花的 schema。是一个小的、可见的、可调的组件——它唯一的工作就是把东西扔掉。把剪辑器做出来。存储那半,是简单的那半。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
