@@ -61,7 +61,7 @@
 
     <h3>Rule 1: hard cap on injected history, set well below any model's window</h3>
 
-    <pre><code><span class="code-comment"># mesh_claw/context.py</span>
+    <pre><code><span class="code-comment"># context.py</span>
 _MAX_CONTEXT_CHARS = 55_000</code></pre>
 
     <p>Opus has a million-token window. I inject ~55K chars of memory, full stop. The cap is <em>not</em> a cost decision — it's a quality decision. Past about that size, signal dilutes faster than new information helps. The model starts confusing projects, quoting old preferences I already overrode, citing stale paths. The cap exists because it forces everything above it to actually decide.</p>

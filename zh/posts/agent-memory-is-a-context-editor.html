@@ -61,7 +61,7 @@
 
     <h3>规则 1：硬上限，远低于任何模型的窗口</h3>
 
-    <pre><code><span class="code-comment"># mesh_claw/context.py</span>
+    <pre><code><span class="code-comment"># context.py</span>
 _MAX_CONTEXT_CHARS = 55_000</code></pre>
 
     <p>Opus 有 100 万 token 的窗口。我最多塞 55K 字符的 memory，不多塞一个字。这个上限<em>不是</em>省钱决策，是质量决策。过了这个体量，信号被稀释的速度比新信息带来的价值快。模型开始混淆项目、引用我早就推翻的老 preference、给出早已挪窝的文件路径。上限存在的理由是——它逼着它上面那一层必须<em>做决定</em>。</p>
