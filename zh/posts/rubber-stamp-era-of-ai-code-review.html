@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>"上线了，啥事没有，我还是心慌" — AI 代码评审正在批量生产盖章人 — Youwang Deng</title>
+<meta name="description" content="本周 r/ExperiencedDevs 置顶帖：一位资深工程师承认，明知 AI 做的安全评审是糊弄事，还是按了 approve，上线后啥事没有，但他睡不好觉。他这份心慌才是整个系统里最后一个还在工作的传感器。human-in-the-loop 已经悄悄退化成 rubber-stamp-in-the-loop——我们有生产数据证明：任何"可选"的审批门，一周内一定会被关掉。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-29</time>
+        <span class="post-tag">AI评审</span>
+        <span class="post-tag">人机协作</span>
+        <span class="post-tag">智能体治理</span>
+      </div>
+      <h1 class="post-title">"上线了，啥事没有，我还是心慌" — AI 代码评审正在批量生产盖章人</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">本周 r/ExperiencedDevs 的一个置顶帖，一个资深工程师的真心话：<em>"我明知这次 AI 做的安全评审根本没回答问题，还是按了 approve 上线了。啥事没有。但我现在还觉得不对劲。"</em> 几千赞，评论区没人跟他抬杠——大家都在用不同的话说同一件事。那个帖子不是忏悔，那是一份 2026 年 human-in-the-loop 的现状报告。他最后那句"心慌"，是这套系统里最后一个还在工作的传感器。</p>
+
+    <h2>这个帖子聊的从来不是那一个 PR</h2>
+
+    <p>你自己去看一眼，我等你：<a href="https://www.reddit.com/r/ExperiencedDevs/comments/1sy3wbv/approved_an_ai_feature_for_production_knowing_the/" target="_blank">原帖在这</a>。顺手再扫一眼同一个版、同一天的另一个高赞帖 <a href="https://www.reddit.com/r/ExperiencedDevs/comments/1syxaw3/what_is_your_aicoding_hottake/" target="_blank">"What is your AI-coding hot take?"</a>——本来以为大家会吵模型水平，结果最高赞几乎全在聊同一件事：评审疲劳。approve 按下去那一瞬间的感觉。一种两年前这个版不会出现的、很具体的焦虑。</p>
+
+    <p>细节很关键：这是 r/ExperiencedDevs，不是 r/learnprogramming。发帖的都是 staff engineer、tech lead、干了十几年的人。<strong>这批人原本就是安全网本身</strong>。当安全网开始集体发忏悔贴的时候，故事就不是那张网了，而是网下面那片本该被接住的地面。</p>
+
+    <p>评论区反反复复在说同一句话：<strong>没出事，不等于安全</strong>。这周没事只代表这周没人来攻击你。一次糊弄过去的安全评审上了线没出事，不是你赌赢了，是你掷了一次骰子没看点数。那个哥们儿心慌得对。可整个系统训练他为正确的事情感到愧疚，然后又奖励他忽略这种感觉。</p>
+
+    <h2>HITL 退化成盖章的四条路</h2>
+
+    <p>2025 年有篇风控圈的文章 <a href="https://cybermaniacs.com/cm-blog/rubber-stamp-risk-why-human-oversight-can-become-false-confidence" target="_blank">"Rubber Stamp Risk"</a> 把这事儿讲得很狠。我直接借他们的四个分类，因为一一对应到 AI 代码评审场景，准得离谱。合规的人早就把这部电影看了几十遍了，只是软件行业每次都以为自己是第一次遇到。</p>
+
+    <ol>
+      <li><strong>量和速度。</strong>PR 的数量超过了人类注意力能消化的上限。团队接了 AI 不是多 10% 的 PR，而是 3 到 10 倍，而且经常触到不熟的代码。每个 PR 分到的注意力是数学意义上被挤压的——你不是"选择"粗看，是算数帮你粗看的。</li>
+      <li><strong>不透明。</strong>diff 不是<em>为什么</em>。agent 吐出一个 400 行的补丁，配一个三句话的 summary，summary 本身还是 AI 写的。你是在用一个黑箱描述另一个黑箱的输出——对面没有思考过程可言，你没法说"你再讲讲你是怎么想的"。</li>
+      <li><strong>认知疲劳。</strong>一天看完 20 个 diff，第 21 个的读法就变了。不是故意偷懒，是注意力预算耗光了。疲劳的大脑会走 pattern matching：看起来跟前面几个差不多，CI 绿了，LGTM。这不是人品问题，是大脑工作机制。</li>
+      <li><strong>文化压力。</strong>"拦下 AI 功能"这件事社交成本极高。PM 排了上线日期，团队有 velocity 指标，agent 已经是大家最喜欢的队友。说"我需要再看一天"——代价是口碑。按 approve——代价是三秒。梯度写在脸上。</li>
+    </ol>
+
+    <p>这四条在任何 AI 评审 workflow 里都是默认存在的。你不需要特意设计它们，但你<em>得特意设计</em>去对冲它们——否则就是那个 Reddit 帖子。</p>
+
+    <p>再补一刀：<a href="https://artificialintelligenceact.eu/article/14/" target="_blank">欧盟 AI Act 第 14 条</a>要求"有效的人工监督"（effective human oversight），但<em>没定义这两个词</em>。于是我们有了一个监管要求，它的具体形式由市场找最便宜的实现方式去填——最便宜的版本就是一个叫做"已由人类审核"的 checkbox。距离"合规剧场"成为 Article 14 的事实实现方式，是几个月，不是几年。盖章不再是反模式，盖章正在成为参考架构。</p>
+
+    <h2>我们是这么学到教训的：任何"可选"的门，一周内一定被关掉</h2>
+
+    <p>我自己在做 agent 工具。harness 里早期有一套我很得意的东西——执行危险操作前的交互式 approval prompt、每个任务的 turn 上限、工具 allowlist、还有个给"已经被问烦了"的用户准备的 <code>!yolo on/off</code> 开关。我当时以为交互式 approval 就是成年人版的 human-in-the-loop。它还是个卖点。</p>
+
+    <p>然后我去翻日志了。</p>
+
+    <p><code>!yolo on</code> 是我们 Slack 里用得最多的命令。不是领先一点点，是领先一大截。打出这个命令的人，正是当初要求加 approval 的那批工程师。从"我想要危险命令弹确认"到"我已经把确认关了"的中位数时间——<strong>不到一周</strong>。有一次我看到一个新用户在 onboarding 过程中就关了，因为弹窗打断了他想测试的 flow state。</p>
+
+    <p>这是我不得不咽下去的那句话：<strong>一个可以在压力下被关闭的门，就是一个会在压力下被关闭的门。</strong>下午四点的工程师不是上午十点的工程师。approval 是上午十点的我设计的，然后被下午四点的我例行绕过——我是同一个人，我是这个工具的作者。世界上没有比"设计 approval 的人"更同情 approval 的群体了，<em>我们还是把它关了</em>。任何假设"审核者能在一整天里保持专注模式"的设计，本质上都是在用假设否认自己要解决的问题。</p>
+
+    <p>这不是纪律问题。纪律是有限的。这是一个设计类别错误：我们造了仪式，该造的是约束。</p>
+
+    <h2>约束 &gt; 审批；allowlist &gt; 弹窗</h2>
+
+    <p>承认 approval 不 work 之后，我把 harness 的默认值全改了。其中一个区分值得单独讲清楚：</p>
+
+    <ul>
+      <li><strong>审批</strong>（approval）是向一个累了的人要一个决定。用注意力换安全——注意力是稀缺资源，这笔交易你必输。</li>
+      <li><strong>约束</strong>（constraint）是把不安全的路径从菜单上移除。用<em>可选项</em>换安全——可选项很便宜，这笔交易你稳赢。</li>
+    </ul>
+
+    <p>具体改成这样：</p>
+
+    <pre><code><span class="code-comment"># 改之前：可选、可跳过、可盖章</span>
+approval_mode: interactive   <span class="code-comment"># 一周内被 !yolo 掉了</span>
+
+<span class="code-comment"># 改之后：harness 层面不可协商</span>
+enforce_denied_commands: all
+tool_allowlist:
+  - read_file
+  - grep
+  - run_tests
+tool_denylist:
+  - "git push --force*"
+  - "rm -rf /*"
+  - "DROP TABLE*"
+max_turns: 30
+max_tokens_per_task: 500_000
+network_isolation: workspace-only</code></pre>
+
+    <p>上面这些没有一个是问用户问题的。不管 agent 的计划听起来多合理，不管审核者多累，它<em>都不能</em>调用 <code>git push --force</code>。一个任务能造成多大破坏的上限，是写在 config 里的，不是写在意志力里的。工程师当然还可以把 config 放宽——但"放宽 config"是一次有意识的、可被记录和审查的动作，不是半秒钟的肌肉记忆敲回车。</p>
+
+    <p>对比一下十几年前 GitHub 悄悄完成的那次演化：从"两个 reviewer approve"到"两个 reviewer approve + required status checks must pass"。reviewer 的签名可以被盖章，绿 CI 不行。你可以累到不小心按了 Approve，<em>你没法</em>累到不小心让一个失败的测试通过。这故事怎么结尾，行业早就知道了。我们只是每出一个新工具，就重新学一遍。</p>
+
+    <h2>让"拒绝"变成最省力的那条路</h2>
+
+    <p>AI 评审的讨论里，几乎没人在拉第二根控制杆：<strong>"approve"和"我其实没仔细看"的相对成本</strong>。</p>
+
+    <p>我见过的所有 AI 评审 UI——GitHub Copilot PR review、Cursor 的 accept 面板、各种 agent 对话界面——approve 是一下点击。拒绝并给出"这个不够好"的理由是一整段解释 + 跟模型再聊一轮 + 可能还得跟承诺了上线日期的 PM 开个会。<strong>说"不"的注意力成本是说"是"的 100 倍</strong>。当然我们会盖章——这是我们亲手设计出来的、阻力最小的路径。</p>
+
+    <p>harness 的解法是反转这个梯度。有几个实现成本低、效果出奇好的动作：</p>
+
+    <ul>
+      <li>一个一键的 <strong>"我没看"按钮</strong>，跟 approve 一样快。点了之后 PR 进队列并被标注，不扣审核者的绩效。<em>让诚实信号变成便宜信号</em>。</li>
+      <li>预置的拒绝模板：<strong>"缺测试的 edge case / 安全模型不清楚 / 没有 rollback 方案"</strong>。写拒绝理由是一种税——预写好的税单把税收掉了。</li>
+      <li>对"没被真正审核就 merge"的 PR 做<strong>自动预算回扣</strong>：如果 PR 合入时没有留下有意义的审核交互（滚动深度、inline 评论、request change），下一次任务的 token 预算扣 2 倍。让盖章的代价对盖章人自己可见。</li>
+      <li>把<strong>审核者注意力作为一等指标</strong>，放在 dashboard 上和"merged PRs"并排。你不统计的东西你改进不了。我们统计了评审的产出，却没有统计评审的投入。</li>
+    </ul>
+
+    <p>底层原则：agent harness 应该把审核者的注意力当成整条 pipeline 里<em>最稀缺</em>的资源，因为它就是。算力便宜。token 便宜而且<a href="https://news.ycombinator.com/item?id=47942903" target="_blank">越来越便宜</a>——本周 HN 首页有一篇"我们用 Opus 降低了 LLM 成本"，对账单来说是好事，对监督来说是灾难：评审变便宜意味着更多评审意味着每次评审的注意力<em>更少</em>。生成侧每一次效率提升，都在结构性地侵蚀评审侧，而没有人在为这件事做预算。市场梯度直指盖章。你如果不顺着梯度的反方向设计，你得到的就是梯度想要的结果。</p>
+
+    <h2>那份心慌就是传感器。别把它关了。</h2>
+
+    <p>回到那个 Reddit 的哥们儿。他<em>不应该</em>去刷一堆 LinkedIn 上"AI 监督最佳实践"的鸡汤，然后让自己跟这次事件和解。他<em>应该</em>保持不舒服，并且下次有能力在会议里当着所有人的面说出来："我今天剩下的注意力不足以负责任地 approve 这个。这是系统问题不是我的问题，我们得当系统问题处理。"</p>
+
+    <p>如果他说不出这句话——如果团队文化、PM 的排期、他自己的 velocity 指标、或者他用的工具让这句话的社交成本太高——那问题不是他的纪律。问题是有人（可能是他、可能是我、可能是这个赛道里每一个工具厂商）造了一个 workflow，把他诚实的价格抬到了他付不起的地步。</p>
+
+    <p>解法不是加更多门。<em>盖章就是门在高压下的形态</em>。解法是承认 human-in-the-loop 这个词在 2020 年之后悄悄变味了，然后用三个不性感的动作重建它：（1）<strong>高压下不可关闭的约束</strong>；（2）<strong>让拒绝成为便宜的那条路</strong>；（3）<strong>把"心慌"作为系统会倾听的一等信号</strong>——而不是一个累坏了的人周五下午四点在心里默默上演的一种状态。</p>
+
+    <p>完美版本我不知道怎么造。我只知道第一步，是那位 senior dev 发帖时做的那一步：用真实账号，在公开场合，说一句<em>这件事不对劲</em>。那个帖子比今年任何一份治理白皮书都值钱。它是一个还在工作的警报。剩下唯一的问题是：我们下一代工具，要设计成能听见它——还是最终、高效、不可逆地，把它彻底淹没掉。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">一个人类和他的 agents 搭的。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>"It Shipped, Nothing Happened, I Still Don't Feel Right": The Rubber-Stamp Era of AI Code Review — Youwang Deng</title>
+<meta name="description" content="A senior dev confessed on r/ExperiencedDevs this week: approved an AI feature for prod knowing the security review was garbage. Nothing bad happened. He still feels wrong. He's right to. Human-in-the-loop has quietly degraded into rubber-stamp-in-the-loop — and we have production data showing every optional gate gets disabled within a week.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-04-29</time>
+        <span class="post-tag">ai-review</span>
+        <span class="post-tag">human-in-the-loop</span>
+        <span class="post-tag">agent-governance</span>
+      </div>
+      <h1 class="post-title">"It Shipped, Nothing Happened, I Still Don't Feel Right": The Rubber-Stamp Era of AI Code Review</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">A senior developer on r/ExperiencedDevs this week: <em>"I approved an AI feature for production knowing the security review didn't actually answer the question. It shipped. Nothing happened. I still don't feel right about it."</em> Top-of-sub. Thousands of upvotes. No one in the comments is arguing with him. They're all quietly saying the same thing. That post is not a confession. It's a status report on the state of human-in-the-loop in 2026 — and the guilt in that last sentence is the last working sensor we have.</p>
+
+    <h2>The post is not about that one PR</h2>
+
+    <p>Go read it. I'll wait. <a href="https://www.reddit.com/r/ExperiencedDevs/comments/1sy3wbv/approved_an_ai_feature_for_production_knowing_the/" target="_blank">Here's the thread.</a> And while you're there, glance at the companion post <a href="https://www.reddit.com/r/ExperiencedDevs/comments/1syxaw3/what_is_your_aicoding_hottake/" target="_blank">"What is your AI-coding hot take?"</a> — same subreddit, same day, and the highest-voted takes are not about model capability. They're about review fatigue. About how approvals feel now. About a specific shape of dread that didn't exist on this forum two years ago.</p>
+
+    <p>Important detail: this is r/ExperiencedDevs. Not r/learnprogramming. These are staff engineers, tech leads, people with fifteen-year careers. This is the population that <em>used to be</em> the safety net. When the safety net starts posting guilty confessions at this volume, the net isn't the story. The ground it's supposed to catch is.</p>
+
+    <p>The comments converge on one uncomfortable line, phrased a dozen ways: <strong>the absence of a bad outcome is not evidence of safety</strong>. Nothing happened this week means nothing <em>attacked you</em> this week. A non-responsive security review that ships to prod without incident isn't a vindicated decision — it's an unrolled die. The dev's guilt is correct. The system around him trained him to feel guilty about the right thing, and then rewarded him for ignoring the feeling.</p>
+
+    <h2>Four ways human-in-the-loop becomes rubber-stamp-in-the-loop</h2>
+
+    <p>There's a surprisingly good 2025 piece from the governance-and-risk crowd, <a href="https://cybermaniacs.com/cm-blog/rubber-stamp-risk-why-human-oversight-can-become-false-confidence" target="_blank">"Rubber Stamp Risk"</a>, that names the failure modes crisply. I'm going to borrow their four buckets because they map one-for-one onto AI-assisted code review, and pretending this is a novel problem in software would be dishonest. Compliance people have watched this exact movie before.</p>
+
+    <ol>
+      <li><strong>Volume and velocity.</strong> The reviewer has more decisions than human attention can fund. An AI-augmented team doesn't produce 10% more PRs; it produces 3–10× more PRs, many touching unfamiliar corners. Per-PR attention drops mechanically. You don't <em>choose</em> to read less carefully — arithmetic does it for you.</li>
+      <li><strong>Opacity.</strong> The diff is not <em>why</em>. An AI agent produces a 400-line patch and a three-sentence summary, and the summary is itself AI-generated. The reviewer is inspecting the output of one black box using another black box's description of it. There is no "walk me through your thinking" step, because there is no thinking on the other side to walk through.</li>
+      <li><strong>Cognitive fatigue.</strong> After twenty diffs in a day, the twenty-first gets a different kind of read. Not worse-on-purpose — worse as a pure function of attention budget. The fatigued brain pattern-matches: "looks like the other ones, looks green, LGTM." This is not a character flaw. It is how brains work.</li>
+      <li><strong>Cultural pressure.</strong> Being the person who blocks the AI feature is socially expensive. The PM has a ship date. The team has velocity metrics. The agent is already the team's favorite collaborator. Saying "I need another day to actually read this" costs reputation. Saying "approved" costs three seconds. The incentive gradient is unambiguous.</li>
+    </ol>
+
+    <p>All four are present in any AI-review workflow by default. You don't have to engineer them in. Not engineering them <em>out</em> is how you end up with that Reddit post.</p>
+
+    <p>The kicker: the <a href="https://artificialintelligenceact.eu/article/14/" target="_blank">EU AI Act, Article 14</a> requires "effective human oversight" and <em>defines neither word</em>. So we have a regulatory mandate for a ritual that regulators themselves haven't specified. That vacuum gets filled by whatever the market finds cheapest, and the cheapest version is a checkbox labeled "reviewed by human." We are months, not years, from compliance theatre being the default implementation of Article 14. The rubber stamp isn't an anti-pattern anymore — it's the reference architecture.</p>
+
+    <h2>The thing we learned the embarrassing way: every optional gate gets disabled</h2>
+
+    <p>I build agent tooling. Part of what I ship is an opinionated harness — interactive approval prompts before risky tool calls, per-task turn budgets, tool allowlists, a <code>!yolo on/off</code> switch for the user who is done being asked. I was proud of the approval prompts. I thought they were the adult version of "human-in-the-loop." They were a feature bullet.</p>
+
+    <p>Then I watched the logs.</p>
+
+    <p><code>!yolo on</code> is the most-used command in our Slack. Not by a little. By a lot. The people typing it are the same engineers who asked for the approval prompts in the first place. The median time between "I want confirmations on destructive commands" and "I have disabled confirmations on destructive commands" is under a week. Sometimes under an hour — one new user flipped it off in the middle of their onboarding session, because the prompts interrupted a flow state they were trying to test.</p>
+
+    <p>Here is the uncomfortable truth I had to accept: <strong>a gate you can disable under pressure is a gate you will disable under pressure.</strong> The 4pm version of the engineer is not the 10am version. The approval prompt was designed by 10am-me, and routinely bypassed by 4pm-me, and I am the same person who built the thing. There is no population of users more sympathetic to approval prompts than the people who implemented them, and <em>we turn them off</em>. Any design that assumes the reviewer will maintain careful-mode attention across a workday is a design that assumes away the problem it claims to solve.</p>
+
+    <p>This is not a discipline failure. Discipline is finite. This is a design category error: we built ceremonies where we needed constraints.</p>
+
+    <h2>Constraints beat approvals. Allowlists beat prompts.</h2>
+
+    <p>After admitting the gates weren't working, I changed what the harness shipped by default. The distinction I'd been missing is worth stating cleanly:</p>
+
+    <ul>
+      <li>An <strong>approval</strong> asks a tired human for a decision. It trades attention for safety. Attention is the scarce resource. You lose the trade.</li>
+      <li>A <strong>constraint</strong> removes the unsafe path from the menu. It trades <em>options</em> for safety. Options are cheap. You win the trade.</li>
+    </ul>
+
+    <p>Concretely, here's what we moved to:</p>
+
+    <pre><code><span class="code-comment"># before: optional, skippable, rubber-stampable</span>
+approval_mode: interactive   <span class="code-comment"># users !yolo'd this within a week</span>
+
+<span class="code-comment"># after: non-negotiable at the harness level</span>
+enforce_denied_commands: all
+tool_allowlist:
+  - read_file
+  - grep
+  - run_tests
+tool_denylist:
+  - "git push --force*"
+  - "rm -rf /*"
+  - "DROP TABLE*"
+max_turns: 30
+max_tokens_per_task: 500_000
+network_isolation: workspace-only</code></pre>
+
+    <p>None of these ask the user a question. The agent <em>cannot</em> call <code>git push --force</code> regardless of how persuasive its plan looks, regardless of how tired the reviewer is. The ceiling on how much damage a single task can do is set in config, not in willpower. The engineer can still choose to loosen the config — but loosening it is a deliberate, committed, reviewable act, not a half-second of Enter-key muscle memory.</p>
+
+    <p>Compare this to the pattern GitHub quietly normalized a decade ago: the evolution from "two reviewers must approve" to "two reviewers must approve AND required status checks must pass." The reviewer signature is rubber-stampable. The green build is not. You cannot get tired and accidentally pass a failing test suite; you <em>can</em> get tired and accidentally click Approve. The industry already knows how this story ends. We just keep re-learning it one tool at a time.</p>
+
+    <h2>Make refusal the cheap path</h2>
+
+    <p>There's a second design lever nobody in the AI-review conversation seems to be pulling: <strong>the relative cost of "approve" vs "I didn't actually read this."</strong></p>
+
+    <p>Right now, in every AI-review UI I've seen — GitHub Copilot PR review, Cursor's accept panel, every code-agent chat surface — approving takes one click. Rejecting with "this isn't adequate" takes a paragraph of explanation, a follow-up conversation with the model, maybe a meeting with the PM who promised the ship date. The attention cost of <em>no</em> is 100× the attention cost of <em>yes</em>. Of course we rubber-stamp. We designed a system where the rubber stamp is the path of least resistance.</p>
+
+    <p>The harness fix is inverting that gradient. Some moves that are cheap to implement and shockingly effective:</p>
+
+    <ul>
+      <li>A one-click <strong>"I didn't read this"</strong> button that's as fast as approve. It routes the PR to a queue, annotates it, does not penalize the reviewer. Makes the honest signal the cheap signal.</li>
+      <li>Canned <strong>"needs rework: untested edge case / unclear security model / no rollback plan"</strong> templates. Rejection prose is a tax; pre-written tax stamps remove it.</li>
+      <li><strong>Automatic budget rollback</strong> on unreviewed merges: if a PR ships without a meaningful review interaction (scroll depth, inline comment, requested change), the task's token budget is charged 2× on the next run. Makes the cost of a rubber stamp visible to the same person who produced it.</li>
+      <li><strong>Reviewer attention as a first-class metric</strong>, surfaced in dashboards next to "PRs merged." You cannot improve what you don't count. We count the output of review; we do not count the input.</li>
+    </ul>
+
+    <p>The underlying principle: your agent harness should treat the reviewer's attention as the scarcest resource in the whole pipeline, because it is. Compute is cheap. Tokens are cheap and <a href="https://news.ycombinator.com/item?id=47942903" target="_blank">getting cheaper</a> — this week's HN front page had a team cutting LLM costs with Opus-tier models, which is lovely for the budget and terrible for oversight, because cheaper reviews mean <em>more</em> reviews mean <em>less attention per review</em>. Every efficiency gain on the generation side structurally erodes the review side. Nobody is budgeting for that. The market gradient points directly at the rubber stamp, and if you don't design against the gradient, you get what the gradient wants.</p>
+
+    <h2>The guilt is the sensor. Keep it.</h2>
+
+    <p>Back to the Reddit dev. The thing he shouldn't do is read a bunch of LinkedIn posts about "AI oversight best practices" and make peace with what happened. The thing he <em>should</em> do is stay uncomfortable, and next time have the vocabulary to say, out loud, in the meeting: "I don't have enough attention left today to responsibly approve this. That's a system problem, not a me problem, and we're going to treat it like one."</p>
+
+    <p>If he can't say that — if his team culture, his PM's ship date, his own velocity metric, or his tooling makes that sentence socially expensive — then the problem is not his discipline. The problem is that someone (possibly him, possibly me, possibly every tool vendor in this space) built a workflow that priced his honesty out of the market.</p>
+
+    <p>The fix isn't more gates. The rubber stamp is what gates become under load. The fix is admitting that human-in-the-loop, as a phrase, quietly stopped meaning what it meant in 2020, and rebuilding it with three unsexy moves: (1) <strong>constraints that can't be disabled under pressure</strong>, (2) <strong>refusal as the cheap path</strong>, and (3) <strong>guilt as a first-class signal the system listens to</strong>, not a state a tired human silently performs at 4pm on a Friday.</p>
+
+    <p>I don't know how to build that perfectly. I do know that the first step is the one that senior dev took when he posted: saying <em>this didn't feel right</em>, in public, with his real account. That post is worth more than any governance whitepaper written this year. It's a working alarm. The only question is whether we design the next generation of tooling to hear it — or to finally, efficiently, irreversibly, drown it out.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
