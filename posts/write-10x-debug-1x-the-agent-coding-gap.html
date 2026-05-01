@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 10x Write, 1x Debug Problem: Why Agent Coding Still Feels Slow — Youwang Deng</title>
+<meta name="description" content="Agents write code 10x faster than 2019. Debugging is exactly as slow. A METR RCT shows senior devs are 19% slower with AI — and still believe they're 20% faster. The real bottleneck isn't emission; it's the loop you can't shorten with tokens.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-01</time>
+        <span class="post-tag">agent-coding</span>
+        <span class="post-tag">debugging</span>
+        <span class="post-tag">developer-productivity</span>
+      </div>
+      <h1 class="post-title">The 10x Write, 1x Debug Problem: Why Agent Coding Still Feels Slow</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">Here is the uncomfortable number nobody in the AI-coding marketing deck wants to put on a slide: <strong>minus nineteen percent</strong>. That's how much slower 16 senior open-source developers got on 246 real tasks in million-line codebases when you gave them Cursor Pro and Claude 3.5/3.7 Sonnet, compared to doing the same work with no AI at all. The <a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/" target="_blank">METR RCT</a> ran pre-registration, used paid senior contributors on their own repos (avg 22k+ stars, 1M+ LOC), and paid them $150/hr. They expected to go 24% faster. Afterwards, despite the data, they still believed they'd gone 20% faster. I've been staring at that result for a month. It finally made sense when I stopped asking <em>"why are agents not as fast as they feel?"</em> and started asking a smaller, meaner question: <em>"which clock are we actually measuring?"</em></p>
+
+      <h2>The two clocks</h2>
+
+      <p>There are two clocks in a coding session. We treat them like they're the same clock. They are not.</p>
+
+      <table>
+        <thead>
+          <tr><th>Clock</th><th>2019 baseline</th><th>2026 with agents</th><th>Delta</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Emit clock: characters-to-plausible-code</td><td>~60 WPM of typing</td><td>~200 LOC in 30s</td><td><strong>~10x faster</strong></td></tr>
+          <tr><td>Debug clock: symptom-to-root-cause-to-green-CI</td><td>print, step, hypothesize, re-run</td><td>print, step, hypothesize, re-run — plus re-read AI's code you didn't write</td><td><strong>flat to slower</strong></td></tr>
+        </tbody>
+      </table>
+
+      <p>Agent demos are filmed on the emit clock. Bugs live on the debug clock. Every "10x productivity" number you have ever seen is the emit clock. Every grumpy senior engineer on r/ExperiencedDevs is reporting the debug clock. They are not disagreeing with each other. They are looking at different instruments.</p>
+
+      <p>Google's 2024 DORA report (39,000+ devs, the largest sample we've got) quietly reinforces the split: every 25% increase in AI adoption correlates with a <strong>1.5% dip in delivery speed</strong> and a <strong>7.2% drop in system stability</strong>. Meanwhile <strong>75% of developers feel more productive</strong>. The satisfaction line and the output line have decoupled. That's the whole story.</p>
+
+      <h2>Three reasons the debug clock didn't move</h2>
+
+      <p>I've tried to make it move. I have run coding agents full-time, on my own code, for over a year. Here are the three failure modes I keep hitting — none of them fixable by a bigger model.</p>
+
+      <p><strong>1. Agents can't reproduce the non-deterministic bugs they write.</strong></p>
+
+      <p>There's a thread on <a href="https://www.reddit.com/r/ExperiencedDevs/" target="_blank">r/ExperiencedDevs</a> this week titled something like <em>"agents write code 10x faster but debugging is the same speed it was in 2019."</em> Top comment, paraphrasing:</p>
+
+      <blockquote>Agent wrote a queue handler. Looked fine. Passed tests. Shipped. Three days later, one customer hits a race where two events arrive within ~40ms and one silently drops. I paste the code back to the agent. It generates three confident explanations, all wrong. It cannot reproduce the bug because it doesn't control the scheduler. I'm back to <code>printf</code> debugging at 2am.</blockquote>
+
+      <p>Agents are great at problems whose spec fits in the prompt. Race conditions, resource leaks, timing-sensitive bugs, anything heisenbug-shaped — the spec isn't in the prompt. It's in the scheduler, the filesystem, the kernel, the other pod. The agent can generate a thousand plausible fixes per minute and none of them will be the real fix, because the real fix requires observing state the agent cannot observe.</p>
+
+      <p><strong>2. The agent forgets why it wrote what it wrote.</strong></p>
+
+      <p>When you write code yourself, you build a mental model as you type. Six weeks later, when the code breaks, you can often reconstruct the "why" in about thirty seconds — <em>"oh right, I added that guard because the upstream sometimes returns nulls on weekends."</em> Agents build no such model. Their "why" lived in a context window that was evicted the moment the task closed. You get the artifact without the reasoning. When the artifact breaks, you can't debug it — you can only re-derive it. The agent's second guess on why its own code exists is <em>not</em> more reliable than yours. It's often less.</p>
+
+      <p><strong>3. Review-and-reject eats the generation savings.</strong></p>
+
+      <p>METR reported this cleanly: devs accepted <strong>under 44%</strong> of AI suggestions, <strong>75% read every line</strong>, <strong>56% made major modifications</strong>. If the generation takes 30 seconds and the careful read + rewrite takes 3 minutes, the agent didn't save you 29 minutes and 30 seconds. It cost you 2 minutes and 30 seconds — and you're tired afterwards in a way that typing your own code doesn't tire you, because you were doing forensic review, not authoring.</p>
+
+      <p>The kicker from the same study: <strong>69% of participants kept using Cursor after the experiment ended</strong>, despite knowing from the data that it made them slower. They liked the feel. We are optimizing for the feel. The feel is not the work.</p>
+
+      <h2>What actually helps: shrink the debug loop, not the edit loop</h2>
+
+      <p>Once you accept that emission is a commodity and the real cost is the debug loop, the design of a coding agent changes. I've been rebuilding how I drive SageCLI around exactly this. The principles are boring and the wins are large.</p>
+
+      <p><strong>Put a leash on the runaway.</strong> The single highest-leverage flag I run is <code>--max-turns 8</code>. Without it, a confused agent will happily bury the original bug under 200 lines of "fix attempt" scaffolding, and every one of those lines is now code <em>you</em> have to debug. With it, the agent hits the wall, you see the wall, you step in. The bug stayed visible. Companion to this: <code>--timeout 300</code>. Bugs that require more than five minutes of agent-thinking almost never get fixed by more agent-thinking. They get fixed by a human.</p>
+
+      <p><strong>Make blast radius small enough to revert in one command.</strong> Tool allowlists (<code>--allow-env PATH,HOME</code>, explicit MCP scope, no blanket filesystem write) aren't about security theater. They're about <em>recoverability</em>. If the agent can only touch 4 files in 1 directory, <code>git checkout .</code> puts you back at green in two seconds. If the agent can touch everything, you're now doing archaeology on its changes before you can even roll back. Debug time is inversely proportional to how confidently you can throw the last 20 minutes of work away.</p>
+
+      <p><strong>Make the session replayable.</strong> Save the full transcript. Seed where you can. The 2am heisenbug changes character completely when you can paste the exact sequence that produced it back into a fresh session and watch it happen again. "I can't reproduce it" is the sentence that costs the most money in software. A CLI-first agent with deterministic I/O and saved transcripts turns that sentence into <em>"here's the replay, let me narrow it down."</em></p>
+
+      <p><strong>Front-load the rework onto another agent.</strong> The cheapest debug is the one a reviewer agent caught before it merged. I run a two-agent pattern now for anything non-trivial — writer generates, reviewer critiques with a different system prompt tuned for "what would break this in prod?" The reviewer is not smarter than me; it's just awake. I'm tired. It catches the null-check I'd catch if I had infinite patience. I do not have infinite patience.</p>
+
+      <p>Here's what that looks like end-to-end for a small change on a production handler:</p>
+
+      <pre><code>sage run \
+  --max-turns 8 \
+  --timeout 300 \
+  --allow-env PATH,HOME \
+  --pattern writer-then-reviewer \
+  --on-fail rollback \
+  --save-transcript ./sessions/$(date +%s).jsonl \
+  <span class="code-comment">// "fix the race in events.py — two events within 40ms drop one"</span>
+</code></pre>
+
+      <p>Notice what's <em>not</em> in there: no "write as much code as possible" flag. No "be creative." The agent has a small job, a short fuse, a narrow blast radius, and a paper trail. None of this makes the agent write faster. All of it makes the <em>debug loop</em> survivable, which is the only clock that was ever slow.</p>
+
+      <h2>The real 10x is the loop you don't run</h2>
+
+      <p>Here's the take I want you to leave with. The fastest debug is the one that doesn't happen — because the agent was never allowed to ship an ambiguous change in the first place. The second-fastest debug is the one where rollback is a single command and the transcript is on disk. Everything else is optimizing the wrong clock.</p>
+
+      <p>So stop measuring <code>LOC/minute</code>. Stop measuring tokens per second. Those numbers are already solved and they are lying to you about how your team is doing. Start measuring:</p>
+
+      <ul>
+        <li><strong>p50(time-to-green-CI)</strong> from task start to first clean pipeline. This is the emit clock and the debug clock combined. It is the only honest number.</li>
+        <li><strong>p50(time-to-safe-revert)</strong> — if an agent change turns out wrong, how fast can you get back to last-known-good? Under 60 seconds means you have a good harness. Over 10 minutes means your agent has too much power.</li>
+        <li><strong>Rework rate</strong> — of the code the agent merged this week, how much was re-touched by a human within 7 days? METR saw 56% major modifications. If you're seeing similar, your agent is a <em>first-draft machine</em>, not a <em>shipping machine</em>. Price it accordingly.</li>
+      </ul>
+
+      <p>The industry sold "10x engineer" as a story about typing speed. It was never about typing speed, even in 2019. It was about which engineers avoided the debug loops nobody else could get out of. The agents we have now are extremely good at making the first kind of engineer feel validated. They are not yet good at helping the second kind. The harness around the agent — the turn limits, the allowlists, the transcripts, the reviewer — is where that second kind of leverage lives. It is boring, it does not demo well, and it is the entire game.</p>
+
+      <p>The fastest keyboard in the world doesn't help if you have to type every line twice. We've built a very fast keyboard. Now we have to build the loop around it that was always the real product.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

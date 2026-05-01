@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>写得飞快，debug 照旧 — 为什么 AI 写代码快 10 倍，你却没觉得更快？ — Youwang Deng</title>
+<meta name="description" content="METR 实打实的 RCT：16 个资深 OSS 工程师、246 个真任务，用了 AI 反而慢了 19%。他们自己还觉得快了 20%。AI 写代码确实快 10 倍，但 debug 还是 2019 年那个速度。我们一直在看错表。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-01</time>
+        <span class="post-tag">AI编程</span>
+        <span class="post-tag">debug</span>
+        <span class="post-tag">开发效率</span>
+      </div>
+      <h1 class="post-title">写得飞快，debug 照旧 — 为什么 AI 写代码快 10 倍，你却没觉得更快？</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">给你看一个 AI 编程 PR 稿里绝对不会出现的数字：<strong>慢了 19%</strong>。这是 <a href="https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/" target="_blank">METR 去年那份 RCT</a> 的结论——16 个资深开源工程师，在自己维护的百万行级别 repo 上（平均 22k+ star），做 246 个真任务，给他们 Cursor Pro + Claude 3.5/3.7 Sonnet，结果比不用 AI 还慢 19%。他们自己赛前预测能快 24%。做完看了数据，还是坚信自己快了 20%。我盯着这组数字看了一个月，一直想不明白哪里拧巴。直到我不再问 <em>"AI 怎么没有感觉的那么快？"</em>，而是换了个更刻薄的问题：<em>"我们到底在看哪块表？"</em></p>
+
+      <h2>两块表</h2>
+
+      <p>写代码这件事上有两块表。我们一直把它们当成同一块在读。它们不是。</p>
+
+      <table>
+        <thead>
+          <tr><th>表</th><th>2019 年的速度</th><th>2026 年有 agent 的速度</th><th>变化</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>出码表：字符 → 看起来能跑的代码</td><td>打字 60 字/分</td><td>30 秒 200 行</td><td><strong>~10 倍</strong></td></tr>
+          <tr><td>调试表：症状 → 定位根因 → CI 全绿</td><td>print、单步、猜、再跑</td><td>print、单步、猜、再跑 —— 外加读懂不是你写的那段代码</td><td><strong>持平或更慢</strong></td></tr>
+        </tbody>
+      </table>
+
+      <p>Agent 的 demo 视频都是在出码表上拍的。但 bug 活在调试表上。你见过的所有"10 倍生产力"的数字，都是出码表。r/ExperiencedDevs 上那些火气大的老工程师，念叨的都是调试表。他们没吵架，他们只是在看不同的仪器。</p>
+
+      <p>Google 2024 年的 DORA 报告（3.9 万开发者，目前样本最大的一份）悄悄把这件事坐实了：AI 采用率每提高 25%，交付速度反而<strong>降 1.5%</strong>，系统稳定性<strong>降 7.2%</strong>。而同一批人里，<strong>75% 觉得自己变得更高效了</strong>。"感觉"这根指针和"产出"这根指针，已经彻底脱钩。整件事就这么回事。</p>
+
+      <h2>为什么调试表没动</h2>
+
+      <p>不是我没试过让它动。我用 coding agent 全职干活、写自己项目的代码，已经超过一年。以下这三个坑我反复踩，而且<strong>没有一个是"换个更大的模型就能解决"的</strong>。</p>
+
+      <p><strong>1. Agent 复现不了自己写出来的非确定性 bug。</strong></p>
+
+      <p>这周 r/ExperiencedDevs 有个置顶帖，标题差不多是 <em>"agent 写代码快 10 倍，但 debug 还是 2019 年那个速度"</em>。最高赞评论，转述一下：</p>
+
+      <blockquote>Agent 给我写了个 queue handler，看着没毛病，测试都过，上线。三天后，一个客户踩中一个 race：两个事件在 40ms 内进来，其中一个被默默丢掉。我把代码贴回给 agent。它自信满满给我三套解释，全错。它根本复现不了，因为调度器不在它手里。我又回到凌晨两点 <code>printf</code> 一行一行查的状态。</blockquote>
+
+      <p>Agent 擅长那种"规格能塞进 prompt"的问题。Race、资源泄漏、时序 bug、所有 heisenbug 型的问题——规格不在 prompt 里。规格在调度器里、在文件系统里、在内核里、在隔壁那个 pod 里。Agent 每分钟可以生成一千个听起来挺对的 patch，没有一个会是真正的 fix。因为真正的 fix 需要观察它看不见的状态。</p>
+
+      <p><strong>2. Agent 忘了自己为什么这么写。</strong></p>
+
+      <p>你自己写代码的时候，边写边建模。六周后代码出问题，你常常三十秒就能把"当初为啥加这行"想起来——<em>"哦对，周末上游偶尔会返 null，我加的保护。"</em> Agent 没有这个模型。它那套"为什么"活在一个 context window 里，任务一关就被清掉了。你拿到了产物，没拿到产物背后的推理。产物出问题的时候，你不是在 debug，你是在<em>重新推导</em>。而且 agent 第二次猜它自己当初为啥这么写，<em>并不会</em>比你猜得准，常常更差。</p>
+
+      <p><strong>3. 审代码 + 打回重写，把生成省下来的时间全吃回去了。</strong></p>
+
+      <p>METR 那份研究里数字很干净：开发者接受了 AI 建议的<strong>不到 44%</strong>，<strong>75% 的人会逐行读过</strong>，<strong>56% 的建议是大改了才用</strong>。如果生成 30 秒，认真读 + 改花了 3 分钟，那 agent 不是帮你省了 29 分 30 秒——它让你多花了 2 分 30 秒。而且读完以后你是累的，那种累和自己敲键盘的累不一样，因为你是在做法医学鉴定，不是在创作。</p>
+
+      <p>同一份研究里还有个更扎心的细节：实验结束后，<strong>69% 的参与者继续用 Cursor</strong>，<em>明知道数据说它拖慢了自己</em>。他们喜欢那种手感。整个行业都在给"手感"优化。手感不是活儿。</p>
+
+      <h2>真正有用的不是让出码更快，而是让调试循环变短</h2>
+
+      <p>一旦你接受"出码是白菜价、调试才是真开销"这个事实，coding agent 的设计方式整个就变了。我最近重构了自己用 SageCLI 的方式，原则都很无聊，但收益很大。</p>
+
+      <p><strong>给跑飞的 agent 拴根绳。</strong> 我最常加的一个 flag 是 <code>--max-turns 8</code>。不加的话，一个糊涂的 agent 会开开心心在原 bug 上面糊 200 行"修复尝试"的脚手架，而这 200 行现在是<em>你</em>要 debug 的代码。加了之后，它撞墙，你看见它撞墙，你介入。bug 还在原位置没被埋。配套的是 <code>--timeout 300</code>。超过五分钟 agent 想不出来的 bug，再让它想五分钟也基本想不出来。得人上。</p>
+
+      <p><strong>把 blast radius 压小到一条命令能 revert。</strong> Tool allowlist（<code>--allow-env PATH,HOME</code>、明确的 MCP scope、不给盲写文件系统权限）这套，不是在演"安全"。是在保<em>可回滚性</em>。Agent 只能动 1 个目录的 4 个文件，<code>git checkout .</code> 两秒你就回绿了。agent 能动到处都是，你还没回滚就得先对它的改动做考古。Debug 时间和"你能多自信地把过去 20 分钟扔掉"成反比。</p>
+
+      <p><strong>让会话可复现。</strong> 全程 transcript 存盘，能 seed 的地方都 seed 上。凌晨两点的 heisenbug，性质完全变了——如果你能把"触发它的那串输入"原样贴进一个新会话里看它再发作一次的话。"我复现不出来"是软件工程里最贵的一句话。CLI-first 的 agent + 确定性 I/O + 存盘 transcript，把这句话变成<em>"这是回放，我来缩小范围。"</em></p>
+
+      <p><strong>把返工前置到另一个 agent 身上。</strong> 最便宜的 debug 是另一个 reviewer agent 在合入前就拦下来的那个。稍微复杂点的改动我现在都跑两个 agent 的 pattern——writer 出码，reviewer 用另一套专门调教过的 system prompt（重点放在"这玩意儿上生产会怎么挂"）去挑刺。Reviewer 不比我聪明，它只是<em>没困</em>。我困。它能抓到我如果耐心无限也能抓到的 null-check。我耐心不无限。</p>
+
+      <p>一个生产 handler 的小改动，端到端长这样：</p>
+
+      <pre><code>sage run \
+  --max-turns 8 \
+  --timeout 300 \
+  --allow-env PATH,HOME \
+  --pattern writer-then-reviewer \
+  --on-fail rollback \
+  --save-transcript ./sessions/$(date +%s).jsonl \
+  <span class="code-comment">// "修一下 events.py 里的 race：40ms 内进两个事件会丢一个"</span>
+</code></pre>
+
+      <p>注意这里<em>没有</em>的东西：没有"尽量多写代码"的 flag，没有"发挥创造力"。Agent 拿到的是：小任务、短引线、窄 blast radius、完整纸面记录。这一切都不会让它写得更快。但每一样都让<em>调试循环</em>活得下来。而调试循环是唯一一块一直很慢的表。</p>
+
+      <h2>真正的 10 倍是你没跑那一遍循环</h2>
+
+      <p>我想让你带走的 take 是这个：最快的 debug 是根本没发生的那次——因为 agent 从一开始就没被允许把一个模糊的改动上线。第二快的 debug 是一条命令能 revert、transcript 在硬盘上的那次。其他所有方案都是在优化错误的那块表。</p>
+
+      <p>所以别再量 <code>LOC/分钟</code> 了。别再量 token/秒了。这些数字早就被打穿了，而且它们正在骗你，让你看不清团队到底什么状态。开始量：</p>
+
+      <ul>
+        <li><strong>p50(time-to-green-CI)</strong>：从任务开始到 CI 第一次干干净净过绿，要多久。这是出码表和调试表加在一起。这是唯一一个不骗人的数字。</li>
+        <li><strong>p50(time-to-safe-revert)</strong>：agent 改错了，多久能回到上个 known-good 的状态。60 秒以内，说明你的 harness 到位了。10 分钟以上，说明你给 agent 的权限太大了。</li>
+        <li><strong>返工率</strong>：这周 agent 合进去的代码，7 天内有多少被人类再动过一次。METR 是 56% 大改。你那边是类似数字的话，你的 agent 是台<em>初稿机</em>，不是<em>上线机</em>。成本模型应该按初稿算。</li>
+      </ul>
+
+      <p>整个行业把"10 倍工程师"卖成一个关于打字速度的故事。就算在 2019 年，它也从来不是打字速度。它讲的是：有些工程师避开了其他人爬不出来的那些 debug 坑。我们现在手里的 agent 非常擅长让第一类工程师感觉自己被验证了。但它们还不太会帮第二类。agent 外面那层壳——turn 限制、allowlist、transcript、reviewer——才是第二种杠杆的地方。这玩意儿无聊，不 demo 友好，但它就是整盘游戏。</p>
+
+      <p>世界上最快的键盘救不了一个得把每行敲两遍的人。我们造出了一个非常快的键盘。现在得把围绕它的那个循环造出来——那个循环一直都是真正的产品。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
