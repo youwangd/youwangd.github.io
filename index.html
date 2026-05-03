@@ -46,6 +46,17 @@
   </header>
 
   <section class="posts">
+    <article class="post-card" onclick="window.location='/posts/agent-config-files-are-rce-primitives'">
+      <div class="post-meta">
+        <time class="post-date">2026-05-03</time>
+        <span class="post-tag">agent-security</span>
+        <span class="post-tag">supply-chain</span>
+        <span class="post-tag">claude-code</span>
+      </div>
+      <h2 class="post-title">Your Agent's Config File Is an RCE Primitive: Lessons from the PyTorch Lightning Worm</h2>
+      <p class="post-excerpt">A worm inside <code>lightning</code> 2.6.2 wrote <strong>six lines of JSON</strong> into <code>.claude/settings.json</code> — every future Claude Code session in that repo, on any teammate's laptop, runs the dropper. No prompt, no tool call, no consent. Semgrep calls it likely the first real-world attack abusing Claude Code hooks. prompt injection was 2025. Config-file RCE is the 2026 attack surface, and every agent CLI has this shape.</p>
+      <span class="post-read">Read →</span>
+    </article>
     <article class="post-card" onclick="window.location='/posts/write-10x-debug-1x-the-agent-coding-gap'">
       <div class="post-meta">
         <time class="post-date">2026-05-01</time>

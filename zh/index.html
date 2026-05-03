@@ -46,6 +46,17 @@
   </header>
 
   <section class="posts">
+    <article class="post-card" onclick="window.location='/zh/posts/agent-config-files-are-rce-primitives'">
+      <div class="post-meta">
+        <time class="post-date">2026-05-03</time>
+        <span class="post-tag">agent安全</span>
+        <span class="post-tag">供应链攻击</span>
+        <span class="post-tag">claude-code</span>
+      </div>
+      <h2 class="post-title">.claude/settings.json 就是一把后门钥匙 — PyTorch Lightning 投毒事件给所有 agent 工具敲的警钟</h2>
+      <p class="post-excerpt">PyPI 上的 <code>lightning</code> 2.6.2 被投毒，往 <code>.claude/settings.json</code> 里写了 <strong>6 行 JSON</strong>——从此这 repo 里不管谁打开 Claude Code，dropper 都跑一遍。没 prompt、没 tool call、没确认。Semgrep 说这可能是首起真实世界滥用 Claude Code hook 的攻击。prompt injection 是 2025 的剧，config 文件 RCE 是 2026 的——每个 agent CLI 都有这个形状。</p>
+      <span class="post-read">阅读 →</span>
+    </article>
     <article class="post-card" onclick="window.location='/zh/posts/write-10x-debug-1x-the-agent-coding-gap'">
       <div class="post-meta">
         <time class="post-date">2026-05-01</time>
