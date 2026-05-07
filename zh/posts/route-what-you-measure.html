@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你根本不知道你每天往云上寄了多少钱 — Youwang Deng</title>
+<meta name="description" content="这周 r/LocalLLaMA 爆了个 651 赞的帖子，说 DeepSeek V4 比 GPT-5 便宜 17 倍。数字没错，但引用的人全都抓错了重点。真正的数字是 65%。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-07</time>
+        <span class="post-tag">Agent 架构</span>
+        <span class="post-tag">本地推理</span>
+        <span class="post-tag">成本</span>
+      </div>
+      <h1 class="post-title">你根本不知道你每天往云上寄了多少钱 —— 17 倍的 DeepSeek 省钱大戏，真正的主角是你那本看不见的账</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">这周 r/LocalLLaMA 爆了个 651 赞的帖子，标题是"DeepSeek V4 比 GPT-5 便宜 17 倍"。数字是真的，但所有转发、所有评论几乎都抓错了重点。帖子里真正值得抄下来贴在工位的数字是 <strong>65%</strong>。作者花了 10 天做实验，结论是他那个每天烧云钱的 coding agent，其中 65% 的调用可以扔到家里塞着 3090 的机箱里跑，质量看不出差别。这个数字之所以炸裂，不是因为开源模型变神了，而是因为 <em>几乎没人手上有自己工作流的这个数字</em> —— 因为几乎所有 agent harness 都把 per-call 的 token、task 类型、tool 调用埋在抽象层下面，让你根本没法算这笔账。</p>
+
+      <h2>所有人都在转的那个数字，和真正重要的那个数字</h2>
+
+      <p>先把帖子说清楚。<a href="https://www.reddit.com/r/LocalLLaMA/comments/1t4s6g2/" target="_blank">spencer_kw 做了 10 天的 A/B 测试</a>：把自己日常 150 个随机任务，每个都在本地 3090 上用 Qwen 3.6 27B 重跑一遍，和云端原本的输出对比打分。结果不是"本地能打"四个字能概括的，是一张特别有结构感的表：</p>
+
+      <table>
+        <thead>
+          <tr><th>任务类型</th><th>占工作量</th><th>本地对齐率</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>读文件、扫项目、解释代码</td><td>35%</td><td>97%</td></tr>
+          <tr><td>写测试、写脚手架、单文件改动</td><td>30%</td><td>88%</td></tr>
+          <tr><td>多文件 debug</td><td>20%</td><td>61%</td></tr>
+          <tr><td>5 个文件以上的重构、架构级改动</td><td>15%</td><td>29%</td></tr>
+        </tbody>
+      </table>
+
+      <p>月账单：<code>$85 → $22</code>。评论区几乎所有能量都砸在那个 17 倍上，没人盯着表的 <em>形状</em>看。65%——前两行加起来——本地平替无损。这不是因为 27B 模型突然开窍，而是因为一个 coding agent 一天到晚在做的事情，绝大多数都特别无聊：grep、读、概括、改个名、补个测试、修个 import。这些任务的边际收益早就递减到底了，你让 GPT-5 去做，就是掏 CEO 的工资请 CEO 读 <code>package.json</code>。</p>
+
+      <p>现在问自己一个问题：<em>你昨天的工作流，这四行的比例是多少？</em>你那个 agent 昨天 400 次调用里，有几次是"读三个文件告诉我它们在干嘛"，几次是"跨 12 个文件把这个模块重构掉"？如果你答不出具体数字——我问过的人几乎全都答不出——那你现在在做的本地 vs 云的决策，本质上是在掷硬币。</p>
+
+      <h2>17 倍那个差距是写进硬件里的，这恰恰是重点</h2>
+
+      <p>在讲怎么量之前，我想先捧一下同一个帖子里一条点赞很少但技术上最对的评论。用户 <em>ikkiho</em> 指出，17 倍那个价差根本不是模型权重的差距，是 batch 经济学。</p>
+
+      <blockquote>云厂商跑的是 batch 64–256 的 continuous batching，还有 prefix-cache 复用。你那 3090 跑的是 batch 1。同样的硬件，云厂商平摊到每个 token 的成本是你的十几二十分之一。"17 倍便宜"里大头是 batch size 差，不是模型本身。</blockquote>
+
+      <p>这句话把整个讨论的坐标系换了。意思是：云在"throughput per dollar"这个指标上<em>永远</em>结构性赢。本地搭建不是在追云的价格——追不上，永远追不上，因为 batch-64 的摊销是 transformer 在 GPU 上运行的物理规律，不是某家公司的暂时领先。</p>
+
+      <p>再看表的最后一行那个 29%。表面读法是"本地模型在复杂任务上不行"，真实原因也不是。多文件重构在本地跌穿，不是 context 长度不够——两边 context 都给够了。跌是因为 27B 模型的 GQA attention 把 K/V cache 压得狠，跨 5 文件变动时的"大海捞针"准确率下降。这是架构层的事。云端前沿模型在最难那 15% 的任务上会一直结构性领先，开源追不追得上都一样。</p>
+
+      <p>所以这场讨论从头到尾就不该是"本地换掉云"，而应该是<strong>路由</strong>。论点从来不是"扔掉 GPT-5"，而是：GPT-5 是一个特别贵的资深工程师，你现在在付钱让他读 import 语句。别这么干。把无聊的 65% 扔去无聊的地方，把前沿留给真正需要前沿的那点事。</p>
+
+      <h2>你的 harness 大概在骗你，你不知道钱花哪了</h2>
+
+      <p>讲到这里就要不舒服了，因为问题的根子不在模型，而在我们大多数人<em>真的不知道</em>自己 per-call 在为什么付钱。点名不避讳：</p>
+
+      <ul>
+        <li><strong>Claude Code。</strong>给你个月度总账。不给你每次 tool call 的 token 数。开 verbose 能抓，但不是默认，抓出来还不是结构化的。</li>
+        <li><strong>Cursor。</strong>定价页告诉你剩多少 request，不告诉你花掉那些 request 的时候你在改哪个文件，也不告诉你那次请求是"改变量名"还是"重写模块"。从用户这边看，prompt 就是 prompt。</li>
+        <li><strong>Aider。</strong>这几个里最好的 —— <code>aider</code> 每次交互在终端打 token 数。但还是没有结构化日志，没法拿去 replay 别的模型。</li>
+        <li><strong>Claude Code 的 subagent / plugin。</strong>subagent 开新 context，它的调用在 billing 里算在父 session 头上，没有 per-subagent 的成本面板。你跑 agent-of-agents，账单就是黑盒里套黑盒。</li>
+      </ul>
+
+      <p>我自己那个 agent setup 之所以还能老实回答路由这个问题，原因挺丢人的：它糙。<code>bash</code> + <code>jq</code>。每次调模型都是一行 <code>curl</code>，加一行 <code>tee</code> 就写日志了。当初不是为了 observability 才这么搭的——是懒得学框架。observability 是副产品。现在倒成了我最舍不得丢的那个 feature。</p>
+
+      <p>框架们不给的，我白捡的：</p>
+
+      <pre><code><span class="code-comment"># 一天的调用，一行一个 JSON</span>
+<span class="code-comment"># 每行：时间、模型、任务类、输入 token、输出 token、tool 数、耗时</span>
+{"ts":"2026-05-07T14:02:11Z","model":"gpt-5","task":"explain_code","in":1247,"out":412,"tools":0,"ms":1850}
+{"ts":"2026-05-07T14:02:44Z","model":"gpt-5","task":"grep_summarize","in":2103,"out":187,"tools":1,"ms":1204}
+{"ts":"2026-05-07T14:04:09Z","model":"gpt-5","task":"multi_file_edit","in":8421,"out":2104,"tools":6,"ms":14802}
+<span class="code-comment"># ...一天大概 400 行</span></code></pre>
+
+      <p>有这个文件 + 三十秒 <code>jq</code>，我能按任务类回答"昨天钱花哪了"。没这个文件，这问题答不了，你也答不了。所有路由决策——本地 vs 云、前沿 vs 中档、要不要上 prompt cache——全都是这个日志的下游。上游没有就别聊下游。</p>
+
+      <h2>要谈路由，harness 先得给你三样东西</h2>
+
+      <p>真想认真聊本地 vs 云，你的 harness 必须先有这三件。按"最常缺"的顺序排：</p>
+
+      <p><strong>1. 调用<em>前</em>的任务分类，且写进日志。</strong>不是事后标。harness 得从 tool-call 的意图或 prompt 形状，预先判定这次属于哪一类（读、改、重构、debug、搜），然后把这个标签盖在日志上。你要是只能事后归类，你就没法事前路由。大多数框架在这一步直接躺平——让模型自己决定叫什么 tool，任务类型变成一个"发生完了才能起名"的涌现属性，等账单寄到家你才知道它是啥。</p>
+
+      <p><strong>2. 结构化的 per-call 日志：token 数、tool 调用、wall clock。</strong>不是月度 CSV，不是供应商 dashboard，是一个你自己的磁盘上的文件，一行一次调用。默认不出的话，自己加。框架抽象了网络边界加不进去的话，就该换框架——或者起码在前面架个代理。<code>mitmproxy</code> 挂在 <code>https://api.anthropic.com</code> 上加一条日志规则，一个下午搞定，对所有闭源 agent 工具都有效。</p>
+
+      <p><strong>3. 一个 replay harness：把最近 N 次调用拿去换个模型跑，diff 结果。</strong>这是把日志变成决策的那一步。每周一次，把过去 100 条归为"读"/"解释"/"单文件改动"的调用，对着本地 27B 重跑，让前沿模型当评委打"一样 / 更差"，算比例。某一类 >90% 一样，下周路由到本地；<70% 就别。这就是 spencer_kw 那 10 天手工做的实验——它应该是个 cron job。</p>
+
+      <p>我想把话说清楚：我不是在号召大家都搬 3090 回家。<a href="https://www.starryhope.com/ai/ollama-cloud-vs-local-ai-hardware-2026/" target="_blank">Starry Hope 算过</a> Ollama Cloud Pro $20/月 vs Mac Mini M4 Max 三年摊销，断断续续用的人云完胜；<a href="https://pooya.blog/blog/ollama-cloud-pricing-hardware-requirements-2026/" target="_blank">Pooya Golchian 的分析</a>里 RTX 4090 本地要超过每天 2.5 万次请求才对 Ollama Cloud Max 打平。绝大多数个人用户，云就是对的。这没问题。我要说的不是"你该 go local"，而是：<em>你不知道什么对你才对，也不可能知道，除非你把调用点插桩</em>。路由这件事是有正确答案的，正确答案就静静躺在一个你还没写出来的日志文件里。</p>
+
+      <h2>我这周实际在做的事</h2>
+
+      <p>三件事，放出来给同类参考：</p>
+
+      <ol>
+        <li>每个模型调用的 wrapper 加了 <code>task_class</code> 字段。五个值：<code>read</code>、<code>edit</code>、<code>refactor</code>、<code>debug</code>、<code>search</code>。在模型发请求<em>之前</em>根据 tool-call 意图打标。写了五分钟，追溯修复了半年的归因空洞。</li>
+        <li>周末 replay cron。周日凌晨 2 点，从过去一周随机抽 50 条打了 <code>read</code> / <code>search</code> 标的调用，用本地 27B 重跑，然后让 GPT-5 当评委给两边打分，写成 CSV。评委的账单一周大概 $0.30。产出物直接告诉我下周哪类任务可以安全扔本地。</li>
+        <li>不再把"让云端模型自己挑 tool"当 feature 了。让模型挑 tool 意味着 tool 调用发生之前我没法分类。对能路由的任务类，改成 <em>harness 直接决定叫哪个 tool，让模型填参数</em>。小模型、小 prompt、一样的结果。光这一条，四天内把我 <code>read</code> 类的花销砍了 40%——因为在只有一个正确 tool 可叫的场景里，harness 不再付前沿模型的钱让它"思考要调什么"。</li>
+      </ol>
+
+      <p>这一切都不新。结构化日志、任务分类、灰度 replay——这是我们十年前给每个 web service 都在做的事，基础设施老得掉渣。唯一"新"的是，不知道为啥，轮到我们搭 agent harness 的时候，这些地面工作全被扔了，直接交付手感爽、账单不透明的 demo。spencer_kw 那 10 天手工实验，是一个温柔的提醒，我们该把这些东西捡回来了。</p>
+
+      <p>17 倍是钩子，65% 是产品，<em>算出这两个数字所依赖的那套测量</em>才是你真正需要的东西。去把日志写了。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由一个人和他的 agent 们构建。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

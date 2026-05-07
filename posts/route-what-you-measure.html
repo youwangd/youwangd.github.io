@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You Can't Route What You Don't Measure — Youwang Deng</title>
+<meta name="description" content="A viral r/LocalLLaMA post claimed DeepSeek V4 is 17x cheaper. The real number in the post is 65% — the share of agent traffic that could run locally at no quality drop. Almost nobody has that number for their own workload, because almost every harness hides it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-07</time>
+        <span class="post-tag">agent-harness</span>
+        <span class="post-tag">local-llm</span>
+        <span class="post-tag">cost-optimization</span>
+      </div>
+      <h1 class="post-title">You Can't Route What You Don't Measure: The 17x DeepSeek Gap Is a Harness Problem, Not a Model Problem</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">A Reddit post hit 651 upvotes this week with the headline "DeepSeek V4 is 17x cheaper than GPT-5." That number is real, it's also wrong in the way it was being quoted, and it's not the most interesting number in the post. The most interesting number is <strong>65%</strong>. Sixty-five percent of the author's daily coding-agent traffic could run on a <code>$700</code> 3090 in his closet with no measurable quality drop. The reason that number is surprising isn't that local models got good. It's that almost nobody has the equivalent number for their own workload — because almost every agent harness hides per-call token counts, task classes, and tool-call graphs behind an abstraction that makes the question unanswerable.</p>
+
+      <h2>The one number everyone cited, and the one that matters more</h2>
+
+      <p>Here's the post in one paragraph. <a href="https://www.reddit.com/r/LocalLLaMA/comments/1t4s6g2/" target="_blank">spencer_kw ran a 10-day experiment</a>: 150 random tasks from his normal workflow, each re-executed against Qwen 3.6 27B on a single 3090 alongside the cloud model he'd normally use. He then graded the outputs side by side. The results weren't uniform, and the breakdown is the whole point:</p>
+
+      <table>
+        <thead>
+          <tr><th>Task class</th><th>% of workload</th><th>Local match rate</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>File reads, project scans, "explain this code"</td><td>35%</td><td>97%</td></tr>
+          <tr><td>Test writing, boilerplate, single-file edits</td><td>30%</td><td>88%</td></tr>
+          <tr><td>Multi-file debugging</td><td>20%</td><td>61%</td></tr>
+          <tr><td>5+ file refactors, architectural changes</td><td>15%</td><td>29%</td></tr>
+        </tbody>
+      </table>
+
+      <p>Monthly bill: <code>$85 → $22</code>. The comment thread spent almost all of its oxygen on the 17x price ratio in the title. The actual insight is the <em>shape</em> of the workload. Sixty-five percent of it — the first two rows — runs locally at parity. That's not because the 27B model got miraculously good. It's because most of what a coding agent does all day is boring: grep, read, summarize, rename, scaffold a test, fix an import. Those are exactly the tasks where model IQ hits diminishing returns and the frontier model is being paid to be dramatically overqualified.</p>
+
+      <p>Ask yourself right now: what's <em>your</em> breakdown? What percentage of your agent's calls yesterday were "read these three files and tell me what they do" versus "refactor this 12-file module"? If you can't answer that with a real number — and almost nobody I've asked can — you are making the routing decision with a coin.</p>
+
+      <h2>The 17x gap is structural, and that's the point</h2>
+
+      <p>Before we get to the measurement discipline, I want to credit a comment in that same thread that got almost no upvotes and is the most technically correct thing written about this all week. User <em>ikkiho</em> pointed out that the 17x price gap is not a model-weights gap. It's batch economics.</p>
+
+      <blockquote>Providers run batch 64–256 with continuous batching and prefix-cache reuse. Your 3090 runs batch 1. On the same hardware the provider is paying ~10–20x less per token than you are. The "17x cheaper" number is mostly the batch-size differential, not model quality.</blockquote>
+
+      <p>That reframes the whole conversation. It means cloud will <em>always</em> win structurally on throughput-per-dollar. A local setup isn't trying to catch cloud on price — it can't, ever, because the batch-64 amortization is a law of how transformers run on GPUs, not a temporary lead one company has over another.</p>
+
+      <p>That 29% score in the last row? Also not what the surface reading suggests. Multi-file refactors don't fail locally because of context length — both models had the context. They fail because a 27B model's GQA attention compresses the K/V cache aggressively, and needle-in-a-haystack accuracy across a 5-file-spanning change degrades. That's an architectural property. Cloud frontier models will keep a structural lead on the hard 15% of tasks regardless of how good the open-weight field gets.</p>
+
+      <p>Which is exactly why the conversation is about <strong>routing</strong>, not replacement. The pitch is never "throw away GPT-5." The pitch is: GPT-5 is a brilliant senior engineer you're paying to read import statements. Stop doing that. Send the boring 65% somewhere boring. Save the frontier for what needs a frontier.</p>
+
+      <h2>Your harness is probably lying to you about what you're spending money on</h2>
+
+      <p>Here's where this gets uncomfortable, because the problem isn't the models. The problem is that most of us genuinely do not know what we're paying for, on a per-call basis, in our own tool. I'll name names.</p>
+
+      <ul>
+        <li><strong>Claude Code.</strong> You get a monthly summary. You don't get a per-tool-call token count in your terminal. You can enable verbose mode and scrape it, but that's not the default and the output isn't structured.</li>
+        <li><strong>Cursor.</strong> Cursor's pricing page tells you how many requests you have left. It does not tell you which files you were editing when you burned them, or whether the request was "rename this variable" or "rewrite this module." From the user's side, a prompt is a prompt.</li>
+        <li><strong>Aider.</strong> Best of the named tools — <code>aider</code> prints token counts per exchange to the terminal. Still doesn't emit a structured log you can replay against a different model.</li>
+        <li><strong>Claude Code plugins and subagents.</strong> A subagent spawns a fresh context, its calls are attributed to the parent session in the billing dashboard, and there is no per-subagent cost surface. If you're running agent-of-agents, the billing is a black box within a black box.</li>
+      </ul>
+
+      <p>I run my own agent setup, and the only reason I can answer the routing question honestly is that the setup is embarrassingly primitive. It's <code>bash</code> and <code>jq</code>. Every call to a provider is a <code>curl</code>, which means it can be <code>tee</code>'d to a log with a one-line change. I didn't build this to be observable. I built it because I was too lazy to learn a framework. The observability fell out as a side effect, and now it's the feature I'd refuse to give up.</p>
+
+      <p>What I get for free that the frameworks don't expose:</p>
+
+      <pre><code><span class="code-comment"># a day's worth of calls as JSONL</span>
+<span class="code-comment"># each line: timestamp, model, task_class, tokens_in, tokens_out, tool_calls, wall_clock_ms</span>
+{"ts":"2026-05-07T14:02:11Z","model":"gpt-5","task":"explain_code","in":1247,"out":412,"tools":0,"ms":1850}
+{"ts":"2026-05-07T14:02:44Z","model":"gpt-5","task":"grep_summarize","in":2103,"out":187,"tools":1,"ms":1204}
+{"ts":"2026-05-07T14:04:09Z","model":"gpt-5","task":"multi_file_edit","in":8421,"out":2104,"tools":6,"ms":14802}
+<span class="code-comment"># ...~400 rows per day</span></code></pre>
+
+      <p>With that file and thirty seconds of <code>jq</code>, I can answer "what did I spend money on yesterday?" broken down by task class. Without that file, I can't answer the question at all, and neither can you. Every routing decision — local vs cloud, frontier vs mid-tier, which prompt to cache — is downstream of having this log.</p>
+
+      <h2>The three things every harness needs before a routing conversation is possible</h2>
+
+      <p>If you're going to have the local-vs-cloud conversation seriously, your harness needs three things. In order of how often they're missing:</p>
+
+      <p><strong>1. Pre-call task classification, logged <em>before</em> the model call.</strong> Not after. Your harness has to decide, from the tool-call intent or the prompt shape, what class of task this is (read, edit, refactor, debug, search) and stamp that on the log entry. If you only classify post-hoc, you can't route pre-hoc. This is where most frameworks fall flat — they let the model decide what tools to call, and the task class is an emergent property no one has a name for until after billing closes.</p>
+
+      <p><strong>2. Per-call structured log with token counts, tool calls, and wall clock.</strong> Not a monthly CSV. Not the provider's dashboard. A file on your disk, one line per call, that you own. If your harness doesn't emit this by default, add it. If you can't add it because the harness abstracts the network boundary, that's the signal to replace the harness — or at least put a proxy in front of it. <code>mitmproxy</code> on <code>https://api.anthropic.com</code> with a log rule is a one-afternoon project, and it works for every closed-source agent tool.</p>
+
+      <p><strong>3. A replay harness that re-runs the last N tasks against an alternate model and diffs the output.</strong> This is the thing that turns the log into a decision. Once a week, take the last 100 entries classified as "read" or "explain" or "single-file-edit," replay them against a 27B local model, have a frontier model grade the two outputs against the original, and count how many are "same" versus "worse." If you're above 90% same on a class, route it locally next week. If you're below 70%, don't. This is the experiment spencer_kw ran by hand for 10 days; it should be a cron job.</p>
+
+      <p>I want to be specific about what I'm not claiming. I'm not claiming everyone should run a local 3090. The break-even math <a href="https://www.starryhope.com/ai/ollama-cloud-vs-local-ai-hardware-2026/" target="_blank">Starry Hope worked through</a> on Ollama Cloud Pro ($20/mo) vs a Mac Mini M4 Max amortized over three years says cloud wins cleanly for intermittent users; <a href="https://pooya.blog/blog/ollama-cloud-pricing-hardware-requirements-2026/" target="_blank">Pooya Golchian's analysis</a> has the RTX 4090 breaking even against Ollama Cloud Max only above 25,000 daily requests. For most individuals, cloud is correct. That's fine. The claim isn't "go local." The claim is: <em>you don't know what's correct for you, and you won't know until you instrument the call site</em>. The routing decision has a right answer, and the right answer is sitting in a log file you haven't written yet.</p>
+
+      <h2>What I'm actually doing about this</h2>
+
+      <p>Three concrete changes to my own setup this week, in case it helps anyone else:</p>
+
+      <ol>
+        <li>Added a <code>task_class</code> field to every provider-call wrapper. Five values: <code>read</code>, <code>edit</code>, <code>refactor</code>, <code>debug</code>, <code>search</code>. The wrapper infers it from the tool-call intent before the model dispatches. Five minutes of work, retroactively fixed six months of missing attribution.</li>
+        <li>Added a weekly replay cron. Sunday 2am: pick 50 random calls from the past week classified as <code>read</code> or <code>search</code>, re-run against a local 27B, have GPT-5 grade the pair, write a CSV. The bill for running the grader is about $0.30/week. The output tells me exactly which task classes are safe to route locally next week.</li>
+        <li>Stopped treating "cloud model picks the tools" as a feature. The model picking tools means I can't classify the call until after it's made. For routable task classes, I'm shifting to <em>harness decides the tool, then asks the model to fill in arguments</em>. Smaller model, smaller prompt, same result. This alone cut my <code>read</code> class spend by 40% in four days, because the harness no longer pays the frontier model to think about which tool to call when there's only one right answer.</li>
+      </ol>
+
+      <p>None of this is novel. The infrastructure is so old it's boring. Structured logging, task classification, canary replay — this is what we did for every web service we built a decade ago. The only thing that's new is that for some reason, when we started building agent harnesses, we left this infrastructure on the floor and shipped the feel-good demo instead. spencer_kw's 10-day manual experiment is a gentle hint that we should pick it back up.</p>
+
+      <p>The 17x number is the hook. The 65% number is the product. The <em>measurement that produced them</em> is the thing you actually need. Go write the log.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

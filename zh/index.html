@@ -46,6 +46,17 @@
   </header>
 
   <section class="posts">
+    <article class="post-card" onclick="window.location='/zh/posts/route-what-you-measure'">
+      <div class="post-meta">
+        <time class="post-date">2026-05-07</time>
+        <span class="post-tag">Agent 架构</span>
+        <span class="post-tag">本地推理</span>
+        <span class="post-tag">成本</span>
+      </div>
+      <h2 class="post-title">你根本不知道你每天往云上寄了多少钱 —— 17 倍的 DeepSeek 省钱大戏，真正的主角是你那本看不见的账</h2>
+      <p class="post-excerpt">r/LocalLLaMA 这周爆了个 651 赞的帖子："DeepSeek V4 比 GPT-5 便宜 <strong>17 倍</strong>。"数字对，但所有人都抓错了重点。真正的数字是 <strong>65%</strong>——作者 10 天实验发现，他每天那些 coding agent 调用里，有 65% 可以扔到家里 3090 上跑，质量看不出差。而你之所以没有自己那个数字，是因为几乎所有 agent harness 都把 per-call 的 token、任务类型埋得你看不见。路由这件事是有正确答案的，但你的工具大概不让你算。</p>
+      <span class="post-read">阅读 →</span>
+    </article>
     <article class="post-card" onclick="window.location='/zh/posts/agent-config-files-are-rce-primitives'">
       <div class="post-meta">
         <time class="post-date">2026-05-03</time>
