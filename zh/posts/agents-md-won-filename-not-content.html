@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGENTS.md 只是起跑线 — Youwang Deng</title>
+<meta name="description" content="文件名之争结束了,但里面写什么,完全是另一场仗。从 19 个 package 的 AGENTS.md rollout 里学到的。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-09</time>
+        <span class="post-tag">AGENTS.md</span>
+        <span class="post-tag">编程智能体</span>
+        <span class="post-tag">项目规范</span>
+      </div>
+      <h1 class="post-title">AGENTS.md 只是起跑线</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">今天早上 r/ExperiencedDevs 有个热帖:"Cursor、Claude Code、Copilot 各写各的,你们是怎么管项目规范的?" 置顶回答列了七个不同的配置文件。文件名之争其实已经结束了,这帮哥们只是没收到消息。真正没解决的是文件里该写什么 — 我刚带着 19 个 package 做完 <code>AGENTS.md</code> rollout,被 static analyzer 打回来 8 轮,对这个问题有点话要说。</p>
+
+      <h2>一条没人读过的时间线</h2>
+
+      <p>过去一年多,coding agent 在没有标准的时候干了每个工程师都会干的事 — 自己造一个。Cursor 塞 <code>.cursorrules</code>,后来又变 <code>.cursor/rules/</code>。Claude Code 选了 <code>CLAUDE.md</code>,Gemini CLI 选 <code>GEMINI.md</code>,Aider 用 <code>CONVENTIONS.md</code>,AMP 用单数 <code>AGENT.md</code>,OpenAI 的 Codex CLI 用复数 <code>AGENTS.md</code>。项目根目录看起来像一锅乱炖。</p>
+
+      <p>终局来得比预期快,时间线大概是这样:</p>
+
+      <ul>
+        <li><strong>2025 年中</strong> — OpenAI 发布 Codex,默认 <code>AGENTS.md</code>,顺手把 <code>agents.md</code> 域名买了。</li>
+        <li><strong>2025 年夏</strong> — AMP 很体面地把单数 <code>AGENT.md</code> 改成复数。没有 blog 吵架,没有公开声明,就默默 align 了。</li>
+        <li><strong>2025 年底</strong> — Cursor、Jules (Google)、Factory、goose、Zed、Warp、Windsurf、VS Code 的 Copilot coding agent、JetBrains Junie、RooCode、Devin、Augment Code,二十几家工具陆陆续续归队。</li>
+        <li><strong>2026 年初</strong> — <a href="https://agents.md/" target="_blank">agents.md</a> 正式交给 Linux Foundation 下属的 Agentic AI Foundation (aaif.io) 维护,OpenAI 是联合创始。文件名这事到这就算盖章了。</li>
+        <li><strong>今天</strong> — GitHub 上能搜到 <strong>6 万多个</strong> <code>AGENTS.md</code>。开头那个 Reddit 热帖还在讨论这个标准存不存在。</li>
+      </ul>
+
+      <p>唯二还在顽抗的是 Claude Code 和 Gemini CLI,默认名还是 <code>CLAUDE.md</code> 和 <code>GEMINI.md</code>。但官方文档里明晃晃写着绕过方法:</p>
+
+      <pre><code>ln -s AGENTS.md CLAUDE.md
+ln -s AGENTS.md GEMINI.md</code></pre>
+
+      <p>一个用 <code>ln -s</code> 就能解决的协调问题,已经不叫协调问题了,只是个会在两个版本周期内消失的小习惯。</p>
+
+      <h2>这个标准到底"标准化"了什么</h2>
+
+      <p>仔细读 <a href="https://agents.md/" target="_blank">agents.md</a> 你会发现一件事:<strong>它只标准化了文件名,别的几乎啥都没管</strong>。页面上只是"建议"了五个章节 — 项目介绍、build/test 命令、代码风格、测试说明、PR 流程 — 但一个都不是必需的。没有 schema,没有 linter,没有必备章节,没有嵌套规则,agent 特定扩展怎么隔离也没说。</p>
+
+      <p>这其实是好事。共享规范但不共享格式的方案,通常比强制统一格式的方案活得更久。MCP 就是个反面教材 — 规范太正式,学一个月都搞不清楚什么叫"好的 tool description"。</p>
+
+      <p>但也正因为这样,你现在仓库里那份 <code>AGENTS.md</code> 大概率是烂的。</p>
+
+      <h2>19 个 package 会出什么问题</h2>
+
+      <p>过去三周我在 12 个人维护的 19 个 Amazon package 里铺开了 <code>AGENTS.md</code>。其中一个 — FeesDomainService,一个跨 4 个 region、10 个 stage 的 CDK 服务 — 做了完整流程:AI 生成初稿,<strong>AutoSDE</strong>(Amazon 的 CR 静态分析器)打了 8 轮,总共 42+ 条自动评论。每一条都是内容问题,没有一条是文件名问题。</p>
+
+      <p>规模起来之后,"一个文件名、没规矩"的做法会在下面五个地方崩:</p>
+
+      <h3>1. 跟 source of truth 偏离</h3>
+
+      <p>AI 自信地在 <code>AGENTS.md</code> 里列了 Prod 账号和 region,四个是错的。模型没顺着 CDK 的 import 链走 — <code>app.ts</code> → <code>deploymentStageConfigs</code> → <code>profiles.ts</code> — 直接编了一个看起来合理的账号表。AutoSDE 的安全规则抓到了硬编码账号 ID,但这种"编造但逻辑自洽"的问题,任何 linter 都抓不到,因为根本没有 schema 说"AGENTS.md 里的账号必须来自 CDK 代码"。</p>
+
+      <p>我最后定的做法:文件顶上加一个 <strong>Known Gaps</strong> 表格,每一条声明明确打 <code>[VERIFIED]</code>、<code>[UNVERIFIED]</code>、<code>[STUBBED]</code> 标签。打不上 <code>[VERIFIED]</code> 的就不写。很土,但干掉了 60% 的 drift bug。</p>
+
+      <h3>2. 一本正经胡说八道</h3>
+
+      <p>LLM 写 <code>AGENTS.md</code> 就跟新员工临走前写交接文档一样 — 每段都写得特别笃定。8 轮 AutoSDE 下来,最大一类评论都是 <em>"这个说法在代码里找不到依据,删掉"</em>。模型凭空编了监控 runbook、on-call 轮值表、甚至信誓旦旦描述了一个根本不存在的重试策略。</p>
+
+      <p>一条经验:每一段都当成是编的,除非你 grep 到了它提到的那个东西。</p>
+
+      <h3>3. 安全噪声陷阱</h3>
+
+      <p>生成的 <code>AGENTS.md</code> 特别喜欢加一个"Security"段。默认会列鉴权方式、加密算法、KMS key alias、TLS 策略。AutoSDE 和所有安全团队都会把这玩意当成白送的情报。我们第一稿就因此被标了 6 条 <em>"Security information leak"</em>。</p>
+
+      <p>没人明说的事实:<code>AGENTS.md</code> 在 monorepo 里基本是公开的,很多时候还被渲染成 HTML 发出去 — 你把安全实现细节写进去,就是在给攻击者做结构化情报梳理。正确做法是说"有安全",不说"怎么安全"。"Authentication via internal IAM service, see <code>auth/</code>" 好过三段加密术语八股。</p>
+
+      <h3>4. 嵌套继承的坑</h3>
+
+      <p>标准规定"离被编辑文件最近的 <code>AGENTS.md</code> 赢"。OpenAI 主仓库就有 <strong>88 个 AGENTS.md</strong>,就是这样用的。monorepo 默认这么干是对的,但这也开了一个全新的 bug 类别:项目级的约束("commit 前必须跑 <code>brazil-build</code>")会被某个子目录的 <code>AGENTS.md</code> 静默覆盖 — 就因为它没重新声明一遍。</p>
+
+      <p>这个我没干净的答案。我现在的做法:每个嵌套文件开头必须写一行 — <em>"继承自 ../AGENTS.md,只覆盖本文件列出的项"</em> — 再跑一个小 diff 脚本,检查父文件里有但子文件里没提的字段。胶带式方案。但不加任何纪律直接"最近的赢",三个月后你 pre-commit hook 挂了都找不到原因。</p>
+
+      <h3>5. agent 专属扩展往回渗</h3>
+
+      <p>Claude Code 支持 <code>!</code> 前缀跑 bash、<code>@</code> 引用文件、文件顶部当 "importable memory"。Cursor 有 <code>.cursor/rules/</code> 加 glob 定向。Codex 认 <code>&lt;MEMORY&gt;</code> block。共享的 <code>AGENTS.md</code> 只要用了这些里面任何一个,在别的 agent 上就会变差。</p>
+
+      <p>我的规则:共享文件里只放<strong>可移植的内容</strong>。tool 专属的东西放到 <code>.claude/</code>、<code>.cursor/</code>、<code>.codex/</code> 这些目录里。如果你拿不准某段是不是可移植 — 那就不是。</p>
+
+      <h2>哪些东西值得写进去</h2>
+
+      <p>8 轮 AutoSDE 下来,下面这四个章节最后没被挑刺。也是我以后每份 <code>AGENTS.md</code> 都会保留的四个:</p>
+
+      <ol>
+        <li><strong>Build 和 test 命令,原样抄。</strong> 不要散文体。Agent 直接能跑的那个命令。<code>brazil-build</code> 永远打败"跑一下 brazil build"。命令容易 flake 的话就直接标注:<code>brazil-build release  # CDK sync 报错就重试一次</code>。</li>
+        <li><strong>Known Gaps 表。</strong> 每一条声明配 <code>[VERIFIED]</code>/<code>[UNVERIFIED]</code> 标签,再附 source of truth 链接。就这一个表能消掉 60% 的 drift。</li>
+        <li><strong>Deep-dive 知识文件指针。</strong> 内容本身不要 inline 进来 — 只留指针到 <code>.kiro/knowledge/*.md</code>、<code>docs/</code>、wiki page。Agent 会跟链接,但会淹死在长文本里。</li>
+        <li><strong>自动 refresh 的 hook。</strong> Kiro 的 <code>.kiro.hook</code>、<code>kiro-cli stop</code> hook、Cline 的 markdown hook。CDK 改了文件不能自动重新生成 <code>AGENTS.md</code>,commit 当天就开始腐烂。</li>
+      </ol>
+
+      <p>下面这三个反复被 AutoSDE 点名、最后我都删掉了:</p>
+
+      <ul>
+        <li><strong>带具体细节的"Security"章节。</strong> 只写"有什么"(domain),不写"怎么做"(implementation)。每一次都这样。</li>
+        <li><strong>模型写的"Architecture Overview"。</strong> 模型写的 = 编的。人写的 = 一个月后过期的。不如直接链到一份有 owner 的 design doc。</li>
+        <li><strong>"Operations runbook"。</strong> Runbook 该放在 runbook 工具里。agent 从 <code>AGENTS.md</code> 读 runbook,离 page 错 on-call 只差一次 <code>git blame</code>。</li>
+      </ul>
+
+      <h2>真正的 meta 教训</h2>
+
+      <p>文件名统一这件事,让一个之前被藏起来的东西变得很明显:<strong>难题从来不是文件名</strong>。大家文件名各用各的时候,"规范不一致"可以用"工具不一样"解释过去;大家文件名都一样了,不一致就是你内容策略本身的问题。</p>
+
+      <p>GitHub 上 6 万多个 <code>AGENTS.md</code> 数字挺唬人。我赌其中 5.5 万是 AI 生成的,写完没人再看,在那里悄悄腐烂。真正跑得通的那几千份,特征都差不多 — 比 spec 建议的章节<em>更少</em>,有明确的 owner,有代码改动触发的 refresh hook,有 static analyzer 打回编造的部分。这才是内容之争,不如买域名拿 LF 盖章好看,但这才是真正值得打的仗。</p>
+
+      <p>文件名:搞定了。内容:大概才第三天。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

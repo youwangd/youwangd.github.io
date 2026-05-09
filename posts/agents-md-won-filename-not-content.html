@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGENTS.md won the filename war. It hasn't won the content war. — Youwang Deng</title>
+<meta name="description" content="Everyone agrees on the filename. Nobody agrees on what goes inside. A practitioner's notes from rolling AGENTS.md across 19 packages.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-09</time>
+        <span class="post-tag">agents-md</span>
+        <span class="post-tag">coding-agents</span>
+        <span class="post-tag">conventions</span>
+      </div>
+      <h1 class="post-title">AGENTS.md won the filename war. It hasn't won the content war.</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">A Reddit post on r/ExperiencedDevs this morning asked "how are you handling project conventions across Cursor, Claude Code, and Copilot?" The top answer was a list of seven config files. The filename war is actually over. These developers just missed the memo. The harder question — what belongs <em>inside</em> the file — is still a free-for-all, and I have opinions from shipping <code>AGENTS.md</code> across 19 packages with a static analyzer rejecting my drafts eight times.</p>
+
+      <h2>A timeline nobody read</h2>
+
+      <p>For about a year, coding agents did the thing engineers always do when there's no standard: they each invented one. Cursor stuffed rules into <code>.cursorrules</code>, then <code>.cursor/rules/</code>. Claude Code picked <code>CLAUDE.md</code>. Gemini CLI picked <code>GEMINI.md</code>. Aider had <code>CONVENTIONS.md</code>. AMP used <code>AGENT.md</code> — singular. OpenAI's Codex CLI picked <code>AGENTS.md</code> — plural. Your repo root started looking like a UN cafeteria.</p>
+
+      <p>Here's the compressed timeline of how it ended:</p>
+
+      <ul>
+        <li><strong>Mid-2025</strong> — OpenAI ships Codex with <code>AGENTS.md</code>. At the same time they quietly buy the <code>agents.md</code> domain.</li>
+        <li><strong>Summer 2025</strong> — AMP does the graceful thing and <em>surrenders</em> <code>AGENT.md</code> in favor of the plural. No drama, no blog post war.</li>
+        <li><strong>Late 2025</strong> — Cursor, Jules (Google), Factory, goose, Zed, Warp, Windsurf, VS Code's Copilot coding agent, JetBrains Junie, RooCode, Kilo Code, Devin, Phoenix, Semgrep, Augment Code, Ona, and ~20 others line up behind <code>AGENTS.md</code>.</li>
+        <li><strong>Early 2026</strong> — The <a href="https://agents.md/" target="_blank">agents.md</a> page lands under Linux Foundation stewardship, via a new Agentic AI Foundation (aaif.io) co-founded with OpenAI. Filename standards under LF stewardship is about as official as it gets on the internet.</li>
+        <li><strong>Today</strong> — GitHub's code search returns <strong>60,000+</strong> <code>AGENTS.md</code> files. The Reddit thread above argues the question is still open.</li>
+      </ul>
+
+      <p>Two tools still hold out on the filename: Claude Code defaults to <code>CLAUDE.md</code>, Gemini CLI defaults to <code>GEMINI.md</code>. The documented workaround is a one-liner that most adopters copy into their README:</p>
+
+      <pre><code>ln -s AGENTS.md CLAUDE.md
+ln -s AGENTS.md GEMINI.md</code></pre>
+
+      <p>If a coordination problem can be solved with <code>ln -s</code>, it's not a coordination problem anymore. It's a habit that'll fade in two release cycles.</p>
+
+      <h2>What the standard actually standardizes</h2>
+
+      <p>Read the <a href="https://agents.md/" target="_blank">agents.md</a> page carefully and you notice something strange: <strong>it standardizes the filename and almost nothing else</strong>. The page <em>suggests</em> five sections — project overview, build/test commands, code style, testing instructions, PR guidelines — but nothing is required. No schema. No linter. No canonical sections. No rules about nesting, inheritance, size limits, or conflict resolution when agent-specific extensions sneak in.</p>
+
+      <p>This is, I think, a feature. Agents that share a spec but not a format have repeatedly produced worse outcomes than convergence-via-convention. MCP is the counterexample you want to avoid — a spec that's so formal it takes a month to grok, and it still doesn't tell you what a good tool description looks like.</p>
+
+      <p>But it's also the reason your <code>AGENTS.md</code> is probably bad.</p>
+
+      <h2>What breaks at 19 packages</h2>
+
+      <p>Over the last three weeks I rolled <code>AGENTS.md</code> across 19 Amazon packages owned by 12 different people. One package — FeesDomainService, a CDK service with ten stages across four regions — got the full treatment: an AI-generated first draft, eight rounds of <strong>AutoSDE</strong> (Amazon's static analyzer for code review), and 42+ automated comments. Every comment was a content problem. Not one was a filename problem.</p>
+
+      <p>Here's what actually breaks when you try to scale the "one file, no rules" approach:</p>
+
+      <h3>1. Drift from the source of truth</h3>
+
+      <p>The AI wrote a confident <code>AGENTS.md</code> section listing Prod accounts and regions. Four of them were wrong. The model hadn't followed the CDK import chain — <code>app.ts</code> → <code>deploymentStageConfigs</code> → <code>profiles.ts</code> — so it hallucinated a plausible-looking account map. AutoSDE's security rules caught the hardcoded account IDs; the correctness problem wouldn't have been caught by <em>any</em> linter, because there's no schema saying "account IDs in AGENTS.md must come from CDK source."</p>
+
+      <p>The fix I settled on: a <strong>Known Gaps</strong> section at the top of each file where you explicitly tag rows as <code>[VERIFIED]</code>, <code>[UNVERIFIED]</code>, or <code>[STUBBED]</code>. If a section can't be tagged <code>[VERIFIED]</code>, it doesn't go in. This is the boring 80% answer. It also works.</p>
+
+      <h3>2. Confident fabrication</h3>
+
+      <p>LLMs write <code>AGENTS.md</code> the way a new hire writes a transition doc on their last day: with authority. Every section reads like the writer knows. After eight rounds, AutoSDE's single biggest category of comments was variations of <em>"this claim has no source in the codebase, remove it"</em>. The model had invented monitoring runbooks, fabricated on-call rotations, and confidently described a retry policy that didn't exist in any config file.</p>
+
+      <p>If you're rolling this out: assume every section is fabricated until you grep for the thing it claims.</p>
+
+      <h3>3. The security-noise trap</h3>
+
+      <p>Generated <code>AGENTS.md</code> files love a "Security" section. They'll cheerfully list the auth scheme, the encryption algorithm, the KMS key alias, and whether TLS is enforced. AutoSDE and most security teams will take this as an invitation. Our first draft collected six <em>"Security information leak"</em> findings for doing exactly what the skill-builder recipe suggested.</p>
+
+      <p>The thing nobody tells you: the <code>AGENTS.md</code> is public inside your monorepo, often published as rendered HTML, and serves as structured reconnaissance if you describe how your security works. The fix is to describe <em>that</em> security exists, not <em>how</em>. "Authentication via internal IAM service, see <code>auth/</code>" beats three paragraphs of crypto trivia.</p>
+
+      <h3>4. Nested inheritance bugs</h3>
+
+      <p>The spec says "closest <code>AGENTS.md</code> to the edited file wins." OpenAI's main repo has <strong>88 AGENTS.md files</strong> following this pattern. It's the right default for a monorepo. It's also a brand-new category of bug: a project-level invariant ("never commit without running <code>brazil-build</code>") gets silently overridden by a subfolder <code>AGENTS.md</code> that forgot to restate it.</p>
+
+      <p>I don't have a clean answer here yet. What I do now: every nested file starts with a one-line reminder — <em>"Inherits from ../AGENTS.md; overrides only what's in this file."</em> — and I run a tiny diff script that flags keys present in the parent but missing from the child. It's duct tape. But "closest wins" without any discipline is how you ship a broken pre-commit hook in three months.</p>
+
+      <h3>5. Agent-specific extensions that leak back in</h3>
+
+      <p>Claude Code supports <code>!</code> prefixes for bash, <code>@</code> for file refs, and the top of the file as "importable memory." Cursor has <code>.cursor/rules/</code> with glob targeting. Codex respects <code>&lt;MEMORY&gt;</code> blocks. A shared <code>AGENTS.md</code> that uses any of these becomes silently worse on every other agent.</p>
+
+      <p>My rule: the shared file contains <strong>only portable content</strong>. Tool-specific extensions go in <code>.claude/</code>, <code>.cursor/</code>, <code>.codex/</code> or whatever the tool ships. If you can't decide whether something is portable, it isn't.</p>
+
+      <h2>What earns its place</h2>
+
+      <p>After eight AutoSDE rounds, these are the four sections the analyzer stopped flagging. They're also the four I'd include in every <code>AGENTS.md</code> from now on:</p>
+
+      <ol>
+        <li><strong>Build & test commands, verbatim.</strong> Not prose. The exact command an agent should run. <code>brazil-build</code> beats "run the brazil build." If it's a flaky command, say so: <code>brazil-build release  # retry once on CDK sync errors</code>.</li>
+        <li><strong>Known Gaps.</strong> A table of claims with <code>[VERIFIED]</code> / <code>[UNVERIFIED]</code> tags and a link to the source of truth. This one section alone kills ~60% of drift bugs.</li>
+        <li><strong>Deep-dive knowledge references.</strong> Not the knowledge itself — just pointers to <code>.kiro/knowledge/*.md</code>, <code>docs/</code>, or wiki pages. Agents handle links fine; they drown in inlined walls of text.</li>
+        <li><strong>Hooks for auto-refresh.</strong> A Kiro <code>.kiro.hook</code>, a <code>kiro-cli stop</code> hook, a Cline markdown hook. If the file doesn't regenerate when CDK config changes, it starts rotting the day you commit it.</li>
+      </ol>
+
+      <p>And here are the three sections AutoSDE <em>kept</em> flagging, that I eventually cut:</p>
+
+      <ul>
+        <li><strong>"Security" section with any specifics.</strong> Describe the domain, not the implementation. Every time.</li>
+        <li><strong>"Architecture overview" written by the model.</strong> If the model writes it, it's fabrication. If a human writes it, it's stale in a month. Replace with a link to an owned design doc.</li>
+        <li><strong>"Operations runbook."</strong> Runbooks belong in runbook tools. An agent reading a runbook from <code>AGENTS.md</code> is an agent one <code>git blame</code> away from paging the wrong oncall.</li>
+      </ul>
+
+      <h2>The meta-lesson</h2>
+
+      <p>The filename standardization made one thing obvious that was hidden before: <strong>the hard problem was never the filename</strong>. When everyone had their own file, you could explain inconsistency with "we use different tools." When everyone has the same file, the inconsistency is in your content strategy.</p>
+
+      <p>60,000 <code>AGENTS.md</code> files on GitHub is an impressive number. I'd bet 55,000 of them are AI-generated, never re-read, silently drifting. The few that work are the ones with <em>fewer</em> sections than the spec suggests, an owner whose name is on the file, a hook that refreshes them on code change, and a static analyzer that rejects fabrication. That's the content war. It's not as photogenic as a domain purchase, but it's the one worth fighting.</p>
+
+      <p>Filename: solved. Content: we're at about day three.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
