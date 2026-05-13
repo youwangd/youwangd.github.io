@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness fatigue is real. ACP is the release valve. — Youwang Deng</title>
+<meta name="description" content="20+ coding-agent CLIs, monthly rebrands, identical plumbing bugs. The pain isn't choice — it's coupling. ACP is the LSP moment.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-13</time>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">acp</span>
+        <span class="post-tag">developer-tools</span>
+      </div>
+      <h1 class="post-title">Harness fatigue is real. ACP is the release valve.</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">A Saturday morning post on r/LocalLLaMA — title: <em>"I am overwhelmed by Harnesses"</em> — opened with a developer listing nineteen CLI coding agents he had installed, three he was paying for, and the one he actually used (he wouldn't say which). It hit the front page in two hours. The replies are the canary: people aren't drowning in <strong>choice</strong>, they're drowning in <strong>coupling</strong>. Every harness is a wire-format-less monolith that owns your session, your permissions, your MCP config, and — quietly — the next year of your tooling decisions. ACP is the first thing that actually unbolts any of that.</p>
+
+      <h2>The shape of the pain</h2>
+
+      <p>Let me list what was on the OP's machine, because this is everyone's machine right now: <code>claude-code</code>, <code>opencode</code>, <code>codex</code>, <code>gemini</code>, <code>goose</code> (now <code>aaif-goose</code>), <code>cline</code>, <code>aider</code>, <code>continue</code>, <code>kilo</code>, <code>roo</code>, <code>junie</code>, <code>cagent</code>, <code>fast-agent</code>, <code>kimi</code>, <code>qwen-code</code>, <code>vt-code</code>, <code>openhands</code>, <code>crystal</code> (now <code>Nimbalyst</code>), and the in-house thing his team built last sprint. Six of those changed names in the last 60 days. <code>crystal</code> → <code>Nimbalyst</code>. <code>block/goose</code> → <code>aaif-goose</code>. <code>ruvnet/claude-flow</code> → <code>ruflo</code>. <code>steveyegge/gastown</code> → <code>gastownhall</code>. There is now a curated <code>awesome-cli-coding-agents</code> directory with 311 stars and 67 forks. There is a <em>directory of directories</em>.</p>
+
+      <p>The default reaction — including mine, six months ago — is "pick one and commit." That advice is wrong, and the reason it's wrong is the entire point of this post.</p>
+
+      <h2>What you actually committed to (it isn't the binary)</h2>
+
+      <p>When you "pick a harness," you're not picking a binary. You're picking, in approximate order of pain when you try to leave:</p>
+
+      <ol>
+        <li>A <strong>session model</strong>. Whether parent sessions inherit child permissions, whether <code>external_dir</code> deny lists propagate, whether resuming after a crash gives you the same context.</li>
+        <li>An <strong>MCP config layout</strong> — and worse, an MCP error-handling style. Some swallow OAuth failures silently. Some retry forever. Some surface the raw upstream error.</li>
+        <li>A <strong>permission-prompt UX</strong>. Tab to approve? Type "y"? Click a modal? Approve-once vs. approve-forever vs. session-scoped — every harness picks differently.</li>
+        <li>A <strong>tool-schema sanitizer</strong>. Some models (Kimi, Moonshot) reject schemas with <code>oneOf</code> or recursive refs. Each harness hand-rolls its own normalization, and they normalize differently.</li>
+        <li>A <strong>workspace path convention</strong>. Absolute vs. relative, symlink-resolved or not, what happens when you move the repo.</li>
+      </ol>
+
+      <p>None of those are model choices. None of those should be irreversible. All of them are, today, because there's no protocol between the agent and the editor / shell / IDE — the harness <em>is</em> the protocol, and protocol bugs ship as patch releases.</p>
+
+      <h2>The OpenCode changelog as evidence</h2>
+
+      <p>I've been keeping a window open on OpenCode's release feed for the SageCLI weekly intel report. Look at the cadence over six days, <strong>v1.14.27 → v1.14.33</strong>, 2026-04-27 to 2026-05-02:</p>
+
+      <table>
+        <thead>
+          <tr><th>Version</th><th>Day</th><th>Headline fix</th><th>What that really is</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1.14.28</td><td>+1</td><td>child sessions preserve <code>external_dir</code> deny</td><td>Permission inheritance bug</td></tr>
+          <tr><td>1.14.29</td><td>+2</td><td>normalize MCP OAuth errors</td><td>Error-shape mismatch</td></tr>
+          <tr><td>1.14.30</td><td>+3</td><td>relative workspace paths portable</td><td>Path convention bug</td></tr>
+          <tr><td>1.14.31</td><td>+4</td><td>remote MCP URL error wrapping</td><td>Error-shape mismatch</td></tr>
+          <tr><td>1.14.32</td><td>+5</td><td>sanitize tool schemas for Kimi</td><td>Schema normalization</td></tr>
+          <tr><td>1.14.33</td><td>+6</td><td>sanitize tool schemas for Moonshot</td><td>Schema normalization (again)</td></tr>
+        </tbody>
+      </table>
+
+      <p>Six releases. Six days. <em>Every single one</em> is a thing that should live in a protocol and be fixed once for the whole ecosystem. OpenCode is one of the better-engineered harnesses — they're shipping fixes; the others are shipping the same bugs and not fixing them. And the <code>n+1</code>-th harness, currently being announced on Twitter as I type this, is about to ship all six bugs from scratch.</p>
+
+      <p>This is the part the Reddit thread couldn't articulate but everyone felt. The exhaustion isn't from <em>using</em> harnesses. It's from watching twenty teams independently reinvent permission-prompt UX, MCP retry policy, tool-schema sanitization, and session resume — and watching their users absorb the cost as upgrade churn.</p>
+
+      <h2>ACP is the LSP moment</h2>
+
+      <p>Microsoft and Red Hat shipped LSP in 2016. Before LSP, every editor had a per-language plugin: Python-mode, Java-mode, Go-mode, each re-implementing find-references, autocomplete, hover, jump-to-definition. Plugins broke whenever language servers updated. Editors specialized — VSCode for TS, IntelliJ for Java, Vim for "I'll just learn ctags." Sound familiar?</p>
+
+      <p>LSP collapsed the matrix. <code>O(editors × languages)</code> went to <code>O(editors) + O(languages)</code>. Today every serious editor speaks LSP, every language ships a server, and the question "which editor for which language" is mostly settled by taste, not capability.</p>
+
+      <p>ACP — the Agent Client Protocol — is the same shape, applied to coding agents:</p>
+
+      <ul>
+        <li><strong>August 2025:</strong> Gemini CLI ↔ Zed first integration. Two parties, JSON-RPC, prove the loop.</li>
+        <li><strong>October 2025:</strong> JetBrains and Zed announce open collaboration. <em>This</em> is the moment it stops being a Zed thing.</li>
+        <li><strong>May 2026:</strong> The public <a href="https://zed.dev/acp" target="_blank">Zed ACP registry</a> lists <strong>22 agents</strong> (AgentPool, Augment, Blackbox, Claude, Cline, Codex, cagent, fast-agent, Gemini CLI, Copilot, Goose, Junie, Kimi CLI, Minion, Mistral Vibe, OpenCode, OpenHands, Pi, Qoder, Qwen Code, Stakpak, VT Code) and <strong>12 editors</strong> (Zed, JetBrains, AionUi, Emacs, marimo, Neovim, Sidequery, aizen, DeepChat, Tidewave, Web AI SDK, Obsidian).</li>
+      </ul>
+
+      <p>The Register summarized it crisply on 2026-10-07: <em>"JetBrains Backs Open AI Coding Standard That Could Gnaw at VS Code Dominance."</em> JetBrains is anchor tenant the way Red Hat was for LSP — once a non-Microsoft IDE vendor commits, the network effect tilts.</p>
+
+      <p>What you get for free once both sides speak ACP:</p>
+
+      <ul>
+        <li><strong>Permission delegation.</strong> The protocol carries the "agent wants to run X, do you allow it" handshake. Editor renders the prompt however it wants. No more harness-specific approve-once-vs-forever modals.</li>
+        <li><strong>Session portability.</strong> Sessions are protocol objects with stable IDs. Resume from any client. Switch from Zed to Neovim mid-task. The harness can crash; the session lives in the editor.</li>
+        <li><strong>Streaming tool output.</strong> The exact bug OpenCode keeps patching — partial tool output rendering — is a protocol primitive. Once. For everyone.</li>
+        <li><strong>Schema normalization at the edge.</strong> The agent advertises tools with a known schema. The editor can mediate. Kimi-vs-Claude schema quirks become a one-shot adapter, not a per-harness rerun.</li>
+      </ul>
+
+      <p>This is what "LSP moment" means in practice. Not "everyone agreed on a buzzword." It means the surface area each harness has to own collapses, which means the cost of switching collapses, which means the harness layer commoditizes, which means you can finally pick the best agent for the model you want to use, in the editor you already love. The matrix unsticks.</p>
+
+      <h2>What this looks like from the SageCLI side</h2>
+
+      <p>I'll cop to this: I built SageCLI as bash, jq, and tmux glue with no framework specifically because we saw the harness-fatigue cliff coming and didn't want to marry one. That decision looked stubborn in 2025 and looks lucky now. We bet that <em>(a)</em> the wire format would arrive, and <em>(b)</em> the value lived in the corpus around the harness, not the harness binary. Both bets are paying.</p>
+
+      <p>Concretely, here's what we treat as <strong>portable</strong> (worth investing in, survives a harness swap) versus <strong>ephemeral</strong> (do not couple to):</p>
+
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Portable?</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>AGENTS.md</code> + project conventions</td><td><strong>Yes.</strong> The whole point of standardizing the filename last year.</td><td>Every ACP-speaking agent reads it.</td></tr>
+          <tr><td>MCP server inventory</td><td><strong>Yes.</strong> MCP is the tool-side protocol the same way ACP is the editor-side one.</td><td>Same servers, different harnesses, same tools.</td></tr>
+          <tr><td>Slash-commands / prompt templates</td><td><strong>Mostly.</strong> Harness-specific syntax, but the content moves cleanly.</td><td>The prompt is yours. The trigger is theirs.</td></tr>
+          <tr><td>Session model / permission UX</td><td><strong>No.</strong> Don't optimize for it. Don't memorize a harness's quirks.</td><td>ACP will eat this. It already is.</td></tr>
+          <tr><td>Built-in tools (web fetch, file edit, etc.)</td><td><strong>No.</strong> Use MCP servers instead. Then you own the tool, harness doesn't.</td><td>Built-ins are a lock-in vector dressed as convenience.</td></tr>
+        </tbody>
+      </table>
+
+      <p>The trick is to recognize that you have a <em>protocol-shaped</em> investment surface (AGENTS.md, MCP, prompts) and a <em>vendor-shaped</em> one (everything else). Spend on the protocol-shaped one; refuse to pay tuition to the vendor-shaped one. When the next rebrand drops — and the next one is in the next 30 days, I will bet money on it — you should feel nothing. Swap the binary, keep the corpus.</p>
+
+      <h2>The Pi escape hatch for non-ACP agents</h2>
+
+      <p>Worth knowing: even if your favorite agent doesn't speak ACP yet, there's <code>Pi</code> (in the registry above) — an ACP-bridge that lets non-ACP CLIs join the network. Same trick as the LSP-vs-LSIF adapters from 2017. You don't have to wait for every vendor; you just need one bridge per vendor. The "I have to pick" framing assumes a closed set. The actual situation is that every agent is one ACP shim away from being interchangeable.</p>
+
+      <h2>So what do you tell the OP?</h2>
+
+      <p>The Reddit thread gets a lot of "just pick Claude Code" and "Cursor is fine" replies. Both are wrong, in the same way "just pick VSCode" was wrong in 2015. The right answer is:</p>
+
+      <ol>
+        <li>Stop treating harness selection as a one-way door. The whole point of a wire format is reversibility.</li>
+        <li>Prefer ACP-speaking harnesses, or harnesses one bridge away. Check the <a href="https://zed.dev/acp" target="_blank">Zed registry</a>; it's now the de-facto compatibility list.</li>
+        <li>Move your investment to <code>AGENTS.md</code>, MCP servers, and prompt templates. Those survive the next four rebrands.</li>
+        <li>Treat the harness binary like you treat your shell prompt theme. Strong opinion, weakly held, swappable on a Tuesday afternoon.</li>
+      </ol>
+
+      <p>The "overwhelmed by harnesses" feeling is a real signal. But the cure isn't to pick one and white-knuckle it. The cure is to notice that the layer below the harness — the protocol layer — is finally arriving, and to invest one level deeper than the thing that keeps churning. Anyone who lived through the editor wars knows the rest of this story. The plugins lost. The protocol won. The vendors who got onboard early got to keep their users; the ones who didn't got rebranded into oblivion.</p>
+
+      <p>Crystal is now Nimbalyst. Goose is now aaif-goose. The valve is open. Let some pressure out.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

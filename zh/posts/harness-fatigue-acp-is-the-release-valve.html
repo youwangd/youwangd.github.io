@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工具一堆，没一个我想用：ACP 才是救命稻草 — Youwang Deng</title>
+<meta name="description" content="r/LocalLLaMA 一篇'被 harness 淹没了'的帖子炸出了真相：你不是被选择压垮的，你是被耦合捆死的。ACP 是 coding agent 的 LSP 时刻。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-13</time>
+        <span class="post-tag">AI-Agent</span>
+        <span class="post-tag">协议</span>
+        <span class="post-tag">开发者工具</span>
+      </div>
+      <h1 class="post-title">工具一堆，没一个我想用：ACP 才是救命稻草</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">周六早上 r/LocalLLaMA 上一个帖子,标题就四个字 "<em>I am overwhelmed by Harnesses</em>"——我被这堆 harness 搞崩了。开头楼主列了 19 个他装过的 coding agent CLI,3 个还在付费,真正每天用的那个他不肯说。两个小时上首页。底下回复才是关键:大家不是被<strong>选择</strong>压垮的,是被<strong>耦合</strong>捆死的。每一个 harness 都是一坨没有 wire format 的黑盒,接管了你的 session、permission、MCP 配置——还有,你接下来一年的工具决策。ACP 是第一个真正能把这些东西拧开的扳手。</p>
+
+      <h2>到底是哪种累</h2>
+
+      <p>把楼主电脑上装的列出来,因为这就是现在每个人电脑上的状态:<code>claude-code</code>、<code>opencode</code>、<code>codex</code>、<code>gemini</code>、<code>goose</code>(现在叫 <code>aaif-goose</code>)、<code>cline</code>、<code>aider</code>、<code>continue</code>、<code>kilo</code>、<code>roo</code>、<code>junie</code>、<code>cagent</code>、<code>fast-agent</code>、<code>kimi</code>、<code>qwen-code</code>、<code>vt-code</code>、<code>openhands</code>、<code>crystal</code>(现在叫 <code>Nimbalyst</code>),再加上他们组上 sprint 自己撸的那个。这里面 6 个在过去 60 天内改名了。<code>crystal</code> → <code>Nimbalyst</code>。<code>block/goose</code> → <code>aaif-goose</code>。<code>ruvnet/claude-flow</code> → <code>ruflo</code>。<code>steveyegge/gastown</code> → <code>gastownhall</code>。GitHub 上现在有个 <code>awesome-cli-coding-agents</code> 的 curated 列表,311 star 67 fork。<em>已经有目录的目录了</em>。</p>
+
+      <p>大家(包括半年前的我)的本能反应都是"挑一个,死磕到底"。这建议是错的——而且为什么是错的,正是这篇文章的全部重点。</p>
+
+      <h2>你"挑一个 harness"的时候,到底挑了什么</h2>
+
+      <p>你以为你挑的是一个二进制。你实际挑的,按"想换的时候有多痛"排序,大概是这些:</p>
+
+      <ol>
+        <li><strong>session 模型</strong>。父 session 的权限会不会传给子 session、<code>external_dir</code> 黑名单会不会继承、崩了之后 resume 还能不能拿回上下文。</li>
+        <li><strong>MCP 配置布局</strong>——更糟糕的是,MCP 错误处理风格。有的 OAuth 失败直接吞掉,有的无限重试,有的把上游报错原样吐出来。三种风格三种 debug 体验。</li>
+        <li><strong>权限审批 UX</strong>。Tab 同意?敲 y?点弹窗?approve-once vs approve-forever vs session-scoped——每家选的都不一样,肌肉记忆是带不走的。</li>
+        <li><strong>tool schema 清洗逻辑</strong>。某些模型(Kimi、Moonshot)拒绝带 <code>oneOf</code> 或者递归 ref 的 schema。每家 harness 自己手撸一套 normalize,而且 normalize 得不一样。</li>
+        <li><strong>workspace 路径约定</strong>。绝对路径还是相对路径、symlink resolve 不 resolve、repo 挪窝以后会怎样。</li>
+      </ol>
+
+      <p>这五条没有一条是模型的选择。没有一条本来该是不可逆的。但今天每一条都是不可逆的——因为 agent 和编辑器/shell/IDE 之间根本没有协议,<em>harness 本身就是协议</em>,所以协议 bug 都以 patch release 的方式发出来。</p>
+
+      <h2>OpenCode 的 changelog 就是物证</h2>
+
+      <p>给 SageCLI 写 weekly intel 的时候我一直开着 OpenCode 的 release feed 这个窗口。看一眼 6 天里发的版本,<strong>v1.14.27 → v1.14.33</strong>,2026-04-27 到 2026-05-02:</p>
+
+      <table>
+        <thead>
+          <tr><th>版本</th><th>第几天</th><th>修了啥</th><th>本质是啥</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1.14.28</td><td>+1</td><td>子 session 保留 <code>external_dir</code> deny</td><td>权限继承 bug</td></tr>
+          <tr><td>1.14.29</td><td>+2</td><td>规整 MCP OAuth 错误</td><td>错误形状不一致</td></tr>
+          <tr><td>1.14.30</td><td>+3</td><td>相对 workspace 路径可移植</td><td>路径约定 bug</td></tr>
+          <tr><td>1.14.31</td><td>+4</td><td>远程 MCP URL 错误包装</td><td>错误形状不一致</td></tr>
+          <tr><td>1.14.32</td><td>+5</td><td>给 Kimi 清洗 tool schema</td><td>schema 规整</td></tr>
+          <tr><td>1.14.33</td><td>+6</td><td>给 Moonshot 清洗 tool schema</td><td>schema 规整(又来一遍)</td></tr>
+        </tbody>
+      </table>
+
+      <p>6 天 6 个版本。<em>每一条</em>都是该住在协议层、整个 ecosystem 一次性修掉的东西。OpenCode 还算工程做得好的——他们在修;别家是同样的 bug 不修。而推上现在正在宣发的<code>n+1</code>个新 harness,马上就要把这 6 个 bug 从零再写一遍。</p>
+
+      <p>这就是 Reddit 那条帖子说不出口、但所有人都感受到的累。累不是因为<em>用</em> harness 累,是因为眼睁睁看着 20 个团队各自重新发明一遍权限弹窗 UX、MCP 重试策略、tool schema 清洗、session resume——然后用户用升级 churn 的方式买单。</p>
+
+      <h2>ACP 就是 LSP 时刻</h2>
+
+      <p>2016 年微软和红帽搞出 LSP。LSP 之前每个编辑器自己写每种语言的插件:Python-mode、Java-mode、Go-mode,各自实现 find-references、自动补全、hover、跳定义。Language server 一升级插件就坏。编辑器开始专科化——VSCode 服务 TS、IntelliJ 服务 Java、Vim 党"我学一下 ctags 算了"。听着耳熟吗?</p>
+
+      <p>LSP 把矩阵拍扁了。<code>O(编辑器 × 语言)</code> 变成 <code>O(编辑器) + O(语言)</code>。今天每个像样的编辑器都说 LSP,每个语言都发 server,"哪个编辑器配哪门语言"基本只剩口味问题,不再是能力问题。</p>
+
+      <p>ACP——Agent Client Protocol——就是 coding agent 版的同一招:</p>
+
+      <ul>
+        <li><strong>2025 年 8 月:</strong> Gemini CLI ↔ Zed 第一次跑通,两方 JSON-RPC,验证回路。</li>
+        <li><strong>2025 年 10 月:</strong> JetBrains 和 Zed 宣布 open collaboration。<em>这一刻</em>它就不再只是 Zed 的玩具了。</li>
+        <li><strong>2026 年 5 月:</strong> 公开的 <a href="https://zed.dev/acp" target="_blank">Zed ACP registry</a> 上挂了 <strong>22 个 agent</strong>(AgentPool、Augment、Blackbox、Claude、Cline、Codex、cagent、fast-agent、Gemini CLI、Copilot、Goose、Junie、Kimi CLI、Minion、Mistral Vibe、OpenCode、OpenHands、Pi、Qoder、Qwen Code、Stakpak、VT Code)和 <strong>12 个编辑器</strong>(Zed、JetBrains、AionUi、Emacs、marimo、Neovim、Sidequery、aizen、DeepChat、Tidewave、Web AI SDK、Obsidian)。</li>
+      </ul>
+
+      <p>The Register 2026-10-07 那篇标题挺到位:<em>"JetBrains 力挺一项可能蚕食 VS Code 霸权的开放 AI 编程标准"</em>。JetBrains 之于 ACP,就像红帽之于 LSP——一旦一家非微软的主流 IDE 站台了,网络效应就开始倾斜。</p>
+
+      <p>两边都说 ACP 之后,白送你的东西:</p>
+
+      <ul>
+        <li><strong>权限委托。</strong> 协议自带"agent 想跑 X 你同不同意"的 handshake。编辑器爱怎么渲染弹窗就怎么渲染。再也不用记 harness 自家那套 approve-once-vs-forever。</li>
+        <li><strong>session 可移植。</strong> Session 是协议对象,有稳定 ID。任何 client 都能 resume。任务跑一半从 Zed 切到 Neovim。Harness 可以崩,session 在编辑器里活着。</li>
+        <li><strong>tool 输出流式渲染。</strong> OpenCode 反复打补丁的那个 bug——tool 输出片段渲染——是协议原语。修一次,所有人都好。</li>
+        <li><strong>schema 在边缘 normalize。</strong> Agent 用已知 schema 声明 tool。编辑器可以居中调度。Kimi 和 Claude 的 schema 怪癖变成一次性 adapter,而不是每个 harness 跑一遍。</li>
+      </ul>
+
+      <p>这才是"LSP 时刻"在工程上的意思。不是"大家口头上同意了一个 buzzword",而是每个 harness 必须自己扛的表面积塌方,导致切换成本塌方,导致 harness 这一层商品化,导致你终于可以"想用哪个模型挑哪个 agent、想在哪个编辑器里就在哪个里",矩阵不再粘合。</p>
+
+      <h2>SageCLI 这边怎么看</h2>
+
+      <p>认账:SageCLI 一开始我就是 bash + jq + tmux 拼起来,刻意不上 framework,就是因为 2025 年我们已经看到 harness fatigue 的悬崖,不想跟谁结婚。这决定 2025 年看着像犟,现在看着像运气好。我们押了两个 bet:<em>(a)</em> wire format 一定会到,<em>(b)</em> 价值住在 harness 周围的 corpus 里,不在 harness 二进制里。两个都在兑现。</p>
+
+      <p>具体来讲,我们把"<strong>可移植</strong>(值得投,换 harness 不会丢)"和"<strong>会蒸发</strong>(别耦合)"分得很清:</p>
+
+      <table>
+        <thead>
+          <tr><th>层</th><th>可移植?</th><th>原因</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>AGENTS.md</code> + 项目规范</td><td><strong>是。</strong> 去年统一文件名就是为了这一刻。</td><td>每个说 ACP 的 agent 都读它。</td></tr>
+          <tr><td>MCP server 清单</td><td><strong>是。</strong> MCP 之于 tool 这一侧,就像 ACP 之于编辑器一侧。</td><td>同一组 server,换 harness,tool 还在。</td></tr>
+          <tr><td>Slash command / prompt 模板</td><td><strong>大半可以。</strong> 触发语法是 harness 的,内容是你的。</td><td>prompt 是你的,trigger 是它的。</td></tr>
+          <tr><td>session 模型 / 权限 UX</td><td><strong>不可以。</strong> 别投资,别背 harness 的怪癖。</td><td>ACP 会吃掉这一层,正在吃。</td></tr>
+          <tr><td>内置工具(web fetch、文件编辑等)</td><td><strong>不可以。</strong> 改用 MCP server,工具就是你的,不是 harness 的。</td><td>"内置"是穿了便利外衣的锁定。</td></tr>
+        </tbody>
+      </table>
+
+      <p>关键是认清你有两类投资面:<em>协议形状的</em>(AGENTS.md、MCP、prompt)和<em>厂商形状的</em>(其他一切)。在协议形状的那边花钱,拒绝给厂商形状的那边交学费。下一波改名落地——我赌 30 天内必有下一波——你应该毫无感觉。换二进制,留 corpus。</p>
+
+      <h2>不会说 ACP 的那些 agent 怎么办</h2>
+
+      <p>顺带说:就算你最爱的 agent 暂时不会说 ACP,registry 里还有 <code>Pi</code> 这个 ACP-bridge,能把不会 ACP 的 CLI 拉进网络。和 2017 年 LSP-vs-LSIF 的 adapter 同一个把戏。你不用等所有厂商,你只需要每家有一座桥就够了。"我必须挑一个"这个框架预设了一个封闭集,实际情况是每个 agent 离"可互换"只差一个 ACP shim。</p>
+
+      <h2>那这个楼主到底该听啥</h2>
+
+      <p>那条帖子下面一堆"挑 Claude Code 就完了"和"Cursor 就够用"。两个建议都是错的——错法跟 2015 年"挑 VSCode 就完了"一模一样。正确的回答是:</p>
+
+      <ol>
+        <li>别再把"选 harness"当成单向门。wire format 的全部意义就是可逆。</li>
+        <li>优先选会说 ACP 的 harness,或者离一座桥的 harness。看 <a href="https://zed.dev/acp" target="_blank">Zed registry</a>,那现在就是事实上的兼容列表。</li>
+        <li>把投入挪到 <code>AGENTS.md</code>、MCP server、prompt 模板。这三个能熬过接下来 4 轮改名。</li>
+        <li>把 harness 二进制当成 shell prompt 主题来对待。立场可以鲜明,但要随时能换,周二下午就能换。</li>
+      </ol>
+
+      <p>"被 harness 淹没了"这个感觉是真信号。但解药不是挑一个然后死撑。解药是认清:harness 下面那一层——协议层——终于到了,把投资往下挪一层,挪到那个不再天天 churn 的地方。经历过编辑器大战的人都知道接下来的剧本。插件输了,协议赢了。当年早早上船的厂商留住了用户,没上船的被改名改进了坟墓。</p>
+
+      <p>Crystal 现在叫 Nimbalyst。Goose 现在叫 aaif-goose。阀门已经开了,放点压力出来吧。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由人类与他的 agent 共同打造。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
