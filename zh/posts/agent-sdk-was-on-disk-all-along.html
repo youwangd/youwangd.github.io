@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent SDK 早就躺在你硬盘里了 — Youwang Deng</title>
+<meta name="description" content="HumanLayer 创始人 Dex Horthy 把官方 SDK 扔了,写了个 200 行的 Shannon——tmux 跑 claude,tail -f 一个 JSONL。一周 196 个 star。SDK 是多余的中间层,操作系统才是真正的 SDK。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-15</time>
+        <span class="post-tag">agent协调</span>
+        <span class="post-tag">tmux</span>
+        <span class="post-tag">工具链</span>
+      </div>
+      <h1 class="post-title">Agent SDK 早就躺在你硬盘里了</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">HumanLayer 创始人 Dex Horthy 把官方 <code>claude -p</code> 扔了,写了个叫 <em>Shannon</em> 的 200 行 wrapper:tmux 里起一个 <strong>交互式</strong> <code>claude</code>,然后 <code>tail -f</code> 那个 JSONL transcript 文件——完事。一周 196 个 star。没 SDK,没 bidi-stdio,没 streaming buffer。三个 90 年代的 Unix 工具。Twitter 上 24 小时砸了 688 个心,而那条只有 17 颗心的回复——<em>"actually getting bidi stdio streaming is non trivial"</em>——才是这件事真正的重点。</p>
+
+      <h2>那条把 SDK 神话拆穿的推</h2>
+
+      <p>周六上午,一个靠 orchestrate coding agent 吃饭的公司创始人,发了这么一条:</p>
+
+      <blockquote>
+        <p>"hey surprise — you can just launch interactive in tmux and then tail the jsonl. shipped a small wrapper... ralph loop iterating to full parity rn."</p>
+        <p style="opacity:0.6;font-size:0.85em;">— @dexhorthy,<a href="https://x.com/dexhorthy/status/2054678439215665460" target="_blank">2026-05-14</a> · 24 小时 688 ❤️</p>
+      </blockquote>
+
+      <p>紧接着的那条,心数没第一条多,但是更扎心:</p>
+
+      <blockquote>
+        <p>"everything llm land is like that. context overflow signaling, retries, etc. it's very sad and very horrible."</p>
+        <p style="opacity:0.6;font-size:0.85em;">— @dexhorthy,<a href="https://x.com/dexhorthy/status/2054703011071729698" target="_blank">2026-05-14</a></p>
+      </blockquote>
+
+      <p>这哥们儿专业搞 agent 基础设施,公开承认官方 SDK 是个税,绕过去的方法是个 bash 脚本。<strong>196 star,11 fork,几天前的事。</strong>这不是网红抖机灵,这是铸造车间内部人员的招供书。</p>
+
+      <h2>Shannon 到底干了啥(以及它拒绝干啥)</h2>
+
+      <p>翻 <a href="https://github.com/dexhorthy/shannon" target="_blank">repo</a> 看架构,反高潮到像在搞笑。整个控制流就这么几行:</p>
+
+      <pre><code><span class="code-comment"># Shannon 的执行顺序,一行不落:</span>
+1. tmux new-session -d -s agent-7              <span class="code-comment"># 起个 detached tmux</span>
+2. tmux send-keys -t agent-7 "claude" Enter    <span class="code-comment"># 启动交互式 claude</span>
+3. tmux send-keys -t agent-7 "fix the bug in src/auth.go" Enter
+4. tail -f ~/.claude/projects/&lt;hash&gt;/&lt;session&gt;.jsonl | jq .
+   <span class="code-comment"># ↑ 这就是它的 SDK。</span></code></pre>
+
+      <p>这流程里<strong>没有的</strong>东西才是重点。它没有:</p>
+
+      <ul>
+        <li><strong>没有 Anthropic API client。</strong>Shannon 自己一次 HTTPS 都不发。<code>claude</code> 自己发,跟它没关系。</li>
+        <li><strong>没用 <code>claude -p</code> headless。</strong>Dex 故意挑了 interactive 模式——headless 才是官方 SDK 包的那个东西,他绕开了。</li>
+        <li><strong>没有 bidi-stdio 协议。</strong>没 stream 多路复用,没半缓冲 stdout reader,没那种"模型说完了没还是还在想"的玄学判断逻辑。</li>
+        <li><strong>没有 streaming 框架。</strong>没 SSE parser,没 JSON chunk 重组,没 backpressure。</li>
+      </ul>
+
+      <p>因为 CLI 已经把活儿干了。每一轮对话、每一次 tool call、每一个 <code>Read</code> 结果、每一条 error,Claude Code 都会作为正常运行的副作用,一行行写进 <code>~/.claude/projects/&lt;hash&gt;/&lt;session-uuid&gt;.jsonl</code>。Shannon 只是个 200 行脚本,它说的话是:<em>"我直接读硬盘上已经有的不就完了?"</em></p>
+
+      <p>你要是从来没打开过那种文件,现在就开一个看看:</p>
+
+      <pre><code>$ ls ~/.claude/projects/ | head -3
+-bash-amazon-com-home-youwang-meshclaw
+-home-youwang-SageCLI
+-home-youwang-ai-quant
+
+$ tail -1 ~/.claude/projects/-home-youwang-SageCLI/&lt;uuid&gt;.jsonl | jq .
+{
+  "type": "assistant",
+  "message": {
+    "role": "assistant",
+    "content": [
+      { "type": "text", "text": "Patched. Tests pass." },
+      { "type": "tool_use", "name": "Bash", "input": { "command": "go test ./..." } }
+    ]
+  },
+  "uuid": "0e47...",
+  "parent_uuid": "8fa1...",
+  "timestamp": "2026-05-15T16:22:11Z"
+}</code></pre>
+
+      <p>你的 harness 需要的每一个字段,都已经在那儿了。在硬盘上,免费的。一次 SDK 调用都不用。</p>
+
+      <h2>bidi-stdio 抽象的层次错了</h2>
+
+      <p>SDK 模式在你脑子里大概长这样:</p>
+
+      <pre><code>┌─────────┐    stream    ┌──────────────┐    stream    ┌─────────┐
+│   你    │ ───────────→ │  Agent SDK   │ ───────────→ │ 模型 API│
+│ harness │ ←─────────── │ (bidi stdio) │ ←─────────── │         │
+└─────────┘              └──────────────┘              └─────────┘
+                                ↑
+                       重试、backpressure、framing、
+                       parsing、生命周期——
+                       全是你在中间这个盒子里写的。</code></pre>
+
+      <p>你花一个月搭这个中间盒。debug streaming 边界情况。给半截 JSON chunk 写测试。处理 stderr 比 stdout 早 flush 的那种破事。凌晨两点的时候你终于搞明白 <em>line-buffered</em> 和 <em>block-buffered</em> 是啥区别。</p>
+
+      <p>Shannon 的图长这样:</p>
+
+      <pre><code>┌─────────┐  send-keys  ┌────────┐
+│   你    │ ──────────→ │  tmux  │
+│ harness │             │  pane  │
+└─────────┘             │   ↓    │
+     ↑                  │ claude │ ──→ Anthropic
+     │                  │   ↓    │
+     │   tail -f        └───┬────┘
+     └──────────────────── ─┘
+                            ↓
+                   ~/.claude/.../session.jsonl
+                   (已结构化,已经完整,啥都不缺)</code></pre>
+
+      <p>三个盒子,三个 Unix 抽象,没一个比 1991 年还年轻:</p>
+
+      <ul>
+        <li><strong><code>tmux</code></strong> 给你进程生命周期。spawn、attach、detach、kill、断网继续跑。已解决问题。</li>
+        <li><strong><code>tail -f</code></strong> 给你 streaming。append-only file + inotify = 计算机里最干净的事件流。已解决问题。</li>
+        <li><strong><code>jq</code></strong> 给你 parsing。结构化 JSON 进,你想要啥出。已解决问题。</li>
+      </ul>
+
+      <p>所谓"agent SDK",是你忘了你的电脑是台 Unix 机器之后才会需要的东西。<strong>OS 就是 SDK。</strong>agent CLI 就是个长跑的进程,顺便把日志写成结构化的。你 harness 跟 agent 之间的"协议",就是一个文件路径加一个 inotify watch。</p>
+
+      <p>说实话,这就是我从第一天写 <a href="/zh/posts/sage-cli">SageCLI</a> 就押的注,当时被各种"你应该用 SDK"的反馈淹过。SageCLI 的 <code>send</code> / <code>ls</code> / <code>clear</code> 全是 bash + tmux + JSONL,没了。没框架,没 SDK,没 streaming 库。原因不是我多聪明——是我懒。CLI 已经把我要的全干完了,再用 Python wrapper 把它再实现一遍这事明显不对。Shannon 只是从一个完全独立的方向、一个声量大得多的舞台,把同一个直觉验证了一遍。</p>
+
+      <h2>那 2026 年的"agent SDK"会变成什么</h2>
+
+      <p>随便挑一个今年发布的 coding agent,在它源码里 grep 一下 <em>session</em>,你会看到这样的路径:</p>
+
+      <pre><code>~/.claude/projects/&lt;hash&gt;/&lt;uuid&gt;.jsonl       <span class="code-comment"># Claude Code</span>
+~/.codex/sessions/&lt;date&gt;/&lt;uuid&gt;.jsonl        <span class="code-comment"># OpenAI Codex CLI</span>
+~/.cursor/transcripts/&lt;workspace&gt;/*.jsonl    <span class="code-comment"># Cursor</span>
+~/.aider/.aider.chat.history.md              <span class="code-comment"># Aider (是 markdown,也能 parse)</span>
+~/.opencode/sessions/*.jsonl                 <span class="code-comment"># OpenCode</span>
+~/.kiro/.../sessions/*.json                  <span class="code-comment"># Kiro</span></code></pre>
+
+      <p>每一个都是 agent 的 transcript,作为正常运行的副产品被写出来。每一个都是结构化的。大部分是 JSONL。读它们没一个需要 SDK。那个你被告知必须学的协议——bidi-stdio framing、MCP transport、ACP envelope——其实是在你 transcript 已经免费存在的那一层之上一两层。</p>
+
+      <p>这倒不是在打 <a href="/zh/posts/harness-fatigue-acp-is-the-release-valve">ACP</a> 或 MCP 的脸。它们解决的是真问题:<em>把编辑器和 agent 之间的协议标准化</em>,这样 JetBrains 不用为 22 个 CLI 写 22 套接入。这是 LSP 那一层,N×M 复杂度的解药——花协议成本是值的。</p>
+
+      <p>但是<em>你自己的 harness</em>——你的 cron 任务、你的后台 worker、你的 CI bot、你的自定义 orchestration 循环——你不是 N×M。你是 1×1。你需要的不是协议,是一个文件路径。正经对比一下:</p>
+
+      <table>
+        <thead>
+          <tr><th>层</th><th>SDK / bidi-stdio</th><th>文件系统(Shannon, SageCLI)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>启动</td><td>library API</td><td><code>tmux new-session</code></td></tr>
+          <tr><td>送入输入</td><td>stream 写入</td><td><code>tmux send-keys</code></td></tr>
+          <tr><td>读取输出</td><td>stream parser、framing、重试</td><td><code>tail -f session.jsonl</code></td></tr>
+          <tr><td>持久化</td><td>你自己实现</td><td>已经在硬盘上</td></tr>
+          <tr><td>崩溃后恢复</td><td>你自己实现</td><td><code>cat</code> 那个文件</td></tr>
+          <tr><td>审计日志</td><td>你自己实现</td><td><code>git add</code> 那个目录</td></tr>
+          <tr><td>多 agent 并发</td><td>线程池 + 锁</td><td>N 个 tmux pane,N 个文件</td></tr>
+          <tr><td>到第一次能 ship 的时间</td><td>几周</td><td>200 行 bash</td></tr>
+        </tbody>
+      </table>
+
+      <p>对未来 12 个月我的判断是:每个还能起来的"agent SDK"会悄悄变成 on-disk transcript 上面那层薄薄的礼貌封装。Anthropic 自己的 SDK 不会再被推荐成 drive Claude Code 的标准方法。厂商会发<em>transcript schema</em>,而不是 <em>SDK client</em>。能跑出来的 wrapper——Shannon、SageCLI、还有十几个我们还没见到的——会在<em>用 JSONL 干啥</em>这件事上竞争,而不是<em>怎么把 JSONL 拿到</em>。</p>
+
+      <p>你一直在等的那个协议早就有了。它叫<strong>文件系统</strong>。1969 年就发布了。uptime 一直很好。</p>
+
+      <h2>一句话总结</h2>
+
+      <p>如果你的 agent harness 里有个"client" 模块,删了它,把 <code>tail -f</code> 指向 CLI 已经在写的那个 JSONL,然后把你本来要拿去 debug stdio framing 的那一周时间,做成用户能真正用上的功能。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由一个人和他的 agent 共同建造。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

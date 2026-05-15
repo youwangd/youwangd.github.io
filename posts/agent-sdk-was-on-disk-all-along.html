@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Agent SDK Was on Disk All Along — Youwang Deng</title>
+<meta name="description" content="Dex Horthy threw out claude -p and shipped Shannon: tmux + interactive claude + tail -f on a JSONL file. 196 stars in days. The SDK was an unnecessary middleman — the OS already had the abstraction.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-15</time>
+        <span class="post-tag">agent-orchestration</span>
+        <span class="post-tag">tmux</span>
+        <span class="post-tag">harness-engineering</span>
+      </div>
+      <h1 class="post-title">The Agent SDK Was on Disk All Along</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">Dex Horthy threw out <code>claude -p</code> and shipped <em>Shannon</em>: a 196-star wrapper that launches an interactive <code>claude</code> inside <code>tmux</code> and tails the transcript JSONL on disk. No SDK. No bidi-stdio. No streaming buffer logic. Just three Unix tools from the 1990s. The internet handed him 688 hearts in 24 hours, and the comment under the tweet — <em>"actually getting bidi stdio streaming is non-trivial"</em> — is the whole reason this matters.</p>
+
+      <h2>The tweet that broke the SDK myth</h2>
+
+      <p>Saturday morning, the founder of HumanLayer — a company whose entire business is orchestrating coding agents — posted this:</p>
+
+      <blockquote>
+        <p>"hey surprise — you can just launch interactive in tmux and then tail the jsonl. shipped a small wrapper... ralph loop iterating to full parity rn."</p>
+        <p style="opacity:0.6;font-size:0.85em;">— @dexhorthy, <a href="https://x.com/dexhorthy/status/2054678439215665460" target="_blank">May 14, 2026</a> · 688 ❤️ in 24h</p>
+      </blockquote>
+
+      <p>The follow-up tweet, fewer hearts but more honest, is the part you should tattoo on your monitor:</p>
+
+      <blockquote>
+        <p>"everything llm land is like that. context overflow signaling, retries, etc. it's very sad and very horrible."</p>
+        <p style="opacity:0.6;font-size:0.85em;">— @dexhorthy, <a href="https://x.com/dexhorthy/status/2054703011071729698" target="_blank">May 14, 2026</a></p>
+      </blockquote>
+
+      <p>The man who builds agent infrastructure for a living publicly admitted that the official SDK is a tax, and the workaround is a Bash script. <strong>196 stars, 11 forks, days old.</strong> This isn't a hot take. It's a confession from inside the foundry.</p>
+
+      <h2>What Shannon actually does (and refuses to do)</h2>
+
+      <p>Read the <a href="https://github.com/dexhorthy/shannon" target="_blank">repo</a> and the architecture is so anti-climactic it feels like a prank. Here is the entire control flow:</p>
+
+      <pre><code><span class="code-comment"># What Shannon does, in actual order:</span>
+1. tmux new-session -d -s agent-7   <span class="code-comment"># spawn detached tmux</span>
+2. tmux send-keys -t agent-7 "claude" Enter   <span class="code-comment"># launch INTERACTIVE claude</span>
+3. tmux send-keys -t agent-7 "fix the bug in src/auth.go" Enter
+4. tail -f ~/.claude/projects/&lt;hash&gt;/&lt;session&gt;.jsonl | jq .
+   <span class="code-comment"># ↑ that's it. that's the SDK.</span></code></pre>
+
+      <p>What's missing from that flow is the entire point. There is:</p>
+
+      <ul>
+        <li><strong>No Anthropic API client.</strong> Shannon never makes an HTTPS call. <code>claude</code> does, on its own.</li>
+        <li><strong>No <code>claude -p</code> headless mode.</strong> Dex specifically chose interactive. Headless mode is what the official SDK wraps.</li>
+        <li><strong>No bidi-stdio protocol.</strong> No stream multiplexing, no half-buffered stdout reader, no "did the model finish or is it still thinking" heuristics.</li>
+        <li><strong>No streaming framework.</strong> No SSE parser, no JSON chunk reassembler, no backpressure logic.</li>
+      </ul>
+
+      <p>The CLI already did the work. Every turn, every tool call, every <code>Read</code> result, every error — Claude Code writes them to <code>~/.claude/projects/&lt;hash&gt;/&lt;session-uuid&gt;.jsonl</code> as a side effect of running normally. Shannon is a 200-line script that says: <em>"I'll just read what's already on disk."</em></p>
+
+      <p>If you've never opened one of those files, do it now. Pick any recent Claude Code session and run:</p>
+
+      <pre><code>$ ls ~/.claude/projects/ | head -3
+-bash-amazon-com-home-youwang-meshclaw
+-home-youwang-SageCLI
+-home-youwang-ai-quant
+
+$ tail -1 ~/.claude/projects/-home-youwang-SageCLI/&lt;uuid&gt;.jsonl | jq .
+{
+  "type": "assistant",
+  "message": {
+    "role": "assistant",
+    "content": [
+      { "type": "text", "text": "Patched. Tests pass." },
+      { "type": "tool_use", "name": "Bash", "input": { "command": "go test ./..." } }
+    ]
+  },
+  "uuid": "0e47...",
+  "parent_uuid": "8fa1...",
+  "timestamp": "2026-05-15T16:22:11Z"
+}</code></pre>
+
+      <p>Every field your harness needs. Already there. On disk. No SDK call required.</p>
+
+      <h2>Bidi-stdio is the wrong abstraction layer</h2>
+
+      <p>The SDK pattern looks like this in your head:</p>
+
+      <pre><code>┌─────────┐   stream   ┌──────────────┐   stream   ┌─────────┐
+│  Your   │ ─────────→ │  Agent SDK   │ ─────────→ │  Model  │
+│ harness │ ←───────── │ (bidi stdio) │ ←───────── │  API    │
+└─────────┘            └──────────────┘            └─────────┘
+                              ↑
+                    You write retry logic,
+                    backpressure, framing,
+                    parsing, lifecycle here.</code></pre>
+
+      <p>You spend a month building that middle box. You debug streaming edge cases. You write tests for partial JSON chunks. You handle the case where stderr arrives before stdout flushes. You learn what <em>line-buffered</em> vs <em>block-buffered</em> means at 2am.</p>
+
+      <p>Shannon's picture is different:</p>
+
+      <pre><code>┌─────────┐  send-keys  ┌────────┐
+│  Your   │ ──────────→ │  tmux  │
+│ harness │             │  pane  │
+└─────────┘             │   ↓    │
+     ↑                  │ claude │ ──→ Anthropic
+     │                  │   ↓    │
+     │   tail -f        └───┬────┘
+     └──────────────────── ─┘
+                            ↓
+                   ~/.claude/.../session.jsonl
+                   (already structured, already complete)</code></pre>
+
+      <p>Three boxes. Three Unix abstractions, none of them younger than 1991:</p>
+
+      <ul>
+        <li><strong><code>tmux</code></strong> gives you process lifecycle. Spawn, attach, detach, kill, survive disconnect. Solved problem.</li>
+        <li><strong><code>tail -f</code></strong> gives you streaming. Append-only file + inotify = the cleanest event stream in computing. Solved problem.</li>
+        <li><strong><code>jq</code></strong> gives you parsing. Structured JSON in, anything out. Solved problem.</li>
+      </ul>
+
+      <p>The "agent SDK" is what happens when you forget your computer is a Unix machine. <strong>The OS is the SDK.</strong> The agent CLI is just a long-running process that writes a structured log. The "protocol" between your harness and the agent is a file path and an inotify watch.</p>
+
+      <p>I'll be honest: this is the bet I made on <a href="/posts/sage-cli">SageCLI</a> from day one, and I caught a lot of "you should use the SDK" feedback for it. SageCLI's <code>send</code> / <code>ls</code> / <code>clear</code> commands are bash + tmux + JSONL, full stop. No framework. No SDK. No streaming library. The reason wasn't cleverness — it was laziness. The CLI already had everything I needed; building a second copy of it inside a Python wrapper felt obviously wrong. Shannon just validated the same instinct from a totally independent direction, with a much more public stage.</p>
+
+      <h2>What this means for "agent SDKs" in 2026</h2>
+
+      <p>Take any coding agent that ships today and grep its codebase for the word <em>session</em>. You'll find one of these:</p>
+
+      <pre><code>~/.claude/projects/&lt;hash&gt;/&lt;uuid&gt;.jsonl       <span class="code-comment"># Claude Code</span>
+~/.codex/sessions/&lt;date&gt;/&lt;uuid&gt;.jsonl        <span class="code-comment"># OpenAI Codex CLI</span>
+~/.cursor/transcripts/&lt;workspace&gt;/*.jsonl    <span class="code-comment"># Cursor</span>
+~/.aider/.aider.chat.history.md              <span class="code-comment"># Aider (markdown, but parseable)</span>
+~/.opencode/sessions/*.jsonl                 <span class="code-comment"># OpenCode</span>
+~/.kiro/.../sessions/*.json                  <span class="code-comment"># Kiro</span></code></pre>
+
+      <p>Every one of these is your agent's transcript, written as a normal byproduct of running. Every one is structured. Most are JSONL. None of them require an SDK to read. The protocol you've been told you need to learn — bidi-stdio framing, MCP transports, ACP message envelopes — is one or two layers above the layer where your transcript already exists for free.</p>
+
+      <p>This isn't a knock on <a href="/posts/harness-fatigue-acp-is-the-release-valve">ACP</a> or MCP. They solve a real problem: <em>standardizing the wire between an editor and an agent</em>, so JetBrains doesn't have to write 22 integrations for 22 CLIs. That's the LSP layer. Worth the protocol overhead because the alternative is N×M.</p>
+
+      <p>But for <em>your own harness</em> — your cron jobs, your background workers, your CI bot, your custom orchestration loop — you are not N×M. You are 1×1. You don't need a protocol; you need a file path. The honest comparison:</p>
+
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>SDK / bidi-stdio</th><th>Filesystem (Shannon, SageCLI)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Spawn</td><td>library API</td><td><code>tmux new-session</code></td></tr>
+          <tr><td>Send input</td><td>stream write</td><td><code>tmux send-keys</code></td></tr>
+          <tr><td>Read output</td><td>stream parser, framing, retries</td><td><code>tail -f session.jsonl</code></td></tr>
+          <tr><td>Persistence</td><td>you implement it</td><td>already on disk</td></tr>
+          <tr><td>Resume after crash</td><td>you implement it</td><td><code>cat</code> the file</td></tr>
+          <tr><td>Audit trail</td><td>you implement it</td><td>git-add the directory</td></tr>
+          <tr><td>Multi-agent fan-out</td><td>thread pool + locks</td><td>N tmux panes, N files</td></tr>
+          <tr><td>Time to first ship</td><td>weeks</td><td>200 lines of bash</td></tr>
+        </tbody>
+      </table>
+
+      <p>My prediction for the next 12 months: every "agent SDK" with traction quietly becomes a thin courtesy wrapper over the on-disk transcript. The Anthropic SDK will stop being the recommended way to drive Claude Code. Vendors will publish <em>transcript schemas</em> instead of <em>SDK clients</em>. The smart wrappers — Shannon, SageCLI, the next dozen we haven't seen yet — will compete on what they do <em>with</em> the JSONL, not on how they got it.</p>
+
+      <p>The protocol you've been waiting for already exists. It's called <strong>the filesystem</strong>. It shipped in 1969. It has excellent uptime.</p>
+
+      <h2>The takeaway, in one sentence</h2>
+
+      <p>If your agent harness has a "client" module, delete it, point a <code>tail -f</code> at the JSONL the CLI is already writing, and ship the week you would have spent debugging stdio framing as something a user can actually use.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
