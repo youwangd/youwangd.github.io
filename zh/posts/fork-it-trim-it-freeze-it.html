@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>依赖能不升就别升：Mitchell Hashimoto 喊了十年的"歪理"又火了 — Youwang Deng</title>
+<meta name="description" content="一个 moving 的 Docker tag 在生产里直接往回退了一个版本。一颗 transitive 的 peft pin 调了五个小时。Hashimoto 喊"fork 你的依赖、不要升"已经喊了十年。在 2026 的 agent 技术栈里,这是唯一还跑得通的策略。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-21</time>
+        <span class="post-tag">依赖管理</span>
+        <span class="post-tag">开源</span>
+        <span class="post-tag">工程实践</span>
+      </div>
+      <h1 class="post-title">依赖能不升就别升:Mitchell Hashimoto 喊了十年的"歪理"又火了</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">一个 moving 的 Docker tag 在生产环境里直接往回退了。<code>litellm:main-latest</code> 拉下来,版本是 1.82.6。我们正打算升级的那个容器,本来跑的是 1.83.4。"保持最新"的工具链,给我们送了一个比原来更老的版本。这是周二发生的事。到了周五,Mitchell Hashimoto 那条"永远不要升级依赖"的推已经 5436 个心,评论区彻底炸了。</p>
+
+      <h2>这条 5436 心的推,其实是十年前那一条</h2>
+
+      <p>2026-05-20 这天,Mitchell Hashimoto——Ghostty 作者、HashiCorp 前创始人、当年 Vagrant 和 Terraform 的那个人——<a href="https://x.com/mitchellh/status/2057171518027887035" target="_blank">发了这条推</a>:</p>
+
+      <blockquote>"Fork 你的依赖,把它裁剪到只剩你用得上的部分,除非用户那边坏了否则永远不要更新。这话我说了十多年了。我一直觉得,升级带来的风险远大于潜在 bug 的风险——潜在 bug 是可以追踪的,CVE 是可以监控的。"</blockquote>
+
+      <p>12 小时 148 条回复。大部分人震惊,一部分人愤怒,还有意外多的人——悄悄表示同意。这条推真正值得说的地方是:<em>他从 Vagrant 那个年代就在讲这套</em>。推文不是新的,听众才是。</p>
+
+      <p>十年前你听这话,会觉得是 Twitter 上的怪人。在 2026 年再听,这是关键运维建议——因为支撑你所有有意思应用的那一层底座(agent 栈、LLM 工具链、扩散模型 pipeline),已经把依赖树变成了雷区。<code>diffusers</code> 在 import 的时候硬性检查 <code>peft&gt;=0.17.0</code>,而它甚至没在 requirements 里声明这个依赖。<code>transformers 4.51.3</code> 需要 <code>huggingface-hub&lt;1.0,&gt;=0.30.0</code>,但默认 pip resolver 会给你装 1.13.0,生产环境直接 import 失败。半打"agent SDK"各种各的 vendor 方式,每次发布都是抛硬币。</p>
+
+      <p>"为了安全总是要升级"这个福音,正在被它自己的工程学压垮。能稳定交付的团队,都是 2014 年就读过 Hashimoto 的那些人。</p>
+
+      <h2>"总是升级"是工程剧场</h2>
+
+      <p>整个行业的默认立场——每一个 dependabot 配置、每一个"你有 47 个过时包"的 lint 提示、每一个 supply-chain 厂商的 marketing slide——都在告诉你新的就是更安全的。这是一个范畴错误。它把 <em>known-bad</em> 和 <em>known</em> 混为一谈了。</p>
+
+      <p>Hashimoto 的说法很精准:潜在 bug 是<strong>可追踪</strong>的。CVE 会被提交,会进扫描器,有严重等级,你可以做决定。但你 upstream 下个 minor release 里出现的 regression?这是一个出现在你没写的代码里、你不知道存在、却把你用户依赖的功能搞挂了的 bug——你只会在 Slack 里有人问"API 是不是挂了?"的时候才发现。这种 bug 没扫描器,只有爆炸半径。</p>
+
+      <p>"总是升级"派假装不存在的三个 tradeoff:</p>
+
+      <p><strong>1. 升级风险 vs 潜在 bug 风险。</strong>已经在生产里跑了几个月没冒头的潜在 bug,统计上明天冒头的概率很低。但新的代码,从来没在你的环境里跑过。"新发布版本里有 regression"这件事的基础概率并不低——去看任何一个活跃项目 minor 升级后那一周的 bug tracker 就知道了。可我们居然把升级当默认安全选项。</p>
+
+      <p><strong>2. Maintainer 的 churn vs 你的 churn。</strong>upstream 每改一次 API,这次迁移的账单是<em>你</em>来付。Maintainer 做了一个免费的决定,你被收了费。Upstream maintainer 不欠你稳定性——他们欠自己一个能维护下去的代码库。这个错配是结构性的。Fork 是对它唯一诚实的回应。</p>
+
+      <p><strong>3. 供应链安全是可读性,不是新鲜度。</strong>xz-utils 的后门,被 ship 得最快的项目就是那些 auto-pull 的项目。防御从来不是"24 小时内打补丁",防御是"你知道你的树里有什么"。一个被冻结、vendor 进来、审过的依赖,比一个跨六层 transitive 信任链自动升级的依赖,要难被攻陷得多。<em>读</em>你的依赖才叫安全。<em>刷新</em>它们只是在祈祷。</p>
+
+      <p>来一份我们自己基础设施的账单。Flux2 推理容器的 pin 矩阵:</p>
+
+<pre><code>diffusers==0.37.1          <span class="code-comment"># Flux2Pipeline 在 0.36.0 引入;0.38 会引发 safetensors 连锁冲突</span>
+transformers==4.51.3       <span class="code-comment"># DLC 默认版本;锁定 huggingface-hub 范围</span>
+huggingface-hub==0.36.2    <span class="code-comment"># 1.x 会让 transformers import 挂掉;pip 默认会装 1.13</span>
+peft==0.17.1               <span class="code-comment"># diffusers 在 import 时做 dep_version_check —— 没在 requires_dist 里声明</span>
+safetensors==0.6.2         <span class="code-comment"># DLC 默认;升 diffusers 0.38 才需要 0.8;不要动</span></code></pre>
+
+      <p>这里每一个 pin,都是用生产环境调试时间换来的。一次轻松五个小时。把这种数量级的脆弱乘以 agent 栈里大概四十个等量级的包,数字就很难看了。冻结的 lockfile 不是偏执——它是给未来的你的一封备忘录,告诉你哪一些 pin 是用血换来的。</p>
+
+      <h2>"Fork、裁、冻"在 2026 长什么样</h2>
+
+      <p>Hashimoto 的"歪理"不是一种 vibe,是三个具体的模式——每个模式都通过消除一整类失败来证明自己复杂度的合理性。下面是我们真正在用的三种,按承诺程度从低到高:</p>
+
+      <p><strong>Vendor 给前端用。</strong>Showcase 那个 wizard 前端用了 Alpine.js。Alpine.js 有 CDN。我们不用。我们把 <code>alpine.min.js</code> 直接丢进 <code>/static/vendor/</code>,完事。代价:一个文件,大概 40KB,进 git。收益:wizard 不会因为 CDN 出 regression 而炸,不会被 CDN 攻陷影响,不会因为某个 Cloudflare 的人改了路由而坏掉。今天跑的 JavaScript 跟我们 ship 那天跑的是同一份。这就是全部。</p>
+
+      <p><strong>Pin 给运行时用。</strong>SageMaker 的 async endpoint 跑在私有 VPC 里,出网完全不通。<code>pip install</code> 直接 timeout——网络<em>到不了 index</em>。包能进容器的唯一方式是 vendor 一个 wheelhouse,版本写死,加上 <code>--no-index --find-links /opt/ml/model/code/wheelhouse</code>。听起来很严苛。是很严苛。但这也意味着我们的 endpoint <em>不可能</em>因为 transitive 升级而被悄悄搞坏。Air-gapped 基础设施强加给你的约束,正好是 Hashimoto 推荐你主动接受的约束。</p>
+
+      <p><strong>Branch 给产品用。</strong>MeshClaw——我在 Cloud Desktop 上跑的 agent runtime——是一个 fork。upstream maintainer 不想要 Secretary 邮件功能。我们想要。所以 <code>feature/secretary-email-support</code> 就在本地存着,upstream 出了真正重要的东西的时候 rebase 一下,其它时候原地不动。下次 upstream ship 一个 breaking refactor 的时候,我们的 agent 还在跑。代价就是一个 branch,加上不要假装自己在往上游推的自律。收益是这个功能存在,而且按我们的节奏存在。</p>
+
+      <p>三种模式的共同点是同一个:<strong>你是 integrator,不是 consumer。</strong>你的工作不是追 upstream 的 release notes。你的工作是知道<em>此刻</em>你生产环境里跑的是什么代码,而且只在<em>你的</em>用户需要的时候才动它,不是 npm/pip/cargo 醒了决定该动它。</p>
+
+      <h2>反共识的那个结论</h2>
+
+      <p>大部分工程师读 Hashimoto 会觉得他在装老顽固。他不是。他只是在<em>运维上诚实</em>地说出了大部分团队不愿意承认的事实:你 import 一个包的那一刻,你已经把你可靠性的一部分外包给了一个素未谋面、对你的客户没有任何义务的陌生人。</p>
+
+      <p>升级是一种押注——押你的 upstream maintainer 关心你的 use case 多过关心他自己的路线图。有时候这是个不错的押注。很多时候不是。2026 年的 agent 栈大部分时间是"很多时候不是"——项目太多、改动太多、太多 maintainer 在追下一个范式。<code>litellm:main-latest</code> 之所以倒退,是因为某个人、在某个地方、对一个 tag 指针做了决定。那个决定不是为我们做的。任何一个都不是。</p>
+
+      <p>悄悄说的真相:fork、裁、冻,是当底层比你 roadmap 跑得还快的时候,"交付"长成的样子。它不是 2026 才发明的。Hashimoto 十年前就发现了——他看着基础设施工具生态烧穿自己的贡献者。他一直在说,因为没人听。这条推文今天能火,是因为听众终于积累出了能听懂这话的伤疤。</p>
+
+      <p>如果你正在 agent、LLM 或者任何 2024 年之后的工具生态上面构建严肃的东西:<strong>读你的依赖,fork 关键的那部分,vendor 小的那部分,pin 运行时那部分,你的用户不逼你之前一切不要动。</strong>把每一个 <code>upgrade</code> 命令当作一次 deploy 看待——因为它就是——并且按 deploy 的标准 gate 它。</p>
+
+      <p>"总是升级"派会说这不负责任。问问他们上一次读他们刚 bump 的那个包的 changelog 是什么时候。诚实的答案,几乎永远是从来没有。<em>那</em>才是真正的不负责任。Hashimoto 只是从 2014 年起就有勇气把这话说出来。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

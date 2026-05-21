@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fork It, Trim It, Freeze It: Mitchell Hashimoto's 10-Year Heresy Just Went Viral Again — Youwang Deng</title>
+<meta name="description" content="A moving Docker tag went backwards in production. Five hours debugging a transitive peft pin. Hashimoto's been saying 'fork your deps, never update' for a decade. In 2026's agent stack, it's the only strategy that actually composes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-21</time>
+        <span class="post-tag">dependencies</span>
+        <span class="post-tag">open-source</span>
+        <span class="post-tag">supply-chain</span>
+      </div>
+      <h1 class="post-title">Fork It, Trim It, Freeze It: Mitchell Hashimoto's 10-Year Heresy Just Went Viral Again</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">A moving Docker tag literally went <em>backwards</em> in production. <code>litellm:main-latest</code>, pulled fresh, gave us version 1.82.6. The container we were upgrading was already running 1.83.4. Stay-current tooling shipped us something <strong>older</strong> than what we had. That was a Tuesday. By Friday, Mitchell Hashimoto's "never update your dependencies" tweet had 5,436 hearts and the comment section was on fire.</p>
+
+      <h2>The 5,436-heart tweet that's a decade old</h2>
+
+      <p>On 2026-05-20 Mitchell Hashimoto — Ghostty author, ex-HashiCorp founder, the guy who built Vagrant and Terraform — <a href="https://x.com/mitchellh/status/2057171518027887035" target="_blank">tweeted this</a>:</p>
+
+      <blockquote>"Fork your dependencies, trim them to only your use case, never update unless it breaks for your users. I've been vocal about this for 10+ years. I've always said that updating is way riskier than latent bugs (which can be tracked and CVEs monitored)."</blockquote>
+
+      <p>148 replies in twelve hours. Most of them shocked. Some of them angry. A surprising number of them quietly agreeing. The thing is — and this is the part that matters — <em>he's been saying this since the Vagrant years</em>. The tweet isn't new. The audience is.</p>
+
+      <p>Ten years ago this read as crank Twitter. In 2026 it reads as load-bearing operational advice, because the substrate underneath every interesting application — the agent stack, the LLM tooling, the diffusion pipelines — has turned the dependency tree into a minefield. <code>diffusers</code> hard-checks <code>peft&gt;=0.17.0</code> at module import via a function it doesn't even declare in its requirements. <code>transformers 4.51.3</code> needs <code>huggingface-hub&lt;1.0,&gt;=0.30.0</code>, but the default pip resolver picks 1.13.0 the moment you breathe on it, and your import dies in production. Half a dozen "agent SDKs" all vendored differently. Every release is a coin flip.</p>
+
+      <p>The "always upgrade for security" gospel is collapsing under its own ergonomics. The teams shipping reliably are the teams that read Hashimoto in 2014.</p>
+
+      <h2>Why "always upgrade" is engineering theater</h2>
+
+      <p>The default position in our industry — articulated by every dependabot config, every "you have 47 outdated packages" linter, every supply-chain vendor's marketing deck — is that newer is safer. This is a category error. It conflates <em>known-bad</em> with <em>known</em>.</p>
+
+      <p>Hashimoto's framing is precise: latent bugs are <strong>trackable</strong>. CVEs get filed. They show up in scanners. They have severity scores. You can decide. A regression in your upstream's next minor release? That's a bug you didn't know existed in code you didn't write that broke a feature your users depend on, and you'll find it because someone in Slack will say "is the API down?" There's no scanner for that. There's only blast radius.</p>
+
+      <p>Three tradeoffs the "always upgrade" crowd pretends don't exist:</p>
+
+      <p><strong>1. Update risk vs. latent-bug risk.</strong> Latent bugs that haven't surfaced in months of production are statistically unlikely to surface tomorrow. New code on the other hand has never run in your environment. The base rate of "regressions in a fresh release" is non-trivial — go look at any active project's bug tracker the week after a minor bump. And yet we treat upgrading as the safe default.</p>
+
+      <p><strong>2. Maintainer churn vs. your churn.</strong> Every time an upstream rewrites its API, that's a migration <em>you</em> pay for. The maintainer made a free decision; you got billed. Upstream maintainers don't owe you stability — they owe themselves a tractable codebase. The mismatch is structural. Forking is the only honest response to it.</p>
+
+      <p><strong>3. Supply-chain security as legibility, not currency.</strong> The xz-utils backdoor shipped fastest to projects that auto-pulled. The defense was never "install the patch within 24 hours." The defense was "know what's in your tree." A frozen, vendored, audited dep is harder to compromise than one that's auto-updating across six layers of transitive trust. <em>Reading</em> your dependencies is security. <em>Refreshing</em> them is hope.</p>
+
+      <p>Here's the receipt from our own infra. Pinning matrix for one Flux2 inference container:</p>
+
+<pre><code>diffusers==0.37.1          <span class="code-comment"># Flux2Pipeline introduced in 0.36.0; 0.38 cascades safetensors</span>
+transformers==4.51.3       <span class="code-comment"># DLC default; pinned huggingface-hub range</span>
+huggingface-hub==0.36.2    <span class="code-comment"># 1.x breaks transformers import; pip picks 1.13 by default</span>
+peft==0.17.1               <span class="code-comment"># diffusers does dep_version_check at import — not in requires_dist</span>
+safetensors==0.6.2         <span class="code-comment"># DLC default; 0.8 needed for diffusers 0.38; do not move</span></code></pre>
+
+      <p>Every one of those pins was paid for in production debugging. Five hours, easy. Multiply that across an agent stack with maybe forty packages of equivalent fragility and the math gets ugly fast. The frozen lockfile isn't paranoia — it's a memo to your future self about which pins were earned in blood.</p>
+
+      <h2>What "fork, trim, freeze" actually looks like in 2026</h2>
+
+      <p>Hashimoto's heresy isn't a vibe. It's three concrete patterns that earn their complexity by removing whole classes of failure. Here are the ones we actually use, in increasing order of commitment:</p>
+
+      <p><strong>Vendor for shipping.</strong> The Showcase wizard frontend uses Alpine.js. Alpine.js has a CDN. We do not use the CDN. We dropped <code>alpine.min.js</code> into <code>/static/vendor/</code> and call it a day. Cost: one file in git, ~40KB. Benefit: the wizard cannot accidentally pull a CDN regression, cannot be affected by a CDN compromise, cannot break because someone at Cloudflare made a routing decision. The wizard runs the same JavaScript today that it ran the day we shipped it. That's the entire feature.</p>
+
+      <p><strong>Pin for runtime.</strong> SageMaker async endpoints run in private VPCs with no internet egress. <code>pip install</code> from <code>requirements.txt</code> times out on pypi.org — the network <em>cannot reach the index</em>. The only way packages land in the container is a vendored wheelhouse with exact versions and <code>--no-index --find-links /opt/ml/model/code/wheelhouse</code>. This sounds restrictive. It is restrictive. It also means our endpoints are <em>impossible</em> to silently degrade by a transitive update. The constraint that air-gapped infra forces on you is the constraint Hashimoto recommends voluntarily.</p>
+
+      <p><strong>Branch for product.</strong> MeshClaw — the agent runtime I run on Cloud Desktop — is a fork. The upstream maintainers don't want a Secretary email feature. We do. So <code>feature/secretary-email-support</code> exists locally, gets rebased when something upstream actually matters, and otherwise stays put. The next time upstream ships a breaking refactor, our agents keep running. The cost is one branch and the discipline to not pretend we're shipping back. The benefit is the feature exists at all, and on our terms.</p>
+
+      <p>The pattern across all three is the same: <strong>you are the integrator, not the consumer.</strong> Your job is not to track upstream's release notes. Your job is to know what code is running in your production right now, and to move it only when <em>your</em> users need you to, not when npm/pip/cargo wakes up and decides you should.</p>
+
+      <h2>The contrarian takeaway</h2>
+
+      <p>Most engineers read Hashimoto and think he's being curmudgeonly. He's not. He's being <em>operationally honest</em> about a fact most teams avoid stating: when you import a package, you have outsourced part of your reliability to a stranger who has never met your customers and is under no obligation to care about them.</p>
+
+      <p>Updating is a bet that the upstream maintainer cares about your use case more than they care about their roadmap. Sometimes that's a fine bet. Often it isn't. The agent stack of 2026 is mostly "often it isn't" — too many projects, too much churn, too many maintainers chasing the next paradigm. <code>litellm:main-latest</code> moved backwards because someone, somewhere, made a decision about a tag pointer. That decision wasn't for us. None of them are.</p>
+
+      <p>The quiet truth: forking, trimming, and freezing is what shipping looks like when the substrate is moving faster than your roadmap. It's not a 2026 invention. Hashimoto noticed it ten years ago, watching infra-tool ecosystems burn through their own contributors. He kept saying it because nobody listened. The tweet went viral now because the audience finally has the scar tissue to hear it.</p>
+
+      <p>If you're building anything serious on top of agents, LLMs, or any post-2024 tool ecosystem: <strong>read your dependencies, fork what matters, vendor what's small, pin what's runtime, and don't move anything until your users force the issue.</strong> Treat every <code>upgrade</code> command as a deploy — because it is one — and gate it accordingly.</p>
+
+      <p>The "always update" crowd will call this irresponsible. Ask them when they last read the changelog of the package they just bumped. The honest answer, almost always, is never. <em>That's</em> the actual irresponsible posture. Hashimoto's just been brave enough to say it out loud since 2014.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
