@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>防火墙之后,Agent 立刻变菜鸡 — Youwang Deng</title>
+<meta name="description" content="DHH 早上发了条推:Agent 之所以在 Linux 上这么强,是因为 4000 万行内核代码在预训练里。回复区把后半句话挑明了——闭源 monorepo 直接撞上一道训练语料悬崖。模型没变差,语料用完了。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-23</time>
+        <span class="post-tag">智能体</span>
+        <span class="post-tag">预训练</span>
+        <span class="post-tag">开源</span>
+      </div>
+      <h1 class="post-title">防火墙之后,Agent 立刻变菜鸡</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">DHH 早上发了条推。十个小时之后,1706 颗心,85 次转发,148 个收藏,5 万 9 千次浏览。原文不是什么暴论,是一句很干的观察:Agent 在 Linux 上之所以这么能打,是因为 4000 万行内核代码全在预训练里。然后回复区炸了——而且炸的是企业 AI 这条线最大的那个雷。</p>
+
+      <h2>那 4000 万行代码就是开挂码</h2>
+
+      <p>原推一字不差是<a href="https://x.com/dhh/status/2058064797728411708" target="_blank">这样写的</a>:</p>
+
+      <blockquote>"Agent 之所以在 Linux 上这么强,是因为整整 4000 万行内核代码都在预训练里。再加上其他所有的开源依赖。这一条让每一个看起来吓人的报错都变得很浅,整个系统也变得完全可以拿捏。"</blockquote>
+
+      <p>有人追问"为什么浅",DHH 后续解释:<em>"浅是因为它把代码都读过了,所以它有这个错误从哪里来、为什么会出现的完整 context。不是 Stack Overflow 上某个第三方瞎猜得很自信的回答。"</em></p>
+
+      <p>这话的关键不在"读过代码",而在那句"完整 context"。Agent 不是在记忆某条 Stack Overflow 帖子。在某种统计意义上,它<em>读过抛出这个错误的那个函数</em>。它读过函数上面三行那句注释为什么这么写。它甚至读过 2009 年 LKML 上某个人在 netdev 列表里争论这里到底应该返回 <code>EINVAL</code> 还是 <code>EPERM</code> 的整封邮件。模型可以错,但它错的方式是"另一个窗口开着源代码的人偶尔失误",不是"完全在猜"。</p>
+
+      <p>回头想想过去十二个月让你"卧槽"的那些 agent 演示——修 <code>curl</code> 的 bug、重构 <code>nginx</code> 配置、写 eBPF 过滤器、教一个新人 <code>git rebase --onto</code>——每一个都是在一个对预训练语料来说约等于"公共财产"的代码库上跑的。当然好用。Agent 不是在从头推理,它是在<em>认</em>。</p>
+
+      <h2>防火墙那边,语料直接断崖</h2>
+
+      <p>DHH 这条推的另一面才是真正破圈的部分,在回复区被人捅穿了。<a href="https://x.com/W44TA" target="_blank">@W44TA</a> 一句话讲明白:</p>
+
+      <blockquote>"凡是不在预训练里的东西,Agent 还是会瞎搞。闭源 monorepo、内部工具、没文档的 API。这不是模型质量问题——这是语料问题。企业的解锁,从来都不是更好的 Agent,而是一个更丰富的内部语料。"</blockquote>
+
+      <p>同一帖子里 @cdiamond 跟着说:<em>"public 代码上很好用,一旦 codebase 是闭源的就不行了。训练数据的悬崖正好出现在企业防火墙这一头。"</em> @sarthakcore:<em>"开源的护城河刚刚翻转了——闭源系统对 Agent 来说反而更难调试,因为训练数据更少。"</em> @kupolov 补了更深的一刀:Windows 源码也泄露过,但它在语料里依然不像 Linux 那样"在",因为<em>"Linux 的整个 commit history 和 mailing list 讨论都是公开的。"</em>语料不只是代码——是<strong>代码 + 争论 + 历史</strong>。</p>
+
+      <p>这句话过去一年里大公司搞 AI 的人都在私下说,Twitter 今早把它彻底摆到台面上。同一个 Sonnet,在 <code>libcurl</code> 上写一个完美补丁,转头指到你内部那个 RPC 框架,会一脸认真地调用根本不存在的方法、瞎编参数名、推荐错误的重试语义、把另一个长得像的框架的 flag 接过来用。模型没有变差。是语料用完了。</p>
+
+      <p>这种感觉我每天都在遭。SageCLI 是在 Amazon 内部那一整套栈里搭起来用的——Brazil 做构建、Coral 做服务、Apollo 做部署。pipeline、version set、package 配置、Hydra 测试、Conduit 鉴权流程,这些东西没有任何一个在前沿模型的预训练里。一个都没有。同一个 agent,公开 Python 题目一击命中,但碰到 Brazil 的 version set 冲突,会编出一套读起来很合理但完全错的依赖传递规则。不是模型不行。是<em>它训练集里从来没有任何东西见过 Brazil version set</em>。</p>
+
+      <p>这就是那道悬崖。它很陡。它是<em>结构性的</em>。给前沿模型做 fine-tune 也救不了——训练它们的实验室,根据你自己的设计,从一开始就拿不到你的代码。</p>
+
+      <h2>Skills、MCP、steering files——其实都是在补语料</h2>
+
+      <p>回复区把我推到了一个新角度:回头看过去十二个月,我们围绕 Claude Code、MCP、AGENTS.md 实际上在搭的那一堆东西,到底是什么?</p>
+
+      <ul>
+        <li><strong>Skills</strong>——一堆 markdown 文件,装的是 agent 可以按需 load 的程序性知识</li>
+        <li><strong>MCP servers</strong>——把活数据和工具定义流式塞进模型 context 的一套协议</li>
+        <li><strong>Steering files</strong>(Kiro、Cursor rules、Cline rules、AGENTS.md)——repo 级的策略与约定</li>
+        <li><strong>RAG over 内部文档</strong>——把 wiki、runbook、设计文档拽进 prompt</li>
+        <li><strong>持久化 agent memory</strong>——上次什么管用、被推翻过什么、用户实际想说的是什么</li>
+        <li><strong>工具发现层</strong>——让 agent 探查环境而不是瞎猜</li>
+      </ul>
+
+      <p>过去这一年里我把上面每一项都当成单独的发明在写。不是。它们是<em>同一个发明的六种长法</em>。它们都是在做<strong>推理时语料注入(inference-time corpus injection)</strong>。它们的全部职责就是给那道语料悬崖打补丁。</p>
+
+      <p>从机制上看就更直白:</p>
+
+<pre><code><span class="code-comment">// 预训练语料 = 训练截止时间冻结的世界知识</span>
+<span class="code-comment">// 推理时语料 = 此刻你能流式塞进 context window 的一切</span>
+
+agent.context = pretraining_weights         <span class="code-comment">// 实验室给你的</span>
+              + system_prompt               <span class="code-comment">// 行为补丁</span>
+              + skill_files_loaded          <span class="code-comment">// 流程补丁</span>
+              + mcp_tool_results            <span class="code-comment">// 数据补丁</span>
+              + steering_file_contents      <span class="code-comment">// 策略补丁</span>
+              + retrieved_docs              <span class="code-comment">// 知识补丁</span>
+              + recent_session_memory       <span class="code-comment">// 自适应补丁</span></code></pre>
+
+      <p>第一行下面的每一行都是一块语料补丁。每一行都是在绕开"你的东西不在 weights 里"这件事。我们这一年用得飞起的所有词汇——agent harness、context engineering、tool calling、skill discovery——都是在工程化地搭一个<em>替代语料</em>,按需投递到位。</p>
+
+      <p>举个具体的例子。我这工作区里有一个 wind-wiki skill,222 行 markdown,内容是怎么用 Amazon 内部的 <code>wind</code> CLI 把 markdown 发到 <code>w.amazon.com</code>:binary 在哪、Kerberos 怎么打、create 跟 update 的区别、还有一个坑——把 <code>{{code language="bash"}}</code> 写在反引号里 XWiki 解析器会爆。这些东西没有任何一个在任何 LLM 的预训练里。这个 skill 不是教 agent <em>怎么思考</em>,它是在<em>把 agent 没机会知道的那部分语料补回来</em>。模型贡献通用编程能力,skill 贡献语料。</p>
+
+      <p>FSX-ticket-triage skill、cr-reviewer skill、Showcase CLI 鉴权笔记——一个套路。每一个都是在悬崖上贴一片亚毫米级的补丁。贴够了之后,你确实可以在某一个具体的闭源栈里,逼近 Agent 在 Linux 内核上原生就有的那种效果。</p>
+
+      <h2>LKML 的真正教训</h2>
+
+      <p>@kupolov 那条回复我反复在想。Linux 之所以是 Linux,不是因为代码公开——技术意义上"公开"的代码多得是。Linux 之所以特殊,是因为代码包里捆绑了三十年的 LKML 邮件列表、每一个 patch 的 review 讨论、每一条 <code>git log</code> 都有一句真正解释为什么这么改的话。语料不是 4000 万行代码——是 4000 万行代码 <strong>加上为什么这么写的争论</strong>。</p>
+
+      <p>这才是基准线。这才是公司内部"丰富的内部语料"应该有的样子。不是"我们把 SDK 文档丢上 wiki 了"。也不是"我们搭了个内部 RAG"。它得是:</p>
+
+      <ul>
+        <li><strong>代码 + 意图注解。</strong>不只是这个函数做什么,而是为什么写成这样、当时被否决的方案是什么、code review 时谁挡了什么。</li>
+        <li><strong>决策历史。</strong>不只是中标的设计文档,还包括落选的那几份。能解释"重试间隔为什么是 7 秒不是 5 秒"的那篇 post-mortem。</li>
+        <li><strong>运维口耳相传的那部分。</strong>"看到这个错通常是 X,但先查一下 Y,因为 2024 年那次事故"——这种 context 只活在老同事的脑子里,不在打印精美的 markdown 里。</li>
+        <li><strong>是对话,不只是产物。</strong>Slack 串、CR comment、会议纪要——真正的推理过程发生的地方。</li>
+      </ul>
+
+      <p>现在大部分公司搞内部 AI,都只在做"代码语料"的那一半。这是 @W44TA 那句话的前半句——必要,但远远不够。三年后能在闭源栈上拿到 Linux 级 agent 体验的公司,一定是把 commit history、ticket history、CR comments、runbook、post-mortem、设计文档归档<em>当成训练级信号</em>来对待的那批,而且能在推理时按需调出来。不是"我们 RAG 一下 wiki"。更像是:"把一个资深工程师在回答这个问题之前会读的所有材料,全部接进上下文。"</p>
+
+      <h2>该领的奖领,该搭的桥还得自己搭</h2>
+
+      <p>DHH 那条推最后一句是 TAKE THE WIN 的能量。这一点他对。开源<em>确实</em>悄悄被升级了一次。MIT 协议下 maintainer 们十几年免费写出来的代码,现在变成了一种环境能力——每一个用前沿模型的开发者,不管自己知不知道,都在踩着 2010 年代以来每一个累得半死的周末贡献者的累计产出往前走。<a href="https://x.com/imhabibx" target="_blank">@imhabibx</a> 直接说穿:<em>"开源基本上是在不知不觉中训练出了自己的替代品。"</em>这句值得停下来体会几秒。</p>
+
+      <p>但这只是公开那一半。剩下那一半——没人会替你做、<code>brew install</code> 也装不来的那一半——是把你的 monorepo 变成一份<em>语料</em>。不是数据库。不是 wiki。是一份语料:代码、历史、争论、决策、运维实情,都能被 agent 实时读到,而且权重要朝着"一个聪明的人会去看哪些东西"那个方向去倾斜。</p>
+
+      <p>这才是那座桥。这桥很贵。这桥本身就是绝大部分工作。它也是"agent 在我周末玩具项目上巨能打"和"agent 在我吃饭那个系统上也巨能打"之间唯一隔着的那一道。语料悬崖是真的。解锁不靠更好的模型,靠 agent 看得见的语料。</p>
+
+      <p>Hashimoto 上周告诉我们 fork 你的依赖、永远不要升级。DHH 今早告诉我们预训练就是护城河。回复区把这两件事缝在一起:<strong>Agent 只能强到它看得见的语料那个程度,而你绝大部分语料,都在一道它从来没被准许穿过的防火墙后面。</strong></p>
+
+      <p>谁先把那座桥架起来,谁拿下未来十年。剩下的人,得到的是一个智商爆表的 Linux 助手,和一个面对你真正在维护的代码库时一脸懵的实习生。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由一个人类和他的智能体共同构建。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
