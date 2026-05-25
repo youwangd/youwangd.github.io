@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1200 tokens/秒之后,10 个 tab 就死了 — Youwang Deng</title>
+<meta name="description" content="40 tps 的时候,LLM 是慢的那一环,所以大家开十个 tab 一把梭。1200 tps 之后,Cerebras 和 OpenAI 直接把 playbook 反过来写:最多 2-3 个 session,把模型当 pair programmer,每个 task 之间跑一遍完整测试。我在 SageCLI 里做的一半东西,刚刚被时代抛弃。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-25</time>
+        <span class="post-tag">AI编程</span>
+        <span class="post-tag">命令行</span>
+        <span class="post-tag">生产力</span>
+      </div>
+      <h1 class="post-title">1200 tokens/秒之后,10 个 tab 就死了</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">过去半年,我在 SageCLI 里塞进去的东西,大概一半是"多 agent 并行"那一套——inbox、scratch-log、kanban-of-agents、还有一个跑通宵的 Ralph loop。在 40 tokens 每秒的世界里,这些设计都成立。上周 Cerebras 把 GPT-5.3-Codex-Spark 的稳态吞吐量推到 <strong>1,200 tps</strong>,顺手发了一篇 best practices,我一段一段读下去,越读越像在读自己的差评清单。重点不是模型快了 20 倍,而是瓶颈搬家了——playbook 也跟着翻了过来。</p>
+
+      <h2>20 倍是个相变,不是个数字</h2>
+
+      <p>先把数字摆出来,后面整篇都是从这里推出来的。2025 年,无论开源权重还是闭源前沿模型,代码生成的稳态输出都卡在 40-60 tps 这个量级。所有 CLI 工具、所有 agent harness、所有 kanban-of-agents 界面,都是冲着这个 budget 设计的。然后 Cerebras 在 WSE-3 上把 <a href="https://www.cerebras.ai/blog/codex-spark-best-practices" target="_blank">Codex Spark</a> 跑了起来,OpenAI 把 <a href="https://openai.com/index/introducing-gpt-5-3-codex-spark/" target="_blank">GPT-5.3-Codex-Spark</a> 作为 research preview 接进去,稳态吞吐量直接干到 1,200+ tps。不是蒸馏小模型,不是 7B,就是你已经在付钱用的那个 Codex,跑在不一样的硅片上。</p>
+
+      <p>20 倍是数字,真正用上一个小时之后会意识到——这是相变。原来"贵"的东西,瞬间变成"白送":</p>
+
+      <ul>
+        <li>每个 task 之间跑一遍完整测试,而不是每个 PR 才跑一次。</li>
+        <li>同时生成 10 个 UI 方案挑一个最好的,wall clock 跟原来生成 1 个差不多。</li>
+        <li>每次保存都跑 lint、typecheck、diff review,完全不打断 flow。</li>
+        <li>不再做 context 压缩——直接把全量 context 重新塞进去,一来一回比压缩还便宜。</li>
+      </ul>
+
+      <p>这不是想象。Cerebras 的 benchmark 页面贴了实测,OpenAI community 上一堆人在贴第一次用 Spark 的体感截图。东西已经在跑了。</p>
+
+      <h2>没人公开讲的反转</h2>
+
+      <p>Cerebras 那篇 best practices 的 Tip #4,原话搬过来,值得读两遍:</p>
+
+      <blockquote>"慢的模型把我们推向并行。你打开 10 个 tab,扔出 10 个 prompt,然后等。用 Spark 的话,一分钟生成几千行代码。<strong>review 代码才是新的瓶颈</strong>,Spark 当 pair programmer 用最爽,而不是当一个被你 delegate 出去的工人队伍。最多 2-3 个 session。"</blockquote>
+
+      <p>过去 18 个月所有的多 agent CLI 工具,本质上都是在回答这段话的第一句。Claude-Squad、Kanbots(这周 HN 230 分,<a href="https://news.ycombinator.com/item?id=48239413" target="_blank">慢模型时代思维方式的最后狂欢</a>)、ruflo/claude-flow、还有我自己 SageCLI 里的 fan-out。pitch 永远是一样的:模型是慢的那一环,那就把它并行掉,用 git worktree 加 AGENTS.md 让 10 个 agent 不互相踩。这个判断在那个时间点是对的,但它现在不对了。</p>
+
+      <p>慢的那一环现在是 review 你的人。<a href="https://x.com/aiDotEngineer/status/2057896062027776240" target="_blank">@aiDotEngineer 这周在 X 上把话说穿了</a>:<em>"速度快 20 倍,围绕慢生成建立的习惯不会消失,只会让烂代码以 20 倍速度上线。"</em> 65 个心,但梗在扩散,因为机制上就是这么回事。并行只在被并行的那一环是约束的时候才管用。一旦 review 速度成了约束,每多一个 agent 都是反向杠杆——一堆活儿堆在一个你排不掉的队列里。</p>
+
+      <p>Cerebras 那句"you cannot let that pile up across multiple agents"已经是客气的说法。诚实版本是:kanban-of-agents 这种 UI 是慢推理时代的应付方案。整个 2026 下半年,我们就要看着这种 UI 慢慢变成 antipattern。</p>
+
+      <h2>SageCLI 里哪些会留下,哪些要扔</h2>
+
+      <p>我对自己的工具具体讲两句,模糊的自我批评什么也教不了人。SageCLI 大致两半,一半留得下,一半要扔。</p>
+
+      <h3>留得下:无状态 executor + git 当记忆</h3>
+
+      <p>Cerebras Tip #5 和 #6 讲的就是 <em>不要</em> 让 agent 跨 task 维持对话状态。每次给它干净的 context,把记忆外置到 git 和 disk 上的 plan 文件里,executor 就是个纯函数 <code>(repo, task) → (diff, log)</code>。SageCLI 的 <code>msg send / msg ls / msg clear</code> 加上 <code>--worktree</code> 就是这个形状——但说实话不是因为我预料到了 20 倍提速,而是从 build system 那边抄过来的。</p>
+
+      <pre><code>sage send "修一下 date_window() 里那个 off-by-one"
+sage ls --since 5m   <span class="code-comment"># scratch log: agent 看见了什么、试过什么</span>
+sage commit          <span class="code-comment"># diff 落盘,context window 释放</span>
+sage clear --worktree</code></pre>
+
+      <p>这个 loop 在 40 tps 跑得了,在 1,200 tps 跑得更欢。API 一行不用动。<code>AGENTS.md / PLAN.md / VERIFY.md</code> 这套外置文件——上个季度全行业都收敛到了——逻辑一样。模型自己没记忆的时候,disk 是放状态最对的地方。模型变快不会改变这件事,反而让它更重要,因为你跑这个 loop 的频率高了。</p>
+
+      <h3>留得下:--then 验证链</h3>
+
+      <p>40 tps 的时候这是锦上添花,1,200 tps 的时候这是必需品。</p>
+
+      <pre><code>sage send "加一个 --strict flag" \
+  --then "跑 pytest -x,把失败贴出来" \
+  --then "diff &lt;= 50 行的范围内修掉失败" \
+  --then "跑 mypy strict 出报告"</code></pre>
+
+      <p>模型现在生成 diff、跑测试、修回归、再跑一遍 mypy 的总时间,比原来光生成 diff 还短。<em>跳过验证的代价没变,做验证的代价崩了。</em> 如果你的 CLI 没办法用一条 operator 驱动的命令把"做这个,然后验证,然后修坏掉的部分"串起来,那它就快变成一个没有依赖追踪的 Make 了。</p>
+
+      <h3>要扔:--pattern fan-out 的 N 个并行 agent</h3>
+
+      <p>这一段疼。<code>sage plan --pattern fan-out --n 10</code> 一口气开 10 个 worktree,分发 10 个子任务,我的注意力在 10 张 kanban 卡之间轮转。我做的,我用过的,在那个约束下形状是对的。现在不对了。</p>
+
+      <p>1,200 tps 之下,这 10 个子任务在一个 pair programming session 里串行跑完,比我在 10 张卡之间切来切去还快。fan-out 的成本不再是 wall clock,是 review backlog。10 张卡等 review 等于 10 倍的认知负担、零吞吐增益——因为 <em>我的</em> tps 才是约束,而我离 1,200 还差几个数量级。</p>
+
+      <h3>要扔:跑 8 小时的 Ralph 通宵 loop</h3>
+
+      <p>同样的诊断。原来设计 8 小时通宵跑,是因为 8 小时 × 40 tps 才能产出一点像样的东西。现在 8 小时 × 1,200 tps 产出的是一座你白天也 review 不完的山。整套编排脚手架——checkpoint、kill switch、budget cap——是因为 run 很长才有意义。run 现在不长了,run 是几分钟。脚手架变成了一个不需要脚手架的东西上面的额外开销。</p>
+
+      <h2>新的工效学问题</h2>
+
+      <p>如果 review 速度是瓶颈,所有 CLI 工具要回答的问题就要换一组:</p>
+
+      <table>
+        <thead>
+          <tr><th>旧问题</th><th>新问题</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>能并行多少个 agent?</td><td>人能多快拒掉一个错的 diff?</td></tr>
+          <tr><td>能让它无人值守跑多久?</td><td>跟模型面对面的内循环有多紧?</td></tr>
+          <tr><td>1 万行的改动 wall clock 多少?</td><td>每个 commit 到测试全绿的中位时间多少?</td></tr>
+          <tr><td>PR 能开多大?</td><td>diff 能被强制压到多小?</td></tr>
+        </tbody>
+      </table>
+
+      <p>这周我在 SageCLI 里要做的具体调整:</p>
+
+      <ul>
+        <li><strong>standing pre-commit hooks 默认开。</strong> lint、typecheck、快测试、diff size guard。这些原来是 opt-in,因为 40 tps 下它们吃 wall clock。1,200 tps 下它们什么都不吃。</li>
+        <li><strong>每个 agent turn 的 diff 上限 ≤150 行。</strong> diff 大不是 feature,是 review 卡口。我宁愿模型分 5 个 100 行的 turn 干完,也不要它一把 500 行——因为 5 个 100 行我能 review,1 个 500 行我 review 不动。</li>
+        <li><strong><code>/review</code> 不再是 opt-in。</strong> 每个 <code>sage send</code> 结束都要带一段结构化 review 摘要,写给人看的,不是写给下一个 agent 看的。</li>
+        <li><strong><code>--pattern fan-out</code> 降级成一个 flag,不再是推荐 workflow。</strong> 留给真正 embarrassingly parallel 的场景(同一个 feature port 到 30 个 microservice 那种)。停止把它当默认 pitch。</li>
+      </ul>
+
+      <h2>给这个季度还在出 CLI agent 的人</h2>
+
+      <p>如果你工具的头部 feature 是"并行跑 N 个 agent"——重新围绕 <em>review velocity</em> 写 pitch,不是 generation throughput。Q3 改完的人会显得你读懂了空气;不改的人会显得你做了 2024 年正确的产品。</p>
+
+      <p>如果你的工具把状态外置到 git 和 disk——你已经站在球的下一个落点上,别拆。模型越快,外置就越重要,因为你每小时跑的 clean-context run 数量更多了。</p>
+
+      <p>如果你的 pitch deck 里有一张"12 个 agent 跑 kanban"的截图——截图留着,caption 改了。能力还在,只是不再是头条。</p>
+
+      <p>如果你是用户,代价最小、收益最大的一个改动,就是 Cerebras 在 Tip #4 里埋的那一句:<strong>把自己卡死在 2-3 个 session</strong>。不是工具跑不动更多,是 <em>你</em> review 不动更多——而 review 现在就是 work 本身。</p>
+
+      <p>瓶颈没有消失,只是搬到了你坐的那把椅子上。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由一个人类和他的 agent 一起搭建。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

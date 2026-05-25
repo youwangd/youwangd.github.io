@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reviewing Code Is the New Bottleneck — Youwang Deng</title>
+<meta name="description" content="At 40–60 tps the LLM was the slow part, so we opened ten tabs and walked away. At 1,200 tps Cerebras and OpenAI explicitly reverse the playbook: 2–3 sessions, pair-program, run the suite between every task. Half of what I shipped in SageCLI was optimized for a constraint that just evaporated.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-25</time>
+        <span class="post-tag">ai-agents</span>
+        <span class="post-tag">cli-tools</span>
+        <span class="post-tag">productivity</span>
+      </div>
+      <h1 class="post-title">Reviewing Code Is the New Bottleneck</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">I spent the last six months building multi-agent fan-out into SageCLI. Inbox, scratch-log, kanban-of-agents, an overnight Ralph loop. All of it was rational at 40 tokens per second. Last week Cerebras started serving GPT-5.3-Codex-Spark at <strong>1,200 tps</strong> and quietly published a best-practices doc that reads, paragraph by paragraph, like a list of things I should not have built. The headline isn't that the model got 20× faster. It's that the bottleneck moved — and the playbook flipped with it.</p>
+
+      <h2>The 20× cliff, in one paragraph</h2>
+
+      <p>Numbers first, because the rest of the post is downstream of these. Open-weights and frontier code models in 2025 settled around 40–60 output tokens per second. That was the budget every CLI tool, every agent harness, every kanban-of-agents UI was built against. Then Cerebras shipped <a href="https://www.cerebras.ai/blog/codex-spark-best-practices" target="_blank">Codex Spark</a> on the WSE-3, OpenAI plugged in <a href="https://openai.com/index/introducing-gpt-5-3-codex-spark/" target="_blank">GPT-5.3-Codex-Spark</a> as a research preview, and the steady-state throughput became 1,200+ tokens per second on a real coding model. Not a distilled toy. Not a 7B. The same Codex you're already paying for, served on different silicon.</p>
+
+      <p>20× sounds like a number. Lived in for an hour, it's a phase change. Things that used to be expensive become free:</p>
+
+      <ul>
+        <li>Run the full test suite between <em>every</em> task, not every PR.</li>
+        <li>Generate ten UI variants and pick the best one — same wall clock as generating one used to take.</li>
+        <li>Lint, typecheck, and diff-review every save without breaking flow.</li>
+        <li>Re-prompt with full context instead of compacting; the round-trip is cheaper than the compaction.</li>
+      </ul>
+
+      <p>This isn't a thought experiment. The benchmark page lists the runs. The OpenAI community thread has people copy-pasting their first-impression sessions. The thing is shipping.</p>
+
+      <h2>The reversal nobody is publishing yet</h2>
+
+      <p>Here's Cerebras Tip #4, from the same best-practices page, verbatim. Read it twice:</p>
+
+      <blockquote>"Slower models pushed us toward parallelism. You'd open 10 tabs, fire off 10 prompts, and wait. With Spark, you're generating thousands of lines a minute. <strong>Reviewing code is the new bottleneck</strong>, and Spark works best as a pair programmer rather than a delegated workforce. Use 2–3 sessions max."</blockquote>
+
+      <p>Every multi-agent CLI built in the last 18 months was an answer to the first sentence of that paragraph. Claude-Squad, Kanbots (which just hit 230 points on HN this week — <a href="https://news.ycombinator.com/item?id=48239413" target="_blank">peak slow-era thinking</a>), ruflo/claude-flow, my own SageCLI fan-out primitives. The pitch was always the same: the model is the slow part, so parallelize it, and use git worktrees + AGENTS.md to keep ten of them from stepping on each other. That was correct. It is no longer correct.</p>
+
+      <p>The slow part is now the human reviewer. <a href="https://x.com/aiDotEngineer/status/2057896062027776240" target="_blank">@aiDotEngineer put it bluntly</a> on X this week: <em>"At 20× the speed, the habits you built around slow generation don't go away. They start shipping bad code 20 times faster."</em> 65 hearts, but the meme is spreading because it's mechanically true. Parallelism only helps when the parallelizable resource is the constrained one. Once review velocity is the constraint, every additional agent is anti-leverage — work piling up in a queue you can't drain.</p>
+
+      <p>The Cerebras line "you cannot let that pile up across multiple agents" is the polite version. The honest version is: the kanban-of-agents UI was a coping mechanism for slow inference. We're about to spend the rest of 2026 watching that UI become an antipattern.</p>
+
+      <h2>What I built that ages well, and what doesn't</h2>
+
+      <p>I'm going to be specific about my own tool, because vague self-criticism doesn't teach anything. SageCLI has roughly two halves. One ages well. One ages badly.</p>
+
+      <h3>Ages well: stateless executor + git-as-memory</h3>
+
+      <p>Cerebras Tip #5 and #6 are about <em>not</em> letting the agent maintain conversational state across tasks. Hand it a clean context every time, externalize memory to git and to disk-resident plan files, and let the executor be a pure function from <code>(repo, task)</code> to <code>(diff, log)</code>. SageCLI's <code>msg send / msg ls / msg clear</code> primitives plus <code>--worktree</code> for fresh-context runs already do exactly this — by accident, because I copied the pattern from build systems, not because I anticipated the speedup.</p>
+
+      <pre><code>sage send "fix the off-by-one in date_window()"
+sage ls --since 5m   <span class="code-comment"># scratch log: what the agent saw, what it tried</span>
+sage commit          <span class="code-comment"># diff lands, context window is freed</span>
+sage clear --worktree</code></pre>
+
+      <p>That loop runs at 40 tps and at 1,200 tps. It runs faster at 1,200 tps. Nothing about the API changes. The <code>AGENTS.md / PLAN.md / VERIFY.md</code> externalization that the whole industry converged on last quarter — same story. Disk is the right place to put state when the model doesn't have one. That doesn't change when the model gets faster; if anything, it matters more, because you're running the loop more often.</p>
+
+      <h3>Ages well: --then validation chains</h3>
+
+      <p>This was a nice-to-have at 40 tps. At 1,200 tps it's mandatory.</p>
+
+      <pre><code>sage send "add the --strict flag" \
+  --then "run pytest -x and post the failures" \
+  --then "fix any failures with diff &lt;= 50 LOC" \
+  --then "run mypy strict and post the report"</code></pre>
+
+      <p>The model can now generate the diff, run the suite, fix the regressions, and re-run mypy in less time than it used to take to generate the diff alone. <em>The cost of skipping validation has not changed; the cost of doing validation has cratered.</em> If your CLI doesn't have a way to express "do this, then verify, then fix what broke" as a single operator-driven command, you're about to look like Make without dependency tracking.</p>
+
+      <h3>Ages badly: --pattern fan-out for N parallel agents</h3>
+
+      <p>This is the part that hurts. <code>sage plan --pattern fan-out --n 10</code> spawns ten worktrees, distributes ten subtasks, and round-robins my attention across ten kanban cards. I built it. I've used it. It was the right shape for the constraint. It is no longer the right shape.</p>
+
+      <p>At 1,200 tps, the same ten subtasks run sequentially in a single pair-programming session faster than I can context-switch across ten cards. The fan-out cost isn't the wall clock anymore; it's the review backlog. Ten cards waiting for review is ten times the cognitive load with zero throughput gain, because <em>my</em> tps is the constraint and it's nowhere near 1,200.</p>
+
+      <h3>Ages badly: the 8-hour overnight Ralph loop</h3>
+
+      <p>Same diagnosis. The whole point of running 8 hours of agent loops while you sleep was that 8 hours of 40-tps generation produced something nontrivial. 8 hours of 1,200-tps generation produces a backlog you cannot review in your remaining waking hours. The orchestration scaffolding — checkpoints, kill switches, budget caps — was load-bearing because the runs were long. They're not long anymore. They're minutes. The scaffolding is now overhead on a thing that doesn't need scaffolding.</p>
+
+      <h2>The new ergonomics question</h2>
+
+      <p>If review velocity is the bottleneck, the question every CLI tool needs to answer reframes:</p>
+
+      <table>
+        <thead>
+          <tr><th>Old question</th><th>New question</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>How many agents can I run in parallel?</td><td>How fast can a human reject the wrong diff?</td></tr>
+          <tr><td>How long can I leave it running unattended?</td><td>How tight is the inner loop with the model in front of me?</td></tr>
+          <tr><td>What's the wall-clock for a 10k-LOC change?</td><td>What's the median time to a green test suite per commit?</td></tr>
+          <tr><td>How big can the PR be?</td><td>How small can I force the diff to be?</td></tr>
+        </tbody>
+      </table>
+
+      <p>Concrete shifts I'm making in SageCLI this week:</p>
+
+      <ul>
+        <li><strong>Standing pre-commit hooks become default-on.</strong> Lint, typecheck, fast tests, diff size guard. They were opt-in because they cost wall-clock at 40 tps. They cost nothing at 1,200 tps.</li>
+        <li><strong>Max diff guard at ≤150 LOC per agent turn.</strong> Bigger diffs are not a feature, they're a review-blocker. I'd rather the model do five 100-LOC turns than one 500-LOC turn, because I can review five 100-LOC diffs and I cannot review one 500-LOC diff.</li>
+        <li><strong><code>/review</code> is no longer an opt-in subcommand.</strong> Every <code>sage send</code> ends with a structured review summary — what changed, what got tested, what was skipped — written for human eyes, not for the next agent.</li>
+        <li><strong>Demote <code>--pattern fan-out</code> to a flag, not a recommended workflow.</strong> Keep it for the genuine embarrassingly-parallel cases (porting a feature across 30 microservices). Stop pitching it as the default.</li>
+      </ul>
+
+      <h2>What I'd tell anyone shipping a CLI agent this quarter</h2>
+
+      <p>If your tool's headline feature is "run N agents in parallel" — re-pitch around <em>review velocity</em>, not generation throughput. Your competitors who do this in Q3 will look like they read the room. Your competitors who don't will look like they shipped the right product for 2024.</p>
+
+      <p>If your tool externalizes state to git and disk — you're already aligned with where the puck is going. Don't rip that out. The faster the model gets, the more the externalization matters, because you're cycling through more clean-context runs per hour.</p>
+
+      <p>If your tool's pitch deck has a "swarm" screenshot with 12 agents on a kanban board — keep the screenshot, change the caption. The capability is still there. It's just no longer the headline.</p>
+
+      <p>And if you're a user, the smallest change with the biggest payoff is the one Cerebras buried in Tip #4: <strong>cap yourself at 2–3 sessions</strong>. Not because the tools can't run more. Because <em>you</em> can't review more, and reviewing is now the work.</p>
+
+      <p>The bottleneck didn't disappear. It moved into the chair.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
