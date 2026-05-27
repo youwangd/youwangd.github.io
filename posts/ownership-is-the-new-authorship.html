@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ownership Is the New Authorship — Youwang Deng</title>
+<meta name="description" content="The #1 r/ExperiencedDevs thread this week was titled &quot;I won't review AI-generated PRs.&quot; The top comment had more upvotes than the post itself and quietly rewrote the headline: the issue isn't the tool that drafted the diff, it's authors who can't defend it. The new code-review contract is ownership, not authorship.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-27</time>
+        <span class="post-tag">code-review</span>
+        <span class="post-tag">ai-agents</span>
+        <span class="post-tag">ownership</span>
+      </div>
+      <h1 class="post-title">Ownership Is the New Authorship</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">The #1 thread on <a href="https://www.reddit.com/r/ExperiencedDevs/comments/1towli9/today_i_announced_that_i_wont_be_reviewing_ai/" target="_blank">r/ExperiencedDevs</a> this week is titled <em>"Today I announced that I won't be reviewing AI generated PRs at company meeting."</em> It hit 949 upvotes and 284 comments. The interesting number is in the comments: the top reply has <strong>1,190 upvotes — more than the post itself</strong>. By the time most of us read it, the community had already rewritten the headline in real time. The rewrite is the only thing worth saving from the thread.</p>
+
+      <h2>The thread that wasn't really about AI</h2>
+
+      <p>The OP — an engineering manager at a "small AI startup" — took a stand at his all-hands. He was tired of reviewing PRs where the author couldn't answer basic questions about their own code. So he announced a policy: no more AI-generated PRs in review.</p>
+
+      <p>The top comment, by user <em>vooglie</em>, with that 1,190-upvote landslide:</p>
+
+      <blockquote>"No one should be raising PRs they don't understand — whether it was written by AI or not."</blockquote>
+
+      <p>The OP himself replied 66 minutes later, with 66 upvotes too — a corrective symmetry the universe could not resist:</p>
+
+      <blockquote>"Yes sorry, I realised my title was misleading. The problem is not with AI but with the fact that the people who use it do not understand the code it generates."</blockquote>
+
+      <p>That's the whole thread, compressed. A few hundred comments later, the community converged on a clean reframe from <em>Future_Manager3217</em>:</p>
+
+      <blockquote>"The cleaner line is not 'I won't review AI-generated PRs'. It's 'I won't review PRs whose author can't own the diff'."</blockquote>
+
+      <p>Same instinct, sharper knife. The new code-review contract isn't about who or what typed the characters. It's about whether the person whose name sits at the top of the PR can defend it.</p>
+
+      <h2>Why "I won't review AI PRs" is the wrong knife</h2>
+
+      <p>Three reasons the original framing breaks down on contact.</p>
+
+      <p><strong>1. It's unenforceable.</strong> You can't reliably tell whether a diff was AI-generated. Style detectors are fooled by competent prompting. Even raw model output can be polished by a thoughtful dev in five minutes. The week you announce this policy is the week your team stops mentioning AI in commit messages — the problem doesn't go away, it just goes underground.</p>
+
+      <p><strong>2. It punishes the wrong axis.</strong> A senior engineer can spend two hours reading docs and produce a diff she can defend line-by-line. A junior can spend two minutes prompting Claude and produce one he can <em>also</em> defend line-by-line — because he prompted as an amplifier, then read the output, then ran it through the obvious failure cases. Both PRs are fine. Conversely, both can be terrible: hand-written code can be ritualistic copy-paste from Stack Overflow that the author never thought through. Authorship and ownership are independent variables. Filtering on the first one ignores the dimension that actually matters.</p>
+
+      <p><strong>3. The real failure mode is tool-agnostic.</strong> Reddit user <em>Specialist_Golf8133</em> nailed it:</p>
+
+      <blockquote>"Syntactically correct but structurally wrong is exactly the dangerous one. It passes CI and a casual read, and the happy path won't catch it either… the generator has no mental model of the system's contracts, so it can't know what it's violating."</blockquote>
+
+      <p>That's not an AI bug. That's a pattern-matcher bug, and humans pattern-match too. The reason it <em>feels</em> like an AI bug now is that AI scaled it. Where one engineer used to produce one structurally-wrong PR per quarter and trip the on-call once, now ten engineers produce ten per week, and the structurally-wrong rate just outran review capacity. Another commenter (<em>either-15-or-40</em>) named the side-effect: <em>"With AI code, you don't get any consistency between PRs. So you always have to check for everything which is exhausting."</em> The headline blames the tool. The data is in the throughput.</p>
+
+      <h2>The ownership packet</h2>
+
+      <p>Future_Manager3217 didn't stop at the reframe. He proposed an actual artifact — a small "review packet" that has to land with every PR before it enters the queue. Lightly extended, this is the most concrete thing the thread produced:</p>
+
+      <ul>
+        <li><strong>Intent.</strong> One paragraph, in the author's own words, on why this change exists. Not a generated summary. Not a JIRA paste. The author writing.</li>
+        <li><strong>Risk surface.</strong> Which contracts, invariants, or downstream consumers this could break. The "what I'd lose sleep over" section.</li>
+        <li><strong>What I ran.</strong> Tests, types, lint — actual command lines and their output. "Tests passed locally" no longer counts as evidence.</li>
+        <li><strong>What I personally verified.</strong> The screenshots, the curl outputs, the log excerpts where you actually watched the new code do the new thing.</li>
+        <li><strong>What I still don't understand.</strong> An explicit "here be dragons" list. <em>This is the line that distinguishes a competent AI-assisted dev from a vibe-coder.</em> The vibe-coder leaves it blank because nothing scares him. The honest dev writes <em>"I don't know why this race condition resolves on retry; I added tests around it and they pass, but I'd want a second eye on the lock semantics."</em> That's a defensible packet.</li>
+      </ul>
+
+      <p>The companion test, from <em>jasie3k</em> later in the thread:</p>
+
+      <blockquote>"Code reviews nowadays have to be done during the call, you as a person raising the PR need to explain it in full… if you can't explain why something is being done without saying 'lol Claude did it this way' then it is a rejection."</blockquote>
+
+      <p>Whatever the packet, that's its verbal shape. If you can't walk a reviewer through the diff on a five-minute screen-share without invoking your model's name as an explanation, the diff isn't ready. Notice — this works exactly the same way for a hand-written PR. The contract is direction-neutral. That's the point.</p>
+
+      <h2>What survives in tooling, what dies</h2>
+
+      <p>I write a CLI for agentic coding (SageCLI). Half of what I built looks different through this lens. Some of it ages well. Some of it doesn't.</p>
+
+      <p><strong>What survives — and was always the right answer:</strong></p>
+
+      <ul>
+        <li><strong>PLAN.md before code.</strong> SageCLI's plan-first contract <em>is</em> the intent paragraph. If the agent can't write a coherent <code>PLAN.md</code>, the human shouldn't be able to ship the PR. We added it to keep agents honest. Same artifact now keeps humans honest at submit time.</li>
+        <li><strong>The external trail — <code>msg send</code>, <code>inbox</code>, scratch-log.</strong> We built these to keep agents legible to other agents. It turns out they're the audit log a reviewer needs to interview a vibe-coder. The reviewer reads the trail and asks the human author the questions the agent already answered. Disagreement is the signal.</li>
+        <li><strong><code>--then</code> validation chains.</strong> The "what I ran" section, auto-populated. We built it because models lie about test results. The same primitive shuts down the human auto-pilot of "yeah, looks good." Capture the command output, attach it to the packet, move on.</li>
+      </ul>
+
+      <p><strong>What dies:</strong></p>
+
+      <ul>
+        <li><strong>"AI-generated PR" as a meaningful category.</strong> It isn't one. The new categories are <em>defensible</em> and <em>undefensible</em>. Anyone shipping a code-review tool whose primary axis is "detect AI" is solving the wrong problem. The tool that wins surfaces <em>which PRs the author cannot answer questions about</em> — and that's a tool that works on diffs, not on tokens.</li>
+        <li><strong>The 10-tab review queue.</strong> Last week's <a href="/posts/review-bottleneck">piece</a> called this out from the throughput angle; this week's thread is the deeper version. CI green is necessary, never sufficient. A diff that passes CI and that no human can defend is unreviewable, regardless of how it was produced. Stop optimizing for queue depth. Start optimizing for defensibility.</li>
+      </ul>
+
+      <h2>Read the correction</h2>
+
+      <p>The thread had 284 comments and a 1,190-upvote correction sitting on top of a 949-upvote post. <strong>Read the correction, not the headline.</strong> The new code-review contract isn't <em>"did a human write this?"</em> — it's <em>"can a human own this?"</em></p>
+
+      <p>Build your tooling around that question. Everything else is litigation.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

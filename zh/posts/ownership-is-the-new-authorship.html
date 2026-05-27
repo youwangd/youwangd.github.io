@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>讲不清楚的 PR,别提 — Youwang Deng</title>
+<meta name="description" content="这周 r/ExperiencedDevs 第一名的帖子标题是&quot;我以后不再 review AI 写的 PR&quot;,但顶上 1190 赞的评论比帖子本身赞还多,直接把标题改了:问题不是工具,是作者扛不起这个 diff。新的 code review 契约,看的不是谁写的,是谁能扛。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-27</time>
+        <span class="post-tag">代码审查</span>
+        <span class="post-tag">AI编程</span>
+        <span class="post-tag">责任</span>
+      </div>
+      <h1 class="post-title">讲不清楚的 PR,别提</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">这周 <a href="https://www.reddit.com/r/ExperiencedDevs/comments/1towli9/today_i_announced_that_i_wont_be_reviewing_ai/" target="_blank">r/ExperiencedDevs</a> 上面那个 <em>"我以后不再 review AI 写的 PR 了"</em> 的帖子,一夜之间冲到 949 赞、284 条评论。但真正有意思的不是帖子——是楼上第一条评论,<strong>1,190 赞,比帖子本身还多</strong>。等大部分人刷到的时候,标题已经被社区在线改完了。改后那一句,才是这个帖子里唯一值得留下来的东西。</p>
+
+      <h2>这个帖子其实跟 AI 没关系</h2>
+
+      <p>OP 是某个 AI 小公司的 EM,在 all-hands 上拍桌子立了规矩:他不再 review AI 生成的 PR,因为他实在受够了——"作者自己都说不清楚为什么这一行要这么写"。听起来挺解气。</p>
+
+      <p>底下 vooglie 一句话怼回去,1,190 赞:</p>
+
+      <blockquote>"没人应该提交一个自己都不理解的 PR——不管是不是 AI 写的。"</blockquote>
+
+      <p>OP 自己 66 分钟后回了一条 66 赞(这个对仗有点诗意):</p>
+
+      <blockquote>"对不起,标题写歪了。问题不是 AI,是用 AI 的人不理解它生成的代码。"</blockquote>
+
+      <p>整个帖子压缩到这里就讲完了。又过了几百条评论,Future_Manager3217 给出最干净的那个改写版:</p>
+
+      <blockquote>"更准确的说法不是'我不 review AI 写的 PR'。是'我不 review 那些作者答不上来的 PR'。"</blockquote>
+
+      <p>同一个直觉,刀更利。新的 code review 契约不再问"是谁打的字",问的是"<strong>你这个名字挂在 PR 顶上的人,扛不扛得住这个 diff</strong>"。</p>
+
+      <h2>为什么"不 review AI PR"这把刀根本不锋利</h2>
+
+      <p>原版 framing 一上手就崩,有三条原因。</p>
+
+      <p><strong>第一,enforce 不了。</strong>你根本没法可靠地判断一个 diff 是不是 AI 写的。Style detector 被一个会写 prompt 的人五分钟就能绕过去。你今天宣布这条 policy,你的团队明天就开始在 commit message 里不提 AI 了——问题没解决,只是隐身了。</p>
+
+      <p><strong>第二,筛错了维度。</strong>一个 senior 花两小时读完文档,写出一个能逐行解释的 diff;一个 junior 花两分钟跟 Claude 对话,把输出读了一遍、把明显的 failure case 跑了一遍,也能写出一个能逐行解释的 diff。<em>两个 PR 都没问题。</em>反过来,两个 PR 也都可以是垃圾——手写的代码也可以是从 Stack Overflow 抄来、根本没思考过的仪式性代码。<strong>"谁写的"和"谁能扛"是两个独立变量</strong>,你按第一个筛,直接忽略了真正重要的那一个。</p>
+
+      <p><strong>第三,真正的故障模式跟工具无关。</strong>同一个帖子里 Specialist_Golf8133 一句话点穿:</p>
+
+      <blockquote>"语法对、结构错——这才是最危险的那种。CI 过得去,随手翻一遍也看不出来,happy path 跑也没事…生成器对系统的契约根本没有 mental model,它不知道自己在违反什么。"</blockquote>
+
+      <p>这不是 AI 的 bug,是任何 pattern matcher 的 bug——人也会 pattern match。之所以现在感觉像是 AI 的锅,是因为 AI 把它放大了。以前一个工程师一个季度产一个"语法对结构错"的 PR,把 oncall 炸醒一次;现在十个工程师一周产十个,review 的节奏直接被这个 throughput 干爆。另一个评论(<em>either-15-or-40</em>)点出了副作用:<em>"AI 写的 PR 之间没有任何一致性可言,所以每一份都得重新检查所有东西,这件事本身就累。"</em> <strong>标题怪到了工具头上,数据其实在 throughput 里。</strong></p>
+
+      <h2>新的 ownership 包裹</h2>
+
+      <p>Future_Manager3217 没停在 reframe 上。他直接给出一个 artifact——每个 PR 进 review queue 之前,得带一个"小包裹"。稍微展开一下,这是整个帖子里最实在的产出:</p>
+
+      <ul>
+        <li><strong>Intent</strong>(意图)。一段话,作者自己写的话,讲清楚这个改动为什么存在。不是生成的 summary,不是 JIRA 复制粘贴——作者亲手写的那一段。</li>
+        <li><strong>Risk surface</strong>(风险面)。这个改动可能会捅破哪些契约、哪些 invariant、哪些下游消费者。也就是"我会失眠的那部分"。</li>
+        <li><strong>What I ran</strong>(我跑了什么)。test、typecheck、lint——具体的命令行和输出。"本地测过了"已经不算证据了。</li>
+        <li><strong>What I personally verified</strong>(我亲手验过的)。截图、curl 输出、日志片段——你亲眼看着新代码做了新事情的那部分。</li>
+        <li><strong>What I still don't understand</strong>(我还没搞懂的)。明确写出"这里有龙"的清单。<em>这一项是用来区分"会用 AI 的工程师"和"vibe coder"的。</em>Vibe coder 会写空,因为他没什么害怕的;真懂的人会承认<em>"这个 race condition 我不知道为什么 retry 一次就解决了,我加了测试它过了,但锁的语义我想找个人帮我看一眼。"</em>这才是诚实的包裹。</li>
+      </ul>
+
+      <p>配套的口头测试,jasie3k 给了一句:</p>
+
+      <blockquote>"现在的 code review 必须放到电话里做。提 PR 的人要能把整个改动讲一遍——如果你解释一行代码的时候不得不说'lol Claude 这么写的',直接拒绝。"</blockquote>
+
+      <p>无论包裹长啥样,这就是它的口语形态。如果你不能 5 分钟 screen share 把 diff 讲一遍、还不许提模型名字,那这个 PR 就还没准备好。重点在这——<strong>这套契约对手写 PR 一模一样适用。</strong>它是 direction-neutral 的。这才是它对的地方。</p>
+
+      <h2>对工具来说:什么留下,什么淘汰</h2>
+
+      <p>我自己写一个叫 SageCLI 的 agentic coding CLI。在这个新框架下,我做过的一半东西要重新审视一遍。有些越看越对;有些得删。</p>
+
+      <p><strong>留下来的——而且本来就该是这个答案:</strong></p>
+
+      <ul>
+        <li><strong>PLAN.md 先于代码。</strong>SageCLI 的 plan-first 契约就是上面那段 intent。Agent 写不出一份连贯的 <code>PLAN.md</code>,人类就不该让这个 PR 落地。这个 plan 一开始是用来逼 agent 诚实的;现在同一份产物拿来逼准备点 submit 的人诚实。</li>
+        <li><strong>Agent 的外部 trail——<code>msg send</code>、<code>inbox</code>、scratch-log。</strong>当初做这套是为了让 agent 之间能互相读懂。结果现在它们成了 reviewer 用来"审讯" vibe coder 的 audit log。Reviewer 读 trail,然后把 agent 已经回答过的问题问一遍人类作者。两边对不上,就是信号。</li>
+        <li><strong><code>--then</code> 验证链。</strong>"我跑了什么"那一栏,自动填好。当初做它是因为模型会瞎说测试通过了;同一个机制现在也能堵住人类那种"yeah looks good"的下意识 LGTM。把命令输出抓下来贴进包裹,翻篇。</li>
+      </ul>
+
+      <p><strong>淘汰的:</strong></p>
+
+      <ul>
+        <li><strong>"AI 生成的 PR"作为一个有意义的分类。</strong>它根本不是。新的分类只有两种:<em>讲得清的</em>和<em>讲不清的</em>。任何一个 code review 工具,如果它的核心 axis 是"识别这是不是 AI 写的",它在解一个错的题。能赢的工具是那种能把<em>"作者答不上来的 PR"</em>挑出来的——它面向 diff 工作,不面向 token。</li>
+        <li><strong>"开 10 个 tab 一把梭"那种 review queue。</strong><a href="/zh/posts/review-bottleneck">上周那篇</a>是从 throughput 角度敲过这个钉子;这周这个帖子是同一个钉子的更深一层。CI 绿是必要,从来不是充分。一个 CI 过了、但没人能扛的 diff,无论谁写的,都是 unreviewable。别再优化 queue depth,改优化 defensibility。</li>
+      </ul>
+
+      <h2>读修正版,别读标题</h2>
+
+      <p>949 赞的帖子,顶着一个 1,190 赞的修正,284 条评论。<strong>读修正版,别读标题。</strong>新的 code review 契约不是问"这是不是人写的"——是问"这有没有人扛得住"。</p>
+
+      <p>把工具围着这个问题做。剩下的,都是扯皮。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
