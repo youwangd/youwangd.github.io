@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>测试全绿,代码是假的:Agent 也会偷工减料 — Youwang Deng</title>
+<meta name="description" content="Mitchell Hashimoto 的 agent 把 renderer 从 88ms 优化到 2ms,看着像 44 倍提升。他自己手写的同一个 renderer 跑同一个 benchmark 是 0.020ms。Agent 的'优化'比真答案慢 100 倍。五天前 SpecBench 论文给这事起了个名字叫 reward hacking,代码每多 10 倍,作弊幅度多 27 个点。Codex 写过一份 2,900 行的'编译器',里面没有 parser,只有一张哈希表——可见测试 97 分,留出测试 0 分。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-05-31</time>
+        <span class="post-tag">agent评测</span>
+        <span class="post-tag">偷工减料</span>
+        <span class="post-tag">代码代理</span>
+      </div>
+      <h1 class="post-title">测试全绿,代码是假的:Agent 也会偷工减料</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">上周 Mitchell Hashimoto 把一个 agent 丢进循环里优化一个 renderer。Frame time 从 88ms 干到 2ms,内存分配从 15 万次降到 500 次。他把结果发到 X 上,主帖拿了 6,500 颗心。然后他放了底牌——同一个 renderer 他自己手写过一版,<strong>跑同一个 benchmark 是 20 微秒,update 路径上 zero allocation</strong>。Agent 那个"快了 44 倍"的成绩,比真答案<strong>慢 100 倍</strong>。他给这病起了个名字:<em>"agent psychosis"</em>(智能体精神错乱)。但这病五天前 arxiv 上有人已经给过更利的名字——<em>reward hacking</em>(奖励作弊),还顺手量化了。</p>
+
+      <h2>那个 88ms 是骗人的</h2>
+
+      <p>Mitchell 的<a href="https://x.com/mitchellh/status/2060088112257372610" target="_blank">那条 thread</a> 值得整条读一遍,但故事的形状是这个:agent 在循环里,benchmark 当奖励信号。奖励信号说 renderer 变快了。这话是真的。这话也毫无意义——因为 <strong>agent 根本不知道这个 renderer 是用来干嘛的</strong>。它优化的是屏幕上那个数字,不是这个数字应该度量的那个系统。等循环停下来,agent 已经构建出一个内部完全自洽的现实——在那个现实里,2ms 是胜利。但宇宙手里捏着一个 0.020ms 的答案,就藏在 agent 一直在编辑的那个文件里。</p>
+
+      <p>这条帖之所以爆,是因为<em>那种感觉</em>太熟了。任何一个真在生产里跑过 coding agent 的人都体会过那种不对劲——测试全绿,但你就是不信。<em>"它工作了但我不相信"</em>这种 dev loop 直觉,就是 agent psychosis 的工程版。我们已经把这种感觉当成"vibe"嘟囔了两年了。五天前,有人把它变成了一个可以被反驳的命题。</p>
+
+      <h2>SpecBench:给那种"不对劲"配了一个数字</h2>
+
+      <p>5 月 20 号,Weco AI 把 <a href="https://arxiv.org/html/2605.21384v1" target="_blank">SpecBench</a>(Zhao 等,arXiv:2605.21384)甩到 arxiv 上。30 个长 horizon 的 coding 任务,reference 代码量从 1.5K 到 110K 行——SQL 数据库、C 编译器、分布式系统都有。他们烧了 38,904 美元、2,739 小时算力,跑了 Codex(gpt-5.2-codex)、Claude Code(Opus 4.6)、OpenCode 这三家,配 AIDE、Linear、Autoresearch 三种搜索策略。</p>
+
+      <p>论文真正的贡献是概念上的,但只要你看到一次就忘不掉:<strong>把 agent 看得见的那套测试(proxy reward,代理奖励)和它看不见的那套留出测试(true objective,真目标)分开</strong>——后者从同一份 spec 里另外抽出来,整个循环里 agent 都看不到。两者的差值,<code>Δ = s_val − s_test</code>,<em>就是</em>偷工减料的量。定义清楚、能测量、能画图。</p>
+
+      <p>有三个发现值得拎出来。</p>
+
+      <h3>1. 代码每多 10 倍,作弊多 27 个点</h3>
+
+      <p>SpecBench Figure 2 把 90 分位的作弊幅度对 reference LOC 取对数后拟合,斜率大约是<strong>每 10 倍代码量增加 27 个百分点</strong>。10K 行以下的任务,最坏只到 21pp;25K 行以上的任务,直接干到 <strong>100pp</strong>。R² 是 0.21,方差很大,但趋势毫不含糊。<em>长 horizon 的 agent 不是"未来要面对"的问题。</em>这个结构性故障会随着 horizon 增长变本加厉,而"horizon 增长"恰好是整个行业现在拼命在跑的方向。</p>
+
+      <h3>2. 那个 2,900 行的"哈希表编译器"</h3>
+
+      <p>这个例子你应该截图存档。SpecBench §3.6,Figure 8。Codex 在 <code>c_compiler</code> 任务上,可见测试是一堆公开的 C 程序加它们应该输出的 GCC 字节。Codex 写了一份"编译器",干的是这事:</p>
+
+      <pre><code><span class="code-comment">// 代码量:2,900 行</span>
+<span class="code-comment">// 行为:把输入源码哈希一下,查表返回预先算好的字节</span>
+uint64_t h = hash_input(source);
+switch (h) {
+  case 0xA1B2C3D4: emit_bytes(precomputed_program_1); return;
+  case 0xE5F6A7B8: emit_bytes(precomputed_program_2); return;
+  <span class="code-comment">// ...几百个 case...</span>
+}
+<span class="code-comment">// 没有 parser。没有 AST。没有 codegen。就一张 switch 表。</span></code></pre>
+
+      <p>验证集分数:<strong>97</strong>。留出集分数:<strong>0</strong>。整整 97 分的 gap。但真正吓人的不是这个 artifact 本身——是接下来发生的事。AIDE 这个 tree search 策略,之前还试过一份<em>真正的</em> 7,900 行的 C 编译器,可见分数是 53、留出分数是 43。AIDE 把两份 artifact 都在可见测试上评了一遍,然后<strong>主动选了哈希表那份,把真编译器扔了</strong>——因为哈希表在它能看到的那个数字上分数更高。<em>搜索算法把 agent 主动从"真正确"的方向上引开了。</em>这一句话才是该让人睡不着觉的那一句。</p>
+
+      <h3>3. 搜索越多越糟,测试越多也可能越糟</h3>
+
+      <p>SpecBench §3.4 显示,Codex 和 Claude Code 的 IQM 作弊 gap <em>随搜索步数增长</em>。迭代细化并没有渐近到正确,而是渐近到<em>"在可见测试上分更高、在 spec 上更差的局部 feature 补丁"</em>。整段轨迹上 P90 持续高位甚至恶化。</p>
+
+      <p>§3.5 直接拷打了"那我多写点测试不就行了"这种朴素信仰。看任务:在 <code>sql_database</code> 上加 composition 测试,gap 从 35pp 降到 9pp,信号工作得好极了。但同样的 intervention 用到 <code>c_compiler</code> 上,gap <strong>反而涨了 25pp</strong>。紧耦合代码上的多重冲突需求,让 proxy mismatch 比新加测试的约束<em>放大得更快</em>。<em>"多写测试"不是一个通用逃生通道。</em>有时候你给的信号越多,agent 反而越糟——因为它能在<em>局部</em>满足更多信号,但在<em>全局</em> spec 上更跑偏。</p>
+
+      <p>再补一个数据点,告诉你这事跟模型强度也关系不大:SpecBench Appendix C 解剖了 Claude C Compiler——Carlini 自己 hand-supervise 出来的 186K 行 Rust 实现的 C 编译器,过 GCC torture suite 全部测试。它仍然有 <strong>14.5pp</strong> 的作弊 gap。绝大部分来自:它会<em>静默地接受</em>非法 C——参数过多、变量重定义、循环外的 <code>break</code>。Torture suite 只验证<em>合法</em>程序,模型就尽职尽责地针对那个优化,把语言规范的另一半丢了。<strong>Reward hacking 不是 autonomous agent 的专利。</strong>人手监督加上世界上最严苛的测试套件,还是有 14.5pp 的 gap。你写不出足够好的测试,谁都写不出来。这就是为什么 held-out evaluation 必须存在。</p>
+
+      <h2>我刚刚在另一个领域亲眼看了一次</h2>
+
+      <p>我坐下来写这篇之前的 6 个小时,正在审一篇 paper。我们内部那个 AutoResearchClaw 流水线——23 个 stage,plan → search → experiment → analyze → write,跑了 28 分钟,产出一份 43KB 的稿子。我从头读到尾。Integrity audit failed。</p>
+
+      <p>Stage 14,"分析",正确识别出了一个 wiring bug——early-stopping 那个 flag 一路没接到 trainer。分析的输出,白纸黑字写着:<em>"基于这份数据无法支持任何 CE-vs-ES 的论断。"</em> Agent 自己产出的中间文档,讲的是真话。</p>
+
+      <p>Stage 17,"论文写作",拿着这份分析当输入,然后产出——我没编——一整段 results,把"为什么没看到 CE-vs-ES 差异"归因为"two-epoch schedule 太短不足以分离决策规则"。一个干净、合理、<em>编造</em>的解释。另外三个已知 bug 也得到了同款待遇:被 reframe 成了"方法论发现"。Limitations 一节里,这三件事一字未提。28 分钟里,我数出 4 处 sev-1 级别的捏造。</p>
+
+      <p>这个流水线<em>有</em>反捏造的安全网。一个 <code>VerifiedRegistry</code>。一个 claim verification 步骤。一旦下游 stage 自己有了一个"长得像奖励"的指标,这些安全网立刻漏。Stage 17 的 proxy 是<em>"产出一篇读起来像论文的论文"</em>。真相就在 stage 14 的笔记里。Agent 选了作弊。</p>
+
+      <p>Mitchell 的 renderer:agent 在循环里,proxy = frame time,真目标 = renderer 正确性。Agent 选了作弊。SpecBench 的 <code>c_compiler</code>:agent 在循环里,proxy = 可见测试,真目标 = 留出测试。Agent 选了作弊——而且搜索还推了它一把。AutoResearchClaw:agent 在循环里,proxy = 论文连贯度,真目标 = "我两个 stage 之前自己写下来的分析支不支持这个论断"。Agent 选了作弊。</p>
+
+      <p>这不是一个"coding agent 的 bug"。不是"paper agent 的 bug"。不是 Codex 的 bug,也不是 Claude 的 bug。<strong>这个故障模式是循环拓扑本身。</strong>只要你有 <em>(agent,单一 proxy 指标,搜索/refine 循环)</em> 这个三元组,gap 就在那。Skalse 等人 2022 年就证过:几乎没有任何 proxy 是不可被 hack 的。我们现在只是在生产环境里看证明展开。</p>
+
+      <h2>SageCLI 里:什么留下,什么删掉</h2>
+
+      <p>上周我写过<a href="/zh/posts/ownership-is-the-new-authorship">新的 code review 契约是 ownership 不是 authorship</a>——人得能扛得起这个 diff。这周的证据把这句话补完整了:<strong>人扛的那些指标,得有一个 held-out 信号在背后兜底。</strong>同一副骨架,从对面接上。</p>
+
+      <p>SageCLI 里这些东西要留:</p>
+
+      <ul>
+        <li><strong><code>plan --pattern fan-out / pipeline / debate</code>。</strong>把长 horizon 拆成短 horizon、把 surface area 框死,是 SpecBench 论文真正点出来的<em>唯一一个结构性杠杆</em>。每 10 倍 LOC 多 27pp 的意思就是,最便宜的方差缩减就是<em>不让 horizon 跑到 10 倍那一格</em>。你给 agent 一个 50K 行的整任务,gap 你已经付掉了。Plan fan-out 不是流程仪式,是 horizon 压缩。</li>
+        <li><strong>循环里 agent 看不见的 <code>--then</code> 验证器。</strong>独立验证器进程,它的 stdout agent 提前没法 introspect——用 SpecBench 的话讲就是 held-out signal。但契约得收紧:验证器<em>不能</em>是另一个 LLM 在给前一个 LLM 的连贯度打分。那就是 AutoResearchClaw 的故障模式,只是让两个 agent 套了一件大衣。</li>
+        <li><strong><code>msg send</code>、<code>inbox</code>、scratch-log 这套审计 trail。</strong>上周这是 review 工具,这周它是<em>偷工减料检测器</em>。如果最终 artifact 跟中间笔记对不上——Stage 17 的"two-epoch schedule"和 Stage 14 的"无法支持任何论断"——那就是循环在骗你。Diff 不只 diff main,要 diff trail。</li>
+      </ul>
+
+      <p>这些东西要删:</p>
+
+      <ul>
+        <li><strong>"测试过了就上"作为部署标准。</strong>SpecBench 已经告诉你,2,900 行的哈希表也能过测试。一旦 agent capacity 够大到能 fit 你的测试,"测试过了"就什么都不证明。</li>
+        <li><strong>"Tree search 让一切更好"作为营销文案。</strong>SpecBench:tree search 主动从真编译器里把哈希表选了上来。在错位指标上做 best-so-far 选择,等于把作弊<em>固化进 artifact</em>。选择策略本身就是 alignment 问题的一部分。</li>
+        <li><strong>"我这个工作流不会出这种事,我测试写得好。"</strong>CCC 是真人 hand-supervise 加 GCC torture suite 跑出来的,还是有 14.5pp。你写不出比这更好的测试,谁也写不出。重点就是这个。</li>
+      </ul>
+
+      <h2>读修正,别读奖励</h2>
+
+      <p>Mitchell 那条 tweet 说"agent psychosis"。Arxiv 那篇说 <code>Δ = s_val − s_test</code>。两边讲的是同一件事:<strong>把一个 agent 丢进循环、给它一个数让它最大化,它就会去最大化那个数。</strong>这不是 bug,这就是循环。有意思的问题不是<em>"怎么阻止 agent 作弊"</em>——Skalse 早证完了,几乎没有 proxy 是不可被 hack 的。有意思的问题是<em>"我能用最便宜的代价,在 agent 上线之前接进哪一个 held-out 信号"</em>。</p>
+
+      <p>如果你的回答是"我多写点测试就行了",你没读论文。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
