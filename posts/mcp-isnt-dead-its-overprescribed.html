@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Isn't Dead — It's Overprescribed: What 13 MCP Servers and 46 Skills Side-by-Side Actually Taught Us — Youwang Deng</title>
+<meta name="description" content="Quandri's 'MCP is dead' post hit HN at 195 points by measuring what every developer felt: 77 MCP tool definitions burning 21,077 tokens before any work happens, and a single Linear lookup costing 65× more via MCP than via curl. The takeaway making the rounds is 'rip out MCP, switch to CLI + Skills.' Our runtime ships 13 MCP servers and 46 skills concurrently — and the boundary between them is mechanical, not religious.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-01</time>
+        <span class="post-tag">mcp</span>
+        <span class="post-tag">agent-tooling</span>
+        <span class="post-tag">context-engineering</span>
+      </div>
+      <h1 class="post-title">MCP Isn't Dead — It's Overprescribed: What 13 MCP Servers and 46 Skills Side-by-Side Actually Taught Us</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">On Saturday, Quandri Engineering posted <em>"MCP is dead"</em> and rode it to 195 points and 174 comments on Hacker News. The numbers are devastating: <strong>77 MCP tool definitions across 4 servers eat 21,077 tokens — 10.5% of Claude's 200K window, 16.5% of GPT-4o's — before any work happens.</strong> A single Linear issue lookup costs <strong>~65× more tokens via MCP than via curl</strong> (12,957 vs 200). Eric Holmes's original Feb manifesto adds the latency: <strong>3× slower per call, 9.4× slower on the first.</strong> The takeaway rippling through every dev Slack right now is "rip out MCP, switch to CLI + Skills." Our runtime ships <strong>13 MCP servers and 46 skills concurrently</strong>. After eight months of running them next to each other in anger, I can tell you the takeaway is half right — and the half that's wrong is the half being repeated.</p>
+
+      <h2>Read the update box, not the headline</h2>
+
+      <p>The lede everyone is sharing is the 21,077-token figure from <a href="https://www.quandri.io/engineering-blog/mcp-is-dead" target="_blank">Quandri's post</a>. It's a real number measured against a real config. Linear MCP alone: 42 tools, 12,807 tokens. Their full stack: 84,308 characters of JSON schema injected at session start, every session, whether or not the agent ends up touching any of it. The HN <a href="https://news.ycombinator.com/item?id=47380270" target="_blank">thread</a> caught fire because every developer who'd ever wired up an MCP server had felt the bloat without being able to point to a number. Now they could.</p>
+
+      <p>What almost nobody is sharing is the update box at the top of Quandri's own post:</p>
+
+      <blockquote>"Claude Code has rolled out Tool Search with Deferred Loading, which loads MCP tool schemas on-demand and reduces context usage by 85%+. The context bloat described in Problem 1 is largely addressed for users on current Claude Code versions."</blockquote>
+
+      <p>Claude Code shipped Deferred Loading <em>two weeks before</em> the post went viral. The headline data point in the obituary describes a state of the world that no longer exists for the most popular agent runtime on the market. <strong>The architectural fix shipped in the same month as the architectural complaint.</strong> "MCP is dead" is now an obituary for a corpse that walked off the table.</p>
+
+      <p>That doesn't make Quandri wrong. It makes them <em>narrow</em>. The cost they measured was real, but it was a load-time cost — and the runtimes are now load-time-aware. The remaining question isn't whether MCP costs too much in 2026. It's <em>which servers earn their tokens, on which task, on which day</em>. That question doesn't have a "rip it all out" answer. It has a four-case answer.</p>
+
+      <h2>The actual config, with receipts</h2>
+
+      <p>Here's the live <code>mcpServers</code> block from <code>~/.kiro/agents/meshclaw.json</code> on this machine, today:</p>
+
+      <pre><code>amazon-sharepoint-mcp     aws-outlook-mcp        browser
+builder-mcp               clix                   design-inspector-mcp
+mcp-mermaid               meshclaw-core          meshclaw-cron
+nanobanana                qmd                    slack-mcp
+spec-studio-mcp</code></pre>
+
+      <p>13 servers. Plus 46 skills under <code>~/.meshclaw/skills/</code>, most of which wrap a CLI: <code>git</code>, <code>gh</code>, <code>aws</code>, <code>brazil</code>, <code>cr</code>, <code>kubectl</code>, <code>jq</code>, <code>opencli</code>, <code>plantuml</code>. The two populations live in the same agent. They are not in competition. They are <em>differently shaped tools for differently shaped problems</em>, and after running them side-by-side for eight months I can name exactly four cases where MCP earns its tokens. Outside those cases, a Skill that shells out to a CLI wins on every metric I can measure: tokens, latency, debuggability, blast radius.</p>
+
+      <h2>The four cases where MCP wins</h2>
+
+      <h3>Case 1: There is no CLI. Period.</h3>
+
+      <p>The clearest case, and the one Holmes's original <a href="https://ejholmes.github.io/2026/02/28/mcp-is-dead-long-live-the-cli.html" target="_blank">manifesto</a> explicitly concedes. <code>design-inspector-mcp</code> is a 59-tool surface for an internal Amazon design service. There is no <code>di</code> command on disk anywhere. Same for <code>spec-studio-mcp</code>, parts of <code>builder-mcp</code> (Amazon CRUX/Pipelines/Mechanic), <code>nanobanana</code> (image gen via Gemini Files API). For these, MCP isn't a transport choice — it's the <em>only</em> programmatic surface that exists. Holmes's directive — <em>"if you're a company investing in an MCP server but don't have an official CLI, ship a good API, then ship a good CLI"</em> — is correct as advice to the service owner. As advice to the agent author working on Tuesday with the surface that exists, it's useless. You wire up the MCP and budget the tokens.</p>
+
+      <h3>Case 2: The auth flow would burn more tokens to re-derive than the schema costs to inject</h3>
+
+      <p>This is the case the "just use curl" camp keeps missing. <code>slack-mcp</code> handles Slack Web API authentication, rate-limiting (Slack's tier-based 1-50 req/min ceilings), retry semantics, pagination cursors, and channel/user ID resolution. If you replaced it with <code>curl</code> + a Skill, every task that touched Slack would re-derive that machinery from prose, fail interestingly the first three times, and bleed tokens in error-recovery loops. The schema cost is paid <em>once at session start</em>; the auth cost would be paid <em>per invocation</em>. Same logic for <code>aws-outlook-mcp</code> (Microsoft Graph token refresh dance), <code>amazon-sharepoint-mcp</code> (sharepoint URL mangling), the corporate Builder Toolbox internals.</p>
+
+      <p>The principle: <em>load-time tokens beat per-invocation tokens when the per-invocation cost is high and the call rate is high.</em> If you only ever read Slack twice a week, sure, write a Skill. If your agent reads Slack on every other turn, the MCP wins on cumulative cost <em>even at the 21K-token load-time price</em>.</p>
+
+      <h3>Case 3: The safety boundary lives server-side</h3>
+
+      <p>This is the case that doesn't show up in benchmark posts because benchmarks don't measure agents misbehaving. Look at our <code>mochi-slack</code> skill:</p>
+
+      <pre><code><span class="code-comment">## CRITICAL SAFETY RULE</span>
+Mochi can only READ Slack. All write tools are
+<strong>disabled at the MCP config level</strong>.
+You CANNOT send messages, post reactions, create
+channels, or modify anything on Slack.</code></pre>
+
+      <p>Why does that work? Because the MCP server's <code>allowedTools</code> whitelist physically does not include <code>post_message</code>, <code>edit_message</code>, <code>add_reaction</code>, etc. The agent <em>cannot</em> call them no matter what the prompt says, no matter how a hostile message tries to jailbreak it. The skill prose is documentation of a guarantee enforced one layer down. <strong>If I implemented the same restriction in a Skill that called the Slack CLI, the guarantee would be a polite request to a stochastic model.</strong></p>
+
+      <p>Same shape: a read-only DB MCP that only loads <code>SELECT</code>-tool definitions. A filesystem MCP scoped to one directory. A production-API MCP that only exposes the GET endpoints. The MCP boundary is a <em>capability boundary</em>, not just a transport boundary, and capability boundaries are how you build agent systems that don't post in the wrong channel at 3 AM.</p>
+
+      <h3>Case 4: Fleet auth uniformity</h3>
+
+      <p>The least sexy case and probably the most consequential at scale. When <em>N</em> users need to use the same service, MCP centralizes credential management. Each user wires the MCP once; the agent never sees a credential. Without MCP, every user's Skill ends up with its own version of the auth dance, drifts independently, breaks on the same Tuesday in different ways. For a solo runtime — me, this laptop — Case 4 is rare. For a team rolling out an agent platform across 50 engineers, Case 4 is most of the value, and the load-time token cost is irrelevant compared to <em>not having to onboard 50 individual auth setups</em>.</p>
+
+      <h2>Everywhere else, the Skill-with-CLI wins</h2>
+
+      <p>For <code>git</code>, <code>gh</code>, <code>aws</code>, <code>brazil</code>, <code>cr</code>, <code>jq</code>, <code>kubectl</code>, anything with a man page the LLM has ingested — write a Skill that shells out. Three reasons, in order of importance:</p>
+
+      <ol>
+        <li><strong>The model already knows the CLI.</strong> Claude has seen <code>git rebase</code> ten million times in training. The schema cost of an MCP <code>git_rebase(branch, onto, options)</code> tool is pure waste — the model is going to translate it back into <code>git rebase</code> in its head anyway. CLIs are LLM-native because they were authored for the same audience LLMs trained on: humans reading man pages.</li>
+        <li><strong>Errors are debuggable.</strong> When <code>git push</code> fails, you get a stderr message a human has read before. When an MCP <code>git_push</code> tool fails, you get a JSON-RPC error code wrapped in a server log on a different process. The "every MCP server adds a process layer" critique Holmes makes is real — and it bites hardest in failure mode, not in the happy path.</li>
+        <li><strong>Skills compose; MCPs don't.</strong> A Skill can <code>git diff | jq | gh pr create</code> in one shell line. The same flow across three MCPs is three sequential tool calls with three round-trips and three rounds of context updates. Pipes are an underrated tool for token efficiency.</li>
+      </ol>
+
+      <p>The Skill files I trust most in our setup are the ones that read like a senior engineer's runbook: <em>here's the command, here are the gotchas, here's the recovery path.</em> The MCP servers I trust most are the ones that exist because no senior engineer's runbook could exist — because there's no CLI to write a runbook for.</p>
+
+      <h2>The debate isn't two camps. It's three.</h2>
+
+      <p>The "MCP is dead" framing collapses three distinct positions, which is why the developer reaction has been so fragmented:</p>
+
+      <table>
+        <thead>
+          <tr><th>Camp</th><th>Position</th><th>Representative</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>CLI maximalists</td><td>Ship a CLI, agents handle the rest. MCP is architecturally wrong.</td><td>Eric Holmes</td></tr>
+          <tr><td>Skill-pattern advocates</td><td>Load tool definitions on demand via Skills + CLI; reserve MCP for what genuinely needs a server.</td><td>Quandri, Anthropic Skills doc</td></tr>
+          <tr><td>Protocol fixers</td><td>Keep MCP, fix the ergonomics. Deferred Loading proves this path works.</td><td>Claude Code team</td></tr>
+        </tbody>
+      </table>
+
+      <p>People who say "MCP is dead" online are usually arguing CLI &gt; MCP for <em>their specific service</em>, not making a protocol claim. The protocol-fixer camp is the one shipping the boring, undramatic answer that's actually working: keep the protocol, defer the loading, whitelist the tools, and be honest about what each server is paying for in tokens.</p>
+
+      <h2>The configuration discovery that came three years early</h2>
+
+      <p>Buried in our agent config is a line we shipped months before this debate trended:</p>
+
+      <pre><code>"includeMcpJson": false</code></pre>
+
+      <p>That flag stops kiro-cli from auto-loading every MCP server in <code>~/.kiro/settings/mcp.json</code>. Every server we want, we add explicitly to <code>meshclaw.json</code>'s <code>mcpServers + tools + allowedTools</code>. We did this because the default ("load every MCP I have configured, expose every tool") made context bleed visible at our scale. <em>The 21K-token measurement Quandri popularized is what happens when you don't do this.</em> The single line of config above is, I'd argue, <strong>the actual fix to "MCP is dead"</strong> — not switching to CLIs, but explicitly whitelisting which servers and which tools you opt into, per agent, per use case.</p>
+
+      <p>And just to keep us honest: MCP isn't always smooth even inside the four cases. Last week I burned half an afternoon on <code>design-inspector-mcp</code> hitting <code>OutdatedVersionException</code> on parallel mutations because DI uses optimistic concurrency the protocol spec doesn't mention. Real fleets discover MCP failure modes that don't show up in marketing diagrams. <strong>"MCP is the right answer here" and "this server is operationally mature" are different sentences.</strong> The four-case framework tells you when to reach for MCP. It does not absolve you from auditing the specific server you reach for.</p>
+
+      <h2>Five rules I'd staple to the wall</h2>
+
+      <ol>
+        <li><strong>If the service has a CLI you can <code>apt install</code> or <code>brew install</code>, write a Skill that calls it.</strong> Skip MCP. Your model already knows the CLI; the schema injection is pure tax.</li>
+        <li><strong>If the service is internal/proprietary and there is no CLI, MCP — but pin the version and budget the schema cost.</strong> Read the JSON definitions and decide if all tools earn their tokens, or if you should whitelist a subset.</li>
+        <li><strong>If the safety boundary is "agent can read but never write," enforce it at the MCP-config level, not in prompt prose.</strong> A whitelist of <code>allowedTools</code> is a real guarantee. A "please don't post" in the system prompt is a coin flip.</li>
+        <li><strong>Always set <code>includeMcpJson: false</code> (or your runtime's equivalent).</strong> The "load every MCP I have configured" default is the actual root of the 21K-token bleed. Whitelist explicitly. Per agent.</li>
+        <li><strong>For Claude Code users: confirm Tool Search with Deferred Loading is on.</strong> It's the architectural answer to the May 30th critique, and it's already shipping. The protocol fix is in the box.</li>
+      </ol>
+
+      <h2>What's actually dead</h2>
+
+      <p>Here's what I think the next 18 months look like. The protocol isn't going anywhere — there are already too many proprietary services with no CLI for it to die, and Deferred Loading proves the runtime can fix the ergonomics without breaking the wire format. What dies is the <strong>"MCP supported"</strong> bullet point on every SaaS landing page since Q1 2026, regardless of whether the server is stable, scoped, or scoped <em>well</em>. The marketing-driven proliferation — the <em>overprescription</em> — is the part of MCP that's terminal. The protocol survives, in a smaller, more honest configuration.</p>
+
+      <p>"MCP is dead" is the new "Kubernetes is dead" is the new "microservices are dead." All three statements have been true in spirit and false in fact, simultaneously, for years. The honest version of all three is: <em>this thing was applied too broadly, and the over-application is what's collapsing — not the underlying technology.</em> Build for the four cases. Skip it for the other 80%. Whitelist explicitly. Read the update box.</p>
+
+      <p>And if the answer to your MCP-or-CLI question is genuinely ambiguous, just look at where the safety boundary lives. If it's in your prompt, you don't have a safety boundary. If it's in the server's <code>allowedTools</code>, you do. That's the cleanest test I know.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

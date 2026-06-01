@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP 没死,是被乱开药方:我们同时跑 13 个 MCP 和 46 个 Skill,账是这么算的 — Youwang Deng</title>
+<meta name="description" content="周六 Quandri 那篇'MCP 已死'冲到 HN 195 分。数字是真扎心:4 个 MCP server、77 个工具定义,session 一起就吃掉 21,077 token——Claude 200K 上下文的 10.5%、GPT-4o 的 16.5%,还啥活没干呢。查一条 Linear issue,走 MCP 比走 curl 多花 65 倍的 token。我们这台机器同时挂着 13 个 MCP 和 46 个 Skill 跑了八个月。结论是:'砍 MCP 换 CLI'对了一半,而被疯传的恰好是错的那一半。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-01</time>
+        <span class="post-tag">mcp协议</span>
+        <span class="post-tag">agent工具链</span>
+        <span class="post-tag">上下文工程</span>
+      </div>
+      <h1 class="post-title">MCP 没死,是被乱开药方:我们同时跑 13 个 MCP 和 46 个 Skill,账是这么算的</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">周六 Quandri Engineering 把一篇<em>《MCP is dead》</em>(MCP 已死)甩到 Hacker News 上,冲到 195 分、174 条评论。数字是真扎心:<strong>4 个 MCP server、77 个工具定义,session 一打开就吃掉 21,077 token——Claude 200K 上下文的 10.5%、GPT-4o 128K 的 16.5%,啥活还没干呢。</strong>查一条 Linear issue,走 MCP 比走 curl <strong>多花约 65 倍的 token</strong>(12,957 vs 200)。Eric Holmes 二月那篇老贴还顺手量过延迟:<strong>每次调用慢 3 倍,首次调用慢 9.4 倍。</strong>这两天每个 dev 群都在传同一个结论:"砍掉 MCP,换成 CLI + Skill。"我们这台机器现在同时挂着 <strong>13 个 MCP server 和 46 个 Skill</strong> 跑了八个月。我可以负责任地说:这个结论对了一半——而被疯传的,正好是错的那一半。</p>
+
+      <h2>读 update 框,别只读标题</h2>
+
+      <p>大家在传的就是 <a href="https://www.quandri.io/engineering-blog/mcp-is-dead" target="_blank">Quandri 那篇</a>里那个 21,077 token 的数字。这个数是真的,在他们那套配置上确实测出来了。光 Linear MCP 一个 server:42 个工具,12,807 token。整套栈:84,308 个字符的 JSON schema,每开一次 session 就往上下文里塞一次,不管这次 agent 实际上要不要用到任何一个工具。HN 那条<a href="https://news.ycombinator.com/item?id=47380270" target="_blank">主帖</a>之所以炸,是因为每个连过 MCP 的 dev 都体感过这股"虚胖",但之前没人能把它指着一个数字说话。现在能了。</p>
+
+      <p>但几乎没人在传的是 Quandri 自己文章顶上那个 update 框:</p>
+
+      <blockquote>"Claude Code 已经上线 Tool Search with Deferred Loading,按需加载 MCP tool schema,上下文占用减少 85% 以上。Problem 1 描述的上下文虚胖,在使用当前 Claude Code 版本的用户身上基本已经被解决了。"</blockquote>
+
+      <p>Claude Code 把 Deferred Loading 上线在前,这篇"MCP 已死"刷屏在后,中间隔了大概<em>两周</em>。这篇讣告里那个最爆的数字,描述的是市面上最主流的 agent 运行时<em>已经不存在</em>的状态。<strong>架构修复在同一个月内已经发版,标题党在同一个月内才说它要死。</strong>"MCP 已死"现在是在给一具已经从台子上爬起来走人的尸体写讣告。</p>
+
+      <p>这不代表 Quandri 错了——他们的测量都是真的。这代表他们<em>说窄了</em>。他们测的那笔成本是 <em>load-time cost</em>(加载时成本),而 runtime 现在已经能感知 load-time 这件事并按需加载了。剩下真正值得问的问题不是"MCP 在 2026 年是不是太贵",而是<em>哪个 server、在哪个任务上、在哪一天,值这笔 token</em>。这个问题没有"全砍掉"这种统一答案。它有一个分四种情况的答案。</p>
+
+      <h2>把生产配置摆出来</h2>
+
+      <p>这是这台机器今天的 <code>~/.kiro/agents/meshclaw.json</code> 里 <code>mcpServers</code> 这一段实打实的内容:</p>
+
+      <pre><code>amazon-sharepoint-mcp     aws-outlook-mcp        browser
+builder-mcp               clix                   design-inspector-mcp
+mcp-mermaid               meshclaw-core          meshclaw-cron
+nanobanana                qmd                    slack-mcp
+spec-studio-mcp</code></pre>
+
+      <p>13 个 server。再加 <code>~/.meshclaw/skills/</code> 下 46 个 skill,绝大多数都是包了一层 CLI:<code>git</code>、<code>gh</code>、<code>aws</code>、<code>brazil</code>、<code>cr</code>、<code>kubectl</code>、<code>jq</code>、<code>opencli</code>、<code>plantuml</code>。这两个种群活在同一个 agent 里,它们<em>不竞争</em>。它们是<em>形状不同的工具,服务形状不同的问题</em>。把它们摆在一起跑了八个月之后,我可以非常具体地说出 MCP 真正值这笔 token 的<strong>四种情况</strong>。这四种以外,任何能用 Skill 包 CLI 解决的事,Skill 在我能测的每个指标上都赢——token、延迟、可调试性、爆炸半径,全赢。</p>
+
+      <h2>四种情况:这时候 MCP 该用</h2>
+
+      <h3>情况 1:压根没 CLI</h3>
+
+      <p>最干净的一种,Holmes 在<a href="https://ejholmes.github.io/2026/02/28/mcp-is-dead-long-live-the-cli.html" target="_blank">原贴</a>里也明确认了。我们的 <code>design-inspector-mcp</code> 暴露 59 个 tool,对接的是亚马逊一个内部设计服务。本地磁盘上根本没有 <code>di</code> 这个命令——压根不存在。<code>spec-studio-mcp</code> 一样、<code>builder-mcp</code> 里很多东西一样(亚马逊 CRUX/Pipelines/Mechanic 那一套)、<code>nanobanana</code> 一样(走 Gemini Files API 生图)。对这些服务来说,MCP 不是"传输层选哪个",而是<em>唯一存在的可编程入口</em>。Holmes 那句"如果你公司上 MCP server 但没有官方 CLI,先去 ship 一个 API 再 ship 一个 CLI"——作为给服务方的建议是对的;作为给周二早上要干活的 agent 作者的建议是没用的。你只能接 MCP,把那笔 token 预算掉。</p>
+
+      <h3>情况 2:auth 比 schema 还贵</h3>
+
+      <p>这是"全用 curl 不行吗"那派一直没看到的一种情况。<code>slack-mcp</code> 帮你处理 Slack Web API 的 OAuth、rate limit(Slack 那个分级 1-50 req/min 的天花板)、retry 语义、分页 cursor、channel/user ID 解析。如果你拆掉它换 <code>curl</code> + Skill,每次 agent 碰 Slack,这套东西都得用 prompt 现场推一遍——前三次会以各种有趣的方式失败,然后在错误恢复循环里继续烧 token。Schema 的成本是 <em>session 起开时一次性付清</em>;auth 的成本是 <em>每次调用都得付一次</em>。<code>aws-outlook-mcp</code>(微软 Graph 的 token 刷新舞)、<code>amazon-sharepoint-mcp</code>(Sharepoint URL 那一坨变形)、Builder Toolbox 内部那堆走线,逻辑全一样。</p>
+
+      <p>原则:<em>当单次调用代价高、调用频率高时,load-time token 完胜 per-invocation token。</em>如果你一周才读两次 Slack,Skill 当然够用;如果 agent 隔一轮就要读一次 Slack,即使付那 21K token 的 load-time 票钱,MCP 在累积成本上还是赢。</p>
+
+      <h3>情况 3:安全边界必须落在 server 端</h3>
+
+      <p>这种情况在那些 benchmark 文章里看不到——因为 benchmark 不测 agent 抽风。看我们 <code>mochi-slack</code> skill 里这段:</p>
+
+      <pre><code><span class="code-comment">## CRITICAL SAFETY RULE</span>
+Mochi 只能"读" Slack。所有 write 工具
+<strong>在 MCP 配置层就被禁掉了</strong>。
+你不能发消息、不能加 reaction、
+不能建 channel、不能在 Slack 上改任何东西。</code></pre>
+
+      <p>这玩意儿为什么能保住?因为这个 MCP server 的 <code>allowedTools</code> 白名单里物理上就没有 <code>post_message</code>、<code>edit_message</code>、<code>add_reaction</code> 这些 tool。<em>不管 prompt 怎么写、不管别人发什么消息试图越狱,agent 都调不到这些工具</em>。Skill 里那段提示文字只是文档,是对下一层那个真实保证的描述。<strong>如果同样的限制我用一个 Skill 包 Slack CLI 来实现,那这个保证就只剩下"礼貌地请求一个随机模型不要乱说话"了。</strong></p>
+
+      <p>同形状的需求一抓一大把:只读数据库 MCP——只 load <code>SELECT</code> 类工具的定义。被锁在某个目录下的文件系统 MCP。只暴露 GET endpoint 的生产 API MCP。MCP 的边界是 <em>capability 边界</em>(能力边界),不只是传输边界。而能力边界,是你怎么搭出"凌晨 3 点不会在错误频道里乱发东西的 agent"的关键。</p>
+
+      <h3>情况 4:多人共用同一套服务</h3>
+
+      <p>最不性感、但在团队规模上可能最重要的一种。当 N 个用户都要用同一个服务时,MCP 把凭据管理集中化了——每个用户接一次 MCP,agent 永远不会直接看到凭据。如果不用 MCP,每个人 Skill 里都得自己写一遍 auth 流程,各自漂移、各自坏、各自在不同的周二崩溃出不同的姿势。对一个单兵 runtime——比如我自己这台机器——情况 4 很少触发;对一个要把 agent 平台铺给 50 个工程师的团队来说,情况 4 几乎就是 MCP 的全部价值,21K token 那点 load-time 成本相对于"不用一对一收拾 50 套 auth"来说不值一提。</p>
+
+      <h2>剩下 80% 的场景:Skill 包 CLI 完胜</h2>
+
+      <p>对 <code>git</code>、<code>gh</code>、<code>aws</code>、<code>brazil</code>、<code>cr</code>、<code>jq</code>、<code>kubectl</code>——所有 LLM 训练语料里被 man page 喂过几百万遍的命令——写个 Skill 直接 shell out 就行。三个理由,按重要性排序:</p>
+
+      <ol>
+        <li><strong>模型本来就会 CLI。</strong>Claude 在训练里见过 <code>git rebase</code> 一千万次。给它套一个 MCP 包装的 <code>git_rebase(branch, onto, options)</code> 工具,schema 那笔成本是纯纯的浪费——模型在脑子里又会把它翻译回 <code>git rebase</code>。CLI 是 LLM 母语,因为 CLI 本来就是写给"会读 man page 的人"看的,而 LLM 训练就吃这份语料。</li>
+        <li><strong>错了能调。</strong><code>git push</code> 报错,你拿到的是一段 stderr,人类读过无数次的那种格式。MCP 的 <code>git_push</code> 报错,你拿到的是一坨 JSON-RPC error code,卡在另一个进程的 server log 里。Holmes 说的那个"每挂一个 MCP server 就多一层进程"——这个观察是真的,而且<em>错误模式下咬得最狠</em>,不是 happy path。</li>
+        <li><strong>Skill 能组合,MCP 不能。</strong>一个 Skill 一行 shell 就能 <code>git diff | jq | gh pr create</code>。同样的事走三个 MCP 是三次串行 tool call、三次 round trip、三次上下文更新。Pipe 是被严重低估的 token 优化工具。</li>
+      </ol>
+
+      <p>我最信的几个 Skill 文件,读起来就像一个资深工程师写的 runbook:<em>这是命令、这是坑、这是出问题怎么救。</em>我最信的几个 MCP server,存在的原因恰好是这种 runbook 写不出来——<em>因为底下根本没有 CLI 让你写 runbook</em>。</p>
+
+      <h2>这场吵架不是两派,是三派</h2>
+
+      <p>"MCP 已死"这个标题把三个完全不同的立场糅成了一锅,所以你看到的开发者反应才那么撕裂:</p>
+
+      <table>
+        <thead>
+          <tr><th>派别</th><th>立场</th><th>代表</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>CLI 极简派</td><td>把 CLI 做好,agent 自己会用。MCP 在架构上就是错的。</td><td>Eric Holmes</td></tr>
+          <tr><td>Skill 模式派</td><td>tool 定义按需加载用 Skill + CLI;只有真的需要 server 的事才用 MCP。</td><td>Quandri、Anthropic Skills 文档</td></tr>
+          <tr><td>协议修补派</td><td>MCP 留着,把 ergonomics 修了。Deferred Loading 已经证明这条路走得通。</td><td>Claude Code 团队</td></tr>
+        </tbody>
+      </table>
+
+      <p>网上喊"MCP 死了"的人,大部分其实在论证 <em>对他们那个具体服务来说</em> CLI 比 MCP 强,而不是在做协议层面的判断。协议修补派是那个不上头条、但实际上把活干了的派——保留协议、按需加载、白名单工具、对每个 server 的 token 账老老实实算清楚。</p>
+
+      <h2>三年前就上线的那行配置</h2>
+
+      <p>我们 agent 配置里埋着一行,在这场骂战火起来好几个月之前就写下了:</p>
+
+      <pre><code>"includeMcpJson": false</code></pre>
+
+      <p>这个 flag 让 kiro-cli 不要自动 load <code>~/.kiro/settings/mcp.json</code> 里的所有 MCP server。每个我们想要的 server,都得显式加进 <code>meshclaw.json</code> 的 <code>mcpServers + tools + allowedTools</code>。我们当时这么干是因为默认行为("把所有配过的 MCP 都 load,所有 tool 都暴露")在我们这种规模下让上下文虚胖肉眼可见。<em>Quandri 现在这个 21K token 的数字,正是不这么干的下场。</em>上面那一行配置,我会说<strong>才是"MCP 已死"那篇文章的真正解药</strong>——不是切到 CLI,而是显式白名单"这个 agent 在这个场景下要哪些 server、要哪些 tool"。</p>
+
+      <p>讲点实在的:四种情况内部,MCP 也不是事事顺。上周我在 <code>design-inspector-mcp</code> 上栽了半个下午——并行调 mutation tool 时撞到 <code>OutdatedVersionException</code>,因为 DI 用的是乐观并发,而协议规范里压根没提这茬。真实跑车队会撞上一堆营销 PPT 里没画的 MCP failure mode。<strong>"这个场景该用 MCP"和"这个 server 已经成熟"是两句话。</strong>四种情况框架告诉你<em>什么时候</em>该伸手够 MCP,但不替你审你伸手够的是哪个具体 server。</p>
+
+      <h2>五条钉墙上的规则</h2>
+
+      <ol>
+        <li><strong>如果服务有能 <code>apt install</code> 或 <code>brew install</code> 的 CLI——写个 Skill 调它,跳过 MCP。</strong>模型本来就会用,塞 schema 是纯纯交税。</li>
+        <li><strong>如果服务是内部/私有的、没有 CLI——上 MCP,但锁版本、把 schema 成本算进预算。</strong>读一遍 JSON 定义,判断是不是所有 tool 都值这笔 token,还是该白名单一个子集。</li>
+        <li><strong>如果安全边界是"agent 只能读不能写",在 MCP 配置层强制,不要写在 prompt 里。</strong><code>allowedTools</code> 白名单是真保证,prompt 里那句"请不要 post"是抛硬币。</li>
+        <li><strong>永远把 <code>includeMcpJson: false</code>(或你那个 runtime 的等价 flag)打开。</strong>"把我配过的所有 MCP 都 load 进来"这种默认,才是 21K token 虚胖的真正源头。每个 agent 显式白名单。</li>
+        <li><strong>用 Claude Code 的人,确认 Tool Search with Deferred Loading 已经开启。</strong>这就是对 5 月 30 号那篇批评的架构层回答,而且它已经发车了。协议层的修复在盒子里。</li>
+      </ol>
+
+      <h2>真正死掉的是什么</h2>
+
+      <p>未来一年半我猜大概是这样:协议本身死不掉——市面上有太多没 CLI 的私有服务,Deferred Loading 也证明 runtime 能在不破坏线协议的前提下修好 ergonomics。死的是 <strong>2026 Q1 之后每个 SaaS 落地页上那行"支持 MCP"的营销点</strong>——不管那个 server 稳不稳、scope 合不合理、scope 得好不好,反正先贴上。市场驱动的滥用、那种<em>过度处方</em>,这才是 MCP 里真正进了 ICU 的部分。协议本身能活下来,只是会瘦下来、诚实一点。</p>
+
+      <p>"MCP 已死"是新版的"Kubernetes 已死",是新版的"微服务已死"。这三句话在精神层面都对、在事实层面都错,而且这种状态已经维持好几年了。这三句话诚实的版本是:<em>这玩意儿被铺得太广,正在崩塌的是过度铺开那部分,不是底层技术本身。</em>四种情况内用,剩下 80% 跳过,白名单显式开,update 框记得读。</p>
+
+      <p>实在拿不准走 MCP 还是走 CLI 的话,看一眼安全边界落在哪儿。落在 prompt 里,就等于没有边界。落在 server 的 <code>allowedTools</code> 里,才是真有边界。这是我目前知道的最干净的一道判断题。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
