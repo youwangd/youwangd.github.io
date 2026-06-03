@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型周抛,记忆才是命根子 — Youwang Deng</title>
+<meta name="description" content="同一拨人,三周里把 Claude → Codex → Opus 4.8 → 又回 Codex/GPT-5.5 切了三遍。Cursor Composer 2.5 直接跑在 Kimi K2.5 上,MiniMax M3 紧贴 Opus/GPT5 还便宜十倍。模型现在是肉鸡,你的 AGENTS.md、skills、MCP 白名单、learned corrections 才是命根子。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-03</time>
+        <span class="post-tag">智能体编排</span>
+        <span class="post-tag">模型可移植性</span>
+        <span class="post-tag">上下文工程</span>
+      </div>
+      <h1 class="post-title">模型周抛,记忆才是命根子</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">6 月 1 日,<a href="https://x.com/dexhorthy/status/2061266308763906077" target="_blank">dexhorthy</a> 在 X 上扔了一句话,理论上应该能终结所有"该选哪个模型"的吵架帖:<em>"从 Codex 切到 Claude 再去试 Opus 4.8 这波 vibe shift 来得太快——我认识的大多数 builder 几天内就全跑回 Codex 和 5.5 了。(就是 5.2/5.3 那会儿刚切到 Codex CLI 的同一拨人。)"</em> 240 个赞。三周内同一群人切了三次模型,来回打转。<strong>如果你的"AI 战略"是"挑对那个模型",你已经被现实证伪了。</strong>模型忠诚度的半衰期现在按"天"算,而你这堆 stack 里唯一能跨越每次切换继续复利的东西,恰好跟模型本身一点关系都没有。</p>
+
+      <h2>三周来回切三次,这是什么节奏</h2>
+
+      <p>把 dexhorthy 那句话再读一遍。他描述的这群人 5 月 2-3 号左右切了一次模型(Codex CLI 0.130 那阵子刚成型);5 月 28 号 Anthropic 出 Opus 4.8,又切了一次;6 月 1 号又跑回 Codex/GPT-5.5,这是<em>第三次</em>。28 天内三次迁移。其中最长的一次——Opus 4.8 → 回 Codex——按"天"算,不按 sprint 算。</p>
+
+      <p>同一周 Every.to 那篇 <em>Vibe Check</em> 把潜台词直接说出来了:<a href="https://every.to/vibe-check/opus-4-8-vibecheck" target="_blank">"我现在在 Codex 和 Claude 之间来回切个不停。"</a> 多 runtime 已经不是"对冲",是 builder 默认姿势。脑子里的模型从<em>"我的模型"</em>变成<em>"今天这个任务,谁现在最对路就用谁"</em>。</p>
+
+      <p>而真正让这事是结构性变化、不是流行周期的关键在于:<strong>第一梯队在变挤,不是变稀。</strong>Vercel CEO Guillermo Rauch 6 月 2 号:<a href="https://x.com/rauchg/status/2061698143200526562" target="_blank">"MiniMax M3 现在是 Next.js agent evals 上的开源第一,紧贴 Opus 和 GPT5,但便宜十倍。"</a> 984 赞。M3 是 6 月 1 号发的,456B 参数、1M context、原生多模态、开源权重——紧挨着两家万亿市值公司的旗舰,价格只有它们的 1/10。Agent eval 上 #1 和 #5 之间的差距,现在比 eval suite 本身的标准差还小。Cursor 的 Composer 2.5——全球第二大的 agentic coding IDE——<a href="https://cursor.com/blog/composer-2-5" target="_blank">直接基于 Moonshot 的 Kimi K2 做的</a>,既不是 GPT 也不是 Claude。这已经是 Cursor 半年内第二次选非 OpenAI / 非 Anthropic 当默认模型。</p>
+
+      <p>当头部模型之间的质量差距比迁移成本还小,builder 就会在差距翻号的每一刻重新迁移。切换<em>频率</em>现在唯一的上限是发版节奏,而发版节奏已经周更了——上周 Codex 6 天发了三个 stable 版(0.134、0.135、0.136-α,平均两天一个)。这个节奏下,"你现在跑哪个模型"这种问题的保质期,跟"你浏览器现在开了哪个 tab"差不多。</p>
+
+      <h2>切完模型,什么留下来,什么没了</h2>
+
+      <p>这是基本上没人在认真聊的那一段:当你把 CLI 从 Claude 指向 Codex 再指向 Kimi 的时候,<em>到底什么东西跟着动了,什么东西原地不动?</em>过去六周我在三台机器上来回切了四次,答案非常机械:</p>
+
+      <table>
+        <thead>
+          <tr><th>这一层</th><th>切完模型还在?</th><th>为什么</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>AGENTS.md</code> / <code>CLAUDE.md</code></td><td>✅ 100%</td><td>纯文本,每个 CLI 都读。</td></tr>
+          <tr><td><code>~/.meshclaw/skills/</code>(46 个 skill)</td><td>✅ 100%</td><td>Markdown + 脚本,设计上就是 runtime 无关。</td></tr>
+          <tr><td>MCP server 白名单</td><td>✅ 100%</td><td>就是一个 config 对象,不绑模型。</td></tr>
+          <tr><td>Learned corrections(<code>learn_add</code>)</td><td>✅ 100%</td><td>workspace 里的文件,session 起来时回放。</td></tr>
+          <tr><td>Prompt 模板栈 / SOP</td><td>✅ ~95%</td><td>个别措辞要调,结构能搬。</td></tr>
+          <tr><td>Auth token / 限流认知</td><td>✅ 100%</td><td>OS 层的事,跟模型无关。</td></tr>
+          <tr><td>Tool calling 语法的小怪癖</td><td>⚠️ 80%</td><td>JSON-schema 各家略有差异,大多数被 CLI 抹平。</td></tr>
+          <tr><td>模型本身</td><td>❌ 0%</td><td>本来就是被切的那个,这是字面意思。</td></tr>
+          <tr><td>当前 session 的上下文</td><td>❌ 0%</td><td>从来都是临时的,本来就不该存。</td></tr>
+        </tbody>
+      </table>
+
+      <p>盯着这一列看。<strong>你花了几周时间堆出来的所有东西都还在。你公开焦虑了最多次的那一项——选哪个模型——是表里唯一被清零的那一行。</strong>SageCLI 现在挂了 9 个 runtime adapter(Claude、Codex、Gemini、Qwen、Kimi、GLM、MiniMax、DeepSeek、Bedrock 上的 Sonnet),它们共用<em>一份</em> skills 目录、<em>一套</em> AGENTS.md schema、<em>一个</em> MCP probe 流水线。这不是"为了好看挂个多模型支持",这是承认 runtime <em>本来就是</em>这个系统里被消耗掉的那一层。我们想明白这件事的时间点,跟整个行业、跟 Cursor、跟 Codex CLI 的插件层,差不多是同一周。</p>
+
+      <p>2018 年 Karpathy 用"宠物 vs 牲口"形容 ML 训练任务;后来这比喻被 K8s 接管,用来说 pod。2026 年它该再转一次:<strong>模型是牲口,你的上下文层才是宠物。</strong>你给宠物起名字,做版本控制,定期备份,死了你会哭。你不会给牲口起名字,因为下周这群牲口看起来跟这周一样,吃同一片草地。</p>
+
+      <h2>别再为模型做优化了。为"切换本身"做优化。</h2>
+
+      <p>如果模型层就是可替换的水管,工程问题就变成:<em>怎么让切换尽可能便宜?</em>下面四条,每一条都至少帮我省过一次迁移成本:</p>
+
+      <h3>1. 千万别把 runtime 焊死在 agent spec 里</h3>
+      <p>我们这边每个 agent 的定义里,<code>runtime</code> 都是顶层 config 字段,从来不是某个 prompt 里硬编码的模型名。skills 里写的不是"Claude 麻烦帮我做 X",而是"做 X"。两周前我把 <code>quant</code> agent 从 Claude 切到 Codex,diff 就是改一行 JSON;上周再切到 Kimi K2.5 试一下,还是改一行 JSON。<em>如果你的 stack 里换模型需要改超过一个 config 字段,那不是"模型偏好",那是可移植性 bug。</em></p>
+
+      <h3>2. Skills 写得像说明书,别写得像 Claude 风格的散文</h3>
+      <p>我见过最大的隐性 lock-in 就是"用某个模型的语气写 skill"。那种又长又委婉、"也许你可以考虑……"的散文体,Claude 读着舒服,扔到一个稍小的开源模型上立刻变成糊糊。同一个 skill,两种写法:</p>
+
+      <pre><code><span class="code-comment">// 烂的写法——Claude 风。Sonnet 上美如画,Kimi 上当没看见。</span>
+当用户问起部署相关的事的时候,你可能可以考虑先看一下 pipeline 的状态,
+尤其是生产部署的情况下。关于 blocked pipeline 这一块有一些小细节
+你也许应该留意一下……
+
+<span class="code-comment">// 好的写法——指令集。所有测试过的 runtime 都能跑。</span>
+当意图是"部署"时:
+1. 先跑 `pipeline-status &lt;name&gt;`。
+2. 如果 state == BLOCKED,列出 blocker 然后停。不要继续。
+3. 如果 state == HEALTHY,总结最近 3 次部署。
+4. 没有用户明确确认,绝对不要触发 deploy。</code></pre>
+
+      <p>第二种写法可以无损搬迁。第一种<em>能搬,但会退化</em>——而且你看不出来在退化,直到周二下午新 runtime 安静地干了件错事。<strong>把你的 skill 当 RFC 来写,别当聊天消息写。</strong>编号步骤,硬约束用大白话,别玩气氛。</p>
+
+      <h3>3. MCP 白名单是新一代 IAM,当基础设施认真维护</h3>
+      <p>过去这几次模型迁移里,我那份 MCP server 列表<em>每一次都活下来了</em>。它熬过了三个 Claude 版本、两次 Codex CLI 重写、GPT-5 到 5.5 的分裂。同期榜首是哪个 runtime 一直在轮替。这份白名单才是你 stack 里真正在复利的部分。审它,像审 IAM 一样。锁版本,写注释解释为什么挂这个 server,把半年没用过的 server 删掉。<em>这是你现在没在做、但杠杆最高的一项维护工作。</em></p>
+
+      <h3>4. Learned corrections 当数据库管,别当聊天记录</h3>
+      <p>我这个 workspace 里现在有 60 多条 <code>learn_add</code> 经验。比如"TT 的 pendingReason 是 3-60 字符的自由文本,没有 enum",比如"kiro-cli session 起来约 1 秒后就会封锁 MCP 工具注册表,npx 冷启动 3 秒会输掉 race,改用 npm i -g 后的绝对路径"。每一条都是真金白银的 debug 时间换来的。每一条都熬过了这周的模型切换测试。没有一条是用某个模型特有的语气写的,也没有一条假设了某个模型的小怪癖。它们就是<em>事实</em>,session 起来时回放,谁加载它不重要。这就是数据库的形态。做版本控制。多机同步。<em>千万别</em>把它 commit 到某个绑模型的 config 里。</p>
+
+      <h2>一个反方向的脚注</h2>
+
+      <p>有一件事确实会把你锁死:<strong>用你自己的私有数据做 post-training</strong>。如果你已经做到了 fine-tune 或 RL-from-feedback 的规模,切换成本就从 0 又涨回"几周再训一次"。Cursor 之所以 fork Kimi K2 然后 RL 一遍做 Composer 2.5,就是因为 lock-in 下沉了一层——从"忠于哪家 API"变成了"忠于这个 checkpoint"。</p>
+
+      <p>但比 Cursor 小的,基本上就是所有读这篇的人。对我们来说,任何一个具体模型的半衰期都按"天"算。而 AGENTS.md、skills 目录、MCP 白名单、learned corrections、prompt 模板栈——这些东西每次切换都在复利。资产不是"你这周挑了哪个模型",资产是"下周新模型来了之后,你 stack 里还留下来的那部分"。</p>
+
+      <p>为这部分构建。别再为模型构建了。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Models Are Weekly Hot-Swaps Now. Your Context Layer Is the Moat. — Youwang Deng</title>
+<meta name="description" content="Same builders switched Claude → Codex → Opus 4.8 → back to Codex/GPT-5.5 in three weeks. Cursor Composer 2.5 ships on Kimi K2.5. MiniMax M3 is a top-3 frontier model at 10× cheaper. The model is the cattle now. Your AGENTS.md, skills, MCP allow-list, and learned corrections are the pet.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-03</time>
+        <span class="post-tag">agent-orchestration</span>
+        <span class="post-tag">model-portability</span>
+        <span class="post-tag">context-engineering</span>
+      </div>
+      <h1 class="post-title">Models Are Weekly Hot-Swaps Now. Your Context Layer Is the Moat.</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">On June 1, <a href="https://x.com/dexhorthy/status/2061266308763906077" target="_blank">dexhorthy</a> posted a quote that should have ended every "which model should I use" thread on the internet: <em>"wow the vibe shift from codex to Claude to try opus 4.8 felt pretty quick — most builders I know back on codex and 5.5 full time within a few days. (Same ones who made the switch to codex cli around 5.2/5.3 launch)."</em> 240 likes. Three model migrations in three weeks. The same people. Round-trip. <strong>If your strategic plan is "pick the right model," you are now pre-falsified.</strong> The half-life of model loyalty is days, and the only thing in your stack that compounds across swaps is the part that has nothing to do with the model.</p>
+
+      <h2>The four-day round-trip</h2>
+
+      <p>Read dexhorthy's quote again, slowly. The cohort he's describing made a model switch around <em>May 2-3</em> (Codex 0.130-ish, when Codex CLI got real). They made another switch on <em>May 28</em> when Anthropic dropped Opus 4.8. They made a <em>third</em> switch back to Codex/GPT-5.5 by <em>June 1</em>. Three migrations in 28 days. The duration of the longest one — Opus 4.8 → "back on codex" — was measured in <em>days</em>, not sprints.</p>
+
+      <p>The Every.to <em>Vibe Check</em> on Opus 4.8, published the same week, says the quiet part out loud: <a href="https://every.to/vibe-check/opus-4-8-vibecheck" target="_blank">"I'm now switching between Codex and Claude all the time."</a> Multi-runtime is no longer a hedge. It's the default builder posture. The mental model is no longer <em>"my model"</em> — it's <em>"this task, today, on whatever's best."</em></p>
+
+      <p>And here's what makes this a structural shift instead of a fashion cycle: <strong>the cluster at the frontier is getting denser, not sparser.</strong> Vercel CEO Guillermo Rauch on June 2: <a href="https://x.com/rauchg/status/2061698143200526562" target="_blank">"MiniMax M3 is now the leading open model on the Next.js agent evaluations. Right behind Opus & GPT5, but 10× cheaper."</a> 984 likes. M3 is 456B parameters, 1M context, native multimodal, open-weights, released June 1. It is <em>right behind</em> two trillion-dollar-company flagships, while costing ten times less. The differences between #1 and #5 on agent evals are now smaller than the standard deviation of the eval suite. Cursor's Composer 2.5 — flagship coding IDE, second-largest agentic coding userbase on the planet — <a href="https://cursor.com/blog/composer-2-5" target="_blank">ships on a fork of Moonshot's Kimi K2</a>, not on GPT, not on Claude. That's the second time Cursor has chosen a non-OpenAI / non-Anthropic default. Twice in six months.</p>
+
+      <p>When the quality gap between top models is smaller than the migration cost, builders re-migrate every time the gap flips sign. The <em>frequency</em> of swaps is now bounded by release cadence, and release cadence has gone weekly. Codex shipped <em>three stable releases in six days</em> last week (0.134, 0.135, 0.136-α — one stable every two days). At that cadence, "what model are you on" is a question with the same shelf-life as "what tab do you have open."</p>
+
+      <h2>What survives the swap</h2>
+
+      <p>Here is the piece of the conversation that almost nobody is having: when you re-point your CLI from Claude to Codex to Kimi, <em>what actually moves and what stays?</em> I've done this four times in the last six weeks across three machines. The answer is mechanical:</p>
+
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Survives the swap?</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>AGENTS.md</code> / <code>CLAUDE.md</code></td><td>✅ 100%</td><td>Plain text. Every CLI reads it.</td></tr>
+          <tr><td><code>~/.meshclaw/skills/</code> (46 skills)</td><td>✅ 100%</td><td>Markdown + scripts. Runtime-agnostic by design.</td></tr>
+          <tr><td>MCP server allow-list</td><td>✅ 100%</td><td>It's a config object, not a model artifact.</td></tr>
+          <tr><td>Learned corrections (<code>learn_add</code>)</td><td>✅ 100%</td><td>Stored as files in the workspace, replayed at session start.</td></tr>
+          <tr><td>Prompt template stack / SOPs</td><td>✅ ~95%</td><td>Minor wording drift; structure transfers.</td></tr>
+          <tr><td>Auth tokens / rate-limit awareness</td><td>✅ 100%</td><td>OS-level, not model-level.</td></tr>
+          <tr><td>Tool calling syntax peculiarities</td><td>⚠️ 80%</td><td>JSON-schema variants; mostly handled by the CLI.</td></tr>
+          <tr><td>The model itself</td><td>❌ 0%</td><td>That's the literal point. It got swapped.</td></tr>
+          <tr><td>Per-session context</td><td>❌ 0%</td><td>Always ephemeral. Always was.</td></tr>
+        </tbody>
+      </table>
+
+      <p>Look at the column. <strong>Everything that took you weeks to build survives. The thing you spent the most public anxiety on — model choice — is the only row that gets nuked.</strong> SageCLI ships nine runtime adapters (Claude, Codex, Gemini, Qwen, Kimi, GLM, MiniMax, DeepSeek, Sonnet-on-Bedrock) and they all share <em>one</em> skills directory, <em>one</em> AGENTS.md schema, <em>one</em> MCP probe pipeline. That's not optionality theater. That's an admission that the runtime <em>is</em> the disposable part of the system. We figured it out the same time the field did, and so did Cursor, and so did Codex CLI's plugin layer.</p>
+
+      <p>Karpathy used the cattle-vs-pets metaphor for ML training jobs in 2018. It rotated to mean Kubernetes pods. The 2026 rotation is: <strong>the model is the cattle. Your context layer is the pet.</strong> You name your pets. You version-control them. You back them up. You cry when they die. You don't name your cattle, because next week's herd looks the same and grazes the same field.</p>
+
+      <h2>Stop optimizing for the model. Optimize for the swap.</h2>
+
+      <p>If the model layer is interchangeable plumbing, the engineering question is: <em>how cheap can I make the swap?</em> Four concrete moves that pay off across at least one re-migration each:</p>
+
+      <h3>1. Never inline-couple a runtime in your agent spec.</h3>
+      <p>Every agent definition we ship has <code>runtime</code> as a top-level config field, never a hard-coded model name buried in a prompt. The skills don't say "Claude, please do X." They say "do X." When I flipped my <code>quant</code> agent from Claude to Codex two weeks ago, the diff was one JSON line. When I flipped it to Kimi K2.5 last week to test, also one JSON line. <em>If swapping models in your stack requires touching more than one config field, you have a portability bug, not a model preference.</em></p>
+
+      <h3>2. Write skills like instructions, not Claude-flavored prose poems.</h3>
+      <p>The single biggest lock-in I've seen on other people's agents is skills written in a voice. Long, hedged, "you might want to consider..." prose that reads beautifully to Claude and turns into mush on a smaller open model. Here's the same skill written two ways:</p>
+
+      <pre><code><span class="code-comment">// BAD — Claude-flavored. Works great on Sonnet, ignored by Kimi.</span>
+When the user asks about deployments, you might want to consider checking
+the pipeline state first, especially if it's a production deploy. There
+are some nuances around blocked pipelines that you should be aware of...
+
+<span class="code-comment">// GOOD — instruction set. Works on every runtime tested.</span>
+On "deployment" intent:
+1. Run `pipeline-status &lt;name&gt;` first.
+2. If state == BLOCKED, list blockers and stop. Do not proceed.
+3. If state == HEALTHY, summarize last 3 deployments.
+4. Never trigger a deploy without explicit user confirmation.</code></pre>
+
+      <p>The second version transfers. The first version transfers <em>but degrades</em> — and you don't notice the degradation until the new runtime quietly does the wrong thing on a Tuesday afternoon. <strong>Treat your skills like RFCs, not chat messages.</strong> Numbered steps. Hard constraints in plain language. No vibes.</p>
+
+      <h3>3. MCP allow-lists are the new IAM. Treat them like infrastructure.</h3>
+      <p>The set of MCP servers your agent can call <em>survives every model migration we've done</em>. It outlived three Claude versions, two Codex CLI rewrites, and the GPT-5 → 5.5 split. Meanwhile, what runtime was on top kept rotating. The allow-list is the part of your stack that's actually compounding value. Audit it like you'd audit IAM. Pin versions. Document why each server is there. Remove servers you stopped using six months ago. <em>This is the highest-leverage maintenance work you're not doing.</em></p>
+
+      <h3>4. Treat learned corrections like a database. Not chat history.</h3>
+      <p>I have 60-something <code>learn_add</code> corrections in this workspace right now. They include things like "TT pendingReason is free-text 3-60 chars, no enum" and "kiro-cli seals MCP tool registry ~1s after session start, npx warm-up loses the race, use absolute binary path." Those facts cost me real debugging time. Every one of them survived this week's model swap test. None of them are written in a Claude-specific voice. None of them assume a particular model's quirks. They're <em>facts</em>, replayed at session start regardless of what runtime is loading. That's a database. Version it. Sync it across machines. Never commit it inside a model-specific config file.</p>
+
+      <h2>The contrarian footnote</h2>
+
+      <p>There is exactly one thing that will lock you in: <strong>post-training on your private corpus.</strong> If you're at the scale where you fine-tune or RL-from-feedback the runtime on your own data, switching costs go from zero back to "weeks of re-training." That's why Cursor forked Kimi K2 and RL'd it for Composer 2.5 — the lock-in just moved one layer down, from API-loyalty to checkpoint-loyalty.</p>
+
+      <p>For everyone smaller than Cursor — which is everyone reading this — the half-life of any specific model is <em>days</em>. And the AGENTS.md, the skills directory, the MCP allow-list, the learned corrections, the prompt template stack — those compound across every swap. The asset isn't which model you picked this week. The asset is the part of your stack that's still here when next week's model lands.</p>
+
+      <p>Build for that. Stop building for the model.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
