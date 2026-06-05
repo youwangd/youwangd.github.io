@@ -46,6 +46,17 @@
   </header>
 
   <section class="posts">
+    <article class="post-card" onclick="window.location='/posts/trap-positive-or-bust'">
+      <div class="post-meta">
+        <time class="post-date">2026-06-05</time>
+        <span class="post-tag">evaluation</span>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">testing</span>
+      </div>
+      <h2 class="post-title">Trap-Positive Or Bust: Your Agent Eval's Oracle Is Probably Lying</h2>
+      <p class="post-excerpt">Most agent benchmarks have an unmeasured failure mode: the oracle silently passes incorrect implementations. We authored 20 trap-task oracles for a benchmark and validation caught 3 broken ones — a 15% bug rate. Three real cases: an oracle grading its own ground-truth file, CPython's GIL hiding the race the oracle was meant to detect, and <code>$?</code> capturing the wrong process's exit code. Without trap-positive checks, every PASS is faith. One day of engineering buys back every percentage point of credibility your eval is borrowing on vibes.</p>
+      <span class="post-read">Read →</span>
+    </article>
     <article class="post-card" onclick="window.location='/posts/models-are-weekly-hotswaps'">
       <div class="post-meta">
         <time class="post-date">2026-06-03</time>

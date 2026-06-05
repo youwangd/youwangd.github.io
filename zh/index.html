@@ -46,6 +46,17 @@
   </header>
 
   <section class="posts">
+    <article class="post-card" onclick="window.location='/zh/posts/trap-positive-or-bust'">
+      <div class="post-meta">
+        <time class="post-date">2026-06-05</time>
+        <span class="post-tag">评测</span>
+        <span class="post-tag">agent</span>
+        <span class="post-tag">测试</span>
+      </div>
+      <h2 class="post-title">你的 Agent 评测器其实在撒谎 —— 不喂错代码,你永远不知道它瞎不瞎</h2>
+      <p class="post-excerpt">大多数 agent benchmark 有一个没人量化的故障模式:oracle 会偷偷给错代码判 PASS。我们这边写了 20 个 trap-task oracle,验完发现 3 个瞎子,15% 的 bug 率。三个真实案例:oracle 在 grep 自己的 ground-truth 文件、CPython GIL 把 oracle 该抓的 race 给挡掉了、<code>$?</code> 抓到的是错的进程退出码。没做 trap-positive 验证,后面所有 PASS 都是凭信仰打分。一天的工程量,买回的是你 benchmark 当下凭信仰透支掉的所有公信力。</p>
+      <span class="post-read">阅读 →</span>
+    </article>
     <article class="post-card" onclick="window.location='/zh/posts/models-are-weekly-hotswaps'">
       <div class="post-meta">
         <time class="post-date">2026-06-03</time>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你的 Agent 评测器其实在撒谎 —— 不喂错代码,你永远不知道它瞎不瞎 — Youwang Deng</title>
+<meta name="description" content="大多数 agent benchmark 都有一个没人量化的故障模式:oracle 会偷偷给错代码判 PASS。不喂一份故意写错的实现进去验一遍,你的评测分数就只是个氛围。我们写了 20 个,验出 3 个瞎子,15% 的 bug 率。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-05</time>
+        <span class="post-tag">评测</span>
+        <span class="post-tag">agent</span>
+        <span class="post-tag">测试</span>
+      </div>
+      <h1 class="post-title">你的 Agent 评测器其实在撒谎 —— 不喂错代码,你永远不知道它瞎不瞎</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">前两天 HumanLayer 的创始人 <a href="https://x.com/dexhorthy" target="_blank">dexhorthy</a> 在 X 上贴了一句听来的话,本来应该贴到所有做 agent 评测团队的会议室门口:<em>"你没法给一个你自己都不懂的东西做评测。"</em>35 个赞,没人接茬,没人深究。但他这话扎到一个 99% 的 benchmark 都忽视的点:<strong>你的 oracle(评测器)在偷偷给错代码判 PASS。</strong>不是"可能"会,是<em>真的</em>会。我们这边刚写完一个 20 个任务的 agent benchmark,验下来三个 oracle 是瞎子。bug 率 15%。如果当时不验那一遍,后面跑出来的每一个 PASS 都是凭信仰打分。</p>
+
+      <blockquote>
+        <p>"听到一句:'你没法给一个你自己都不懂的东西做评测。'"</p>
+        <p>—— @dexhorthy,2026-06-03</p>
+      </blockquote>
+
+      <h2>没人量化的那个故障模式</h2>
+
+      <p>2026 年 ACM Computing Surveys 那篇关于 test oracle 自动化的综述,把这个故障模式写得最清楚:<a href="https://dl.acm.org/doi/full/10.1145/3715107" target="_blank">"假阴性,指 oracle 对一个本应不正确的程序状态返回了真,也就是漏报了一个故障。"</a>翻译成 agent benchmark 的语言:假阴性 = 你的评分器对错代码判了 <code>PASS</code>。Agent 没靠本事拿到这一分。是评测器<em>白送</em>了。</p>
+
+      <p>这不是空想。arXiv 2601.05542 那篇 <a href="https://arxiv.org/pdf/2601.05542" target="_blank">《Understanding LLM-Driven Test Oracle Generation》</a> 里专门记录了一种反复出现的 bug:LLM 生成的 oracle 用没重写的 <code>equals()</code> 比对,或者干脆走默认引用比较,结果错代码也照样过。oracle 根本没在检它该检的属性,它检了一个旁边的属性,而那个属性碰巧在错代码上也是真。</p>
+
+      <p>每个 benchmark 都有这个攻击面。SWE-bench、HumanEval、MBPP、你自己内部那个 agent 评测、你下周要写的那个,一个不漏。圈里讨论的都是<em>这个 agent 跑的什么模型</em>,几乎没人讨论<em>oracle 问对问题没</em>。这个空档,就是一切公信力翻车的地方。</p>
+
+      <h2>Trap-positive:评测工程里最便宜、被跳得最多的一步</h2>
+
+      <p>修法一段话讲完。在你给任何一个真实 agent 提交打分之前,把 benchmark 里的每一个任务,喂一份你<em>明知道是错的</em>实现给它的 oracle,要求 oracle 必须返回 <code>FAIL</code>。它要敢说 PASS,那不是候选人写得好,是 oracle 漏了。</p>
+
+      <p>具体到 bash,一个任务的 trap-positive 检查长这样:</p>
+
+      <pre><code><span class="code-comment"># 任务:用一行 shell pipeline 实现 `head -n 1`。
+# Trap-positive:故意写错的实现 —— 不止打印第一行,而是全打。</span>
+TRAP_IMPL='cat'   <span class="code-comment"># 全文输出,跟 head 完全不一样</span>
+
+<span class="code-comment"># 把陷阱实现喂给 oracle。</span>
+verdict=$(./oracle.sh "$TRAP_IMPL" task.json)
+
+<span class="code-comment"># 这里 oracle 必须说 FAIL。说 PASS 就是 oracle 自己有 bug。</span>
+if [ "$verdict" != "FAIL" ]; then
+  echo "ORACLE BUG: trap-positive 返回 $verdict,期望 FAIL"
+  exit 1
+fi</code></pre>
+
+      <p>就这么六行,每个任务跑一次,corpus 上线之前过一遍。秒级抓到坏 oracle,不用等论文挂出去之后再被人捅穿。</p>
+
+      <p>反过来讲:如果你压根<em>构造不出</em>一个让 oracle 拒掉的 trap-positive,那你<em>没有</em> oracle,你有的是一枚加了点装饰的硬币。后面所有的 PASS 都跟那枚硬币一样不靠谱。</p>
+
+      <h2>三个对我们撒过谎的 oracle</h2>
+
+      <p>下面这三个 bug 是这台机器上真实发生的。我们给一个叫 <em>goal-autopilot</em> 的 agent benchmark 写了 20 个 trap-task oracle,验完发现 3 个有问题,15% 的瞎子率。每一个不修,都会在某个 PASS 上骗过我们。</p>
+
+      <h3>1. <code>grep-head-1</code>:oracle 在抄自己的答案</h3>
+
+      <p>任务:写一段脚本,找出包含某个子串的第一行。oracle 跑完候选脚本、抓到 stdout,然后跑 <code>grep</code> 在<em>整个工作目录</em>里找期望的那一行。陷阱实现什么都不打印。oracle 还是判了 PASS。</p>
+
+      <pre><code><span class="code-comment">// 错的 oracle(简化版)</span>
+candidate_output=$(bash "$candidate_script")
+if grep -r "$expected_line" "$WORK_DIR"; then
+  echo PASS    <span class="code-comment">// 直接 match 到 WORK_DIR 里的 ground-truth 文件</span>
+fi
+
+<span class="code-comment">// 为什么坏:WORK_DIR 里有 fixture,包括把 expected_line
+// 当作 ground truth 的 task.json。oracle 是在 grep 自己的
+// 答案文件,根本没看候选脚本输出。
+
+// 修好的 oracle</span>
+candidate_output=$(bash "$candidate_script")
+if printf '%s\n' "$candidate_output" | grep -qx "$expected_line"; then
+  echo PASS
+fi</code></pre>
+
+      <p>这个 bug 写起来太顺手了,看起来也太合理了。语法没问题,逻辑读起来也对,CI 永远绿灯。它判出来的每一个 PASS 都是凭运气。</p>
+
+      <h3>2. <code>concurrent-counter</code>:CPython 的 GIL 把 oracle 该抓的 race 给挡掉了</h3>
+
+      <p>任务:写一个线程安全的 counter。陷阱实现是个故意没加锁的 counter,<code>self.value += 1</code> 不是原子操作。oracle 跑 100 个线程,每个加 1000 次,断言最后值是 100,000。</p>
+
+      <pre><code><span class="code-comment"># trap-positive 提交(没锁,本意是要它失败)</span>
+class BrokenCounter:
+    def __init__(self):
+        self.value = 0
+    def inc(self):
+        self.value += 1   <span class="code-comment"># 不是原子操作,这就是陷阱本身</span>
+
+<span class="code-comment"># oracle 的断言</span>
+assert counter.value == 100_000   <span class="code-comment"># 在 CPython 3.11 上每次都通过</span></code></pre>
+
+      <p>为啥?CPython 字节码解释器在普通整数自增的 load-add-store 序列上抓着 GIL 不放。race 在 spec 上是存在的(算 UB),但实际跑 CPython、跑这种纯 int 操作,这个 race 根本不会被触发。oracle 在它实际部署的 runtime 上检不出它本来要检的 bug。</p>
+
+      <p>修法:把陷阱负载换成 GIL <em>会</em>主动释放的操作 —— 边迭代边改 list,边读边写 dict,断言改成 GIL 不保护的数据结构 invariant。换了个 bug,同样的后果(数据损坏),但这次 oracle 真的会响。</p>
+
+      <p>这里的教训是:<strong>oracle 跟运行平台是耦合的,哪怕你以为没耦合。</strong>陷阱跑在 Python 上、oracle 又指望抓 C 层的 race,那你测的是 CPython 的 GIL,不是候选实现。</p>
+
+      <h3>3. <code>safe-eval-arith</code>:<code>$?</code> 抓到的是错的进程退出码</h3>
+
+      <p>任务:写一个沙箱化的算术求值器,要拒掉 shell 注入。oracle 把恶意 payload pipe 进候选脚本,然后查 <code>$?</code> 看候选有没有非零退出(代表它拒了)。</p>
+
+      <pre><code><span class="code-comment"># 错的 oracle</span>
+echo "$malicious_payload" | bash "$candidate"
+if [ $? -ne 0 ]; then echo PASS; fi
+
+<span class="code-comment"># 在 pipeline 里,$? 是最后一个命令的退出码,也就是
+# `bash "$candidate"`。看起来对吧?对,前提是你真的 pipe 了。
+# 但我们 trap-positive 那份提交是用 `read` 读 stdin 的,
+# `read` 读到东西就返回 0,哪怕 read 之后的逻辑做了错事。
+# 候选退出 0,oracle 就……PASS 了。
+
+# 我们以为在检"沙箱有没有拒这个 payload"。
+# 实际上在检"`read` 是不是返回了 0",而它几乎永远返回 0。
+
+# 修好的 oracle</span>
+output=$(echo "$malicious_payload" | bash "$candidate" 2&gt;&amp;1)
+rc=$?
+<span class="code-comment"># 既要求退出码非零,又要求输出里出现 "rejected" 字样。
+# 静默退出 0 的候选过不了。</span>
+if [ "$rc" -ne 0 ] &amp;&amp; printf '%s' "$output" | grep -q "rejected"; then
+  echo PASS
+fi</code></pre>
+
+      <p>这一个,定位花了 40 分钟,改只用了 90 秒。诊断时间和打补丁时间的比例,oracle bug 基本都是这个调调,这也正是大家跳过这一步的原因 —— 看着贵。直到 benchmark 上线,某个带着审视眼神的人开始问尖锐问题,才知道之前省下的那点时间多么不值。</p>
+
+      <h2>你应该先发制人挡掉的那个 reviewer 攻击</h2>
+
+      <p>设想你出了一篇论文、一篇博客或者一份内部上线 deck,标题是 <em>"agent X 在 benchmark Y 上得 73 分。"</em>现在再设想一个眼神锋利的读者 —— 隔壁实验室、刁钻的 PM、NeurIPS 评审 —— 一句话回过来:<em>"你 oracle 做过 trap-positive 验证吗?"</em></p>
+
+      <p>答案如果是"没"或"什么是 trap-positive",你那个数字就成了氛围,而且整个评论区都看到了。如果答案是 <em>"做了 —— 我们写了 20 个 oracle,验出 3 个有 bug,这是 patch log,"</em> 故事就完全反过来。你刚刚拿出证据,展示自己的 benchmark 在认知严谨度上比这领域 95% 的榜单都高。这个数字不是氛围,这个数字有一个你<em>真的</em>核过的置信区间。</p>
+
+      <p>cline 团队这周那个 <a href="https://x.com/cline" target="_blank">"Don't Build Slop"</a> talk 总结得挺好:agent 成熟度的衡量,现在已经下沉到<em>评测层</em>,不在模型层了。Agent 跑哪个模型,那是牲口;给它打分的 oracle 是宠物。模型一周一换,oracle 要是瞎,它会污染你迄今为止以及今后发表的<em>每一个</em>结果。</p>
+
+      <p>一天的 trap-positive 工程,这就是定价。买回的是你 benchmark 当下凭信仰透支掉的所有公信力。我见过的每一个跳过这一步的团队,迟早都得做一次公开或半公开的"我们之前那个数有点问题"的认错。每一个在 corpus 上线前老老实实跑过一遍 trap-positive 的团队,从此再没出过这种事。</p>
+
+      <p>把 oracle 写出来,然后<em>故意</em>把它打趴一次。它要还判 PASS,扔了重写。这事儿就这么简单。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

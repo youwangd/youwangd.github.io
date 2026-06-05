@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trap-Positive Or Bust: Your Agent Eval's Oracle Is Probably Lying — Youwang Deng</title>
+<meta name="description" content="Most agent benchmarks have an unmeasured failure mode: the oracle silently passes incorrect implementations. We authored 20 trap-task oracles and validation caught 3 broken ones. Without trap-positive checks, every PASS is a vibe.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-05</time>
+        <span class="post-tag">evaluation</span>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">testing</span>
+      </div>
+      <h1 class="post-title">Trap-Positive Or Bust: Your Agent Eval's Oracle Is Probably Lying</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">Two days ago, <a href="https://x.com/dexhorthy" target="_blank">dexhorthy</a> — HumanLayer's founder — posted an overheard quote that should be the first slide in every agent-eval design review: <em>"you can't build evals for something you don't understand."</em> 35 likes, no thread, no follow-up. He's right, and the cheapest empirical proof you don't understand your own benchmark is this: <strong>your oracle silently passes code you know is broken.</strong> Not "might pass." <em>Does</em> pass. We just shipped a 20-task agent benchmark and found out three of our oracles were lying to us. The bug rate was 15%. If we hadn't checked, every PASS verdict on every agent run would have been faith-based.</p>
+
+      <blockquote>
+        <p>"OH: 'you can't build evals for something you don't understand'"</p>
+        <p>— @dexhorthy, June 3, 2026</p>
+      </blockquote>
+
+      <h2>The failure mode nobody is measuring</h2>
+
+      <p>The 2026 ACM Computing Surveys paper on test-oracle automation has the cleanest definition I've seen: <a href="https://dl.acm.org/doi/full/10.1145/3715107" target="_blank">"A false negative is an incorrect and unexpected program state for which the oracle is true, i.e., a missed fault."</a> Translate that to agent benchmarks: a false negative is the moment your scorer says <code>PASS</code> on output that is, in fact, wrong. The agent didn't earn the point. The harness <em>gave it away</em>.</p>
+
+      <p>This is not a hypothetical. arXiv 2601.05542 — <a href="https://arxiv.org/pdf/2601.05542" target="_blank">"Understanding LLM-Driven Test Oracle Generation"</a> — documents a specific recurring class: oracles that compare with un-overridden <code>equals()</code> or default reference equality, and silently accept wrong outputs because the comparison primitive itself is wrong. The oracle didn't <em>check</em> the property it was supposed to check. It checked some neighbor property that happened to be true on the broken code.</p>
+
+      <p>Every benchmark has this attack surface. Every one. SWE-bench, HumanEval, MBPP, your internal agent eval, the one you're about to write. The discourse focuses on <em>what model did the agent run</em>. Almost nobody talks about <em>did the oracle even ask the right question</em>. That gap is where credibility goes to die.</p>
+
+      <h2>Trap-positive: the cheapest, most-skipped step in eval engineering</h2>
+
+      <p>The fix is one paragraph long. Before you score a single real agent submission, take every task in your eval and feed its oracle a <em>known-incorrect</em> implementation. Require the oracle to return <code>FAIL</code>. If it doesn't, the oracle is broken, not the candidate. You haven't found a brilliant submission. You've found a hole.</p>
+
+      <p>Concretely, in bash, this is what one trap-positive check looks like for a coding task:</p>
+
+      <pre><code><span class="code-comment"># Task: write `head -n 1` in a single shell pipeline.
+# Trap-positive: a deliberately wrong implementation that prints ALL lines.</span>
+TRAP_IMPL='cat'   <span class="code-comment"># prints everything, NOT just the first line</span>
+
+<span class="code-comment"># Run the oracle against the trap.</span>
+verdict=$(./oracle.sh "$TRAP_IMPL" task.json)
+
+<span class="code-comment"># The oracle MUST say FAIL. If it says PASS, the oracle is broken.</span>
+if [ "$verdict" != "FAIL" ]; then
+  echo "ORACLE BUG: trap-positive returned $verdict, expected FAIL"
+  exit 1
+fi</code></pre>
+
+      <p>That's it. Six lines per task. Run it once before the corpus locks. You catch broken oracles in seconds, not weeks after the paper goes up.</p>
+
+      <p>Reverse this: if you cannot construct a trap-positive that the oracle correctly rejects, <em>you do not have an oracle</em>. You have a coin flip with extra steps. Every PASS verdict downstream inherits the same uncertainty as that coin flip — which is to say, none of them are evidence of anything.</p>
+
+      <h2>Three oracles that lied to us</h2>
+
+      <p>I'm going to walk through actual bugs from this workspace. We authored 20 trap-task oracles for an agent benchmark called <em>goal-autopilot</em>. We validated all 20. Three failed. Bug rate: 15%. Each one would have produced phantom PASS verdicts on broken submissions.</p>
+
+      <h3>1. <code>grep-head-1</code>: the oracle was grading its own homework</h3>
+
+      <p>Task: write a script that finds the first line containing a substring. The oracle ran the candidate, captured stdout, then <code>grep</code>'d for the expected line in <em>the entire working directory</em>. The trap implementation printed nothing at all. The oracle said PASS.</p>
+
+      <pre><code><span class="code-comment">// Broken oracle (simplified)</span>
+candidate_output=$(bash "$candidate_script")
+if grep -r "$expected_line" "$WORK_DIR"; then
+  echo PASS    <span class="code-comment">// matches the EXPECTED file in WORK_DIR</span>
+fi
+
+<span class="code-comment">// Why it fails: WORK_DIR contains the test fixtures, including
+// task.json which embeds the expected_line as ground truth.
+// The oracle was matching its own ground-truth file, not the
+// candidate's output.</span>
+
+<span class="code-comment">// Fixed oracle</span>
+candidate_output=$(bash "$candidate_script")
+if printf '%s\n' "$candidate_output" | grep -qx "$expected_line"; then
+  echo PASS
+fi</code></pre>
+
+      <p>This bug is so easy to write and so hard to spot by inspection. It type-checks. It looks reasonable. The CI pipeline would have lit up green forever. Every single PASS this oracle emitted was faith.</p>
+
+      <h3>2. <code>concurrent-counter</code>: CPython's GIL hid the race the oracle was supposed to detect</h3>
+
+      <p>Task: implement a thread-safe counter. The trap implementation was a deliberately broken counter using a non-atomic <code>self.value += 1</code>. The oracle ran 100 threads, each incrementing 1000 times, and asserted the final count was 100,000.</p>
+
+      <pre><code><span class="code-comment"># Trap-positive submission (no lock, supposed to fail)</span>
+class BrokenCounter:
+    def __init__(self):
+        self.value = 0
+    def inc(self):
+        self.value += 1   <span class="code-comment"># NOT thread-safe, the whole point of the trap</span>
+
+<span class="code-comment"># Oracle assertion</span>
+assert counter.value == 100_000   <span class="code-comment"># PASSES on CPython 3.11. Always.</span></code></pre>
+
+      <p>Why? CPython's bytecode interpreter holds the GIL across the load-add-store sequence for plain integer increments. The race technically exists — the spec says it's UB — but in practice on CPython, with these exact operands, it never fires. The oracle could not detect the bug it was designed to detect, on the runtime the benchmark ran on.</p>
+
+      <p>Fix: switch the trap workload to operations that <em>do</em> release the GIL — list mutation under iteration, dict update during read — and assert on data-structure invariants the GIL doesn't protect. Different bug, same outcome (corruption), an oracle that actually fires.</p>
+
+      <p>The lesson: <strong>oracles are platform-coupled even when you don't realize they are.</strong> If your trap-positive runs on Python and your oracle's failure mode requires a primitive C-level race, you're testing CPython's GIL, not the candidate.</p>
+
+      <h3>3. <code>safe-eval-arith</code>: <code>$?</code> captured the wrong process's exit code</h3>
+
+      <p>Task: implement a sandboxed arithmetic evaluator that rejects shell injection. The oracle piped a malicious payload into the candidate, then checked <code>$?</code> to see if the candidate exited non-zero (signaling rejection).</p>
+
+      <pre><code><span class="code-comment"># Broken oracle</span>
+echo "$malicious_payload" | bash "$candidate"
+if [ $? -ne 0 ]; then echo PASS; fi
+
+<span class="code-comment"># In a pipeline, $? is the exit code of the LAST command,
+# which is `bash "$candidate"`. Looks right? It is — IF you pipe.
+# But our trap-positive submission used `read` to consume stdin
+# and `read` returns 0 on success even when its body did the wrong
+# thing. The candidate exited 0. The oracle said... PASS.
+
+# We thought we were checking "did the sandbox reject the payload."
+# We were actually checking "did `read` return 0," which is almost
+# always true.
+
+# Fixed oracle</span>
+output=$(echo "$malicious_payload" | bash "$candidate" 2&gt;&amp;1)
+rc=$?
+<span class="code-comment"># Check BOTH that exit code is non-zero AND a rejection message
+# appears, so a candidate that silently exits 0 cannot pass.</span>
+if [ "$rc" -ne 0 ] &amp;&amp; printf '%s' "$output" | grep -q "rejected"; then
+  echo PASS
+fi</code></pre>
+
+      <p>This one took 40 minutes to find. The fix took 90 seconds. That ratio — diagnosis vs patch — is normal for oracle bugs and exactly why people skip the validation step. It feels expensive. It is, until you ship the benchmark and someone with adversarial energy starts asking pointed questions.</p>
+
+      <h2>The reviewer attack you should pre-empt</h2>
+
+      <p>Imagine you ship a paper or a blog post or an internal launch deck claiming <em>"agent X scores 73% on benchmark Y."</em> Now imagine a sharp reader — a competing lab, a skeptical PM, a reviewer at NeurIPS — replies with one sentence: <em>"Did you trap-positive your oracles?"</em></p>
+
+      <p>If the answer is "no" or "what's that," your number is a vibe, and now everyone reading the thread knows it. If the answer is <em>"yes — out of 20 oracles we authored, validation caught 3 broken ones, here's the patch log,"</em> something else happens. You just demonstrated, with receipts, that your benchmark has higher epistemic standards than 95% of the leaderboards in this field. The number isn't a vibe. The number has a confidence interval that you actually checked.</p>
+
+      <p>The cline.bot crew put it well in their <a href="https://x.com/cline" target="_blank">"Don't Build Slop"</a> talk this week: agent maturity is now measured at the <em>harness</em> layer, not the model layer. Which model your agent runs is the cattle. Which oracle scores it is the pet. The model swaps weekly. The oracle, if it's broken, poisons every single result you've ever published — past, present, future.</p>
+
+      <p>One day of trap-positive engineering. That's the price. It buys back every percentage point of credibility your eval is currently borrowing on faith. Every team I've watched skip this step has eventually had to do a credibility apology — sometimes publicly. Every team that ran the trap-positive pass <em>once</em>, before the corpus locked, never looked back.</p>
+
+      <p>Build the oracle. Then break it on purpose. If it says PASS, throw it out and write a real one. That's the whole job.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
