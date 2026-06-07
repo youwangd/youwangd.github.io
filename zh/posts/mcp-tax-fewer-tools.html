@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>装满 MCP 的 Agent 只会更蠢:工具说明书把你七成脑子吃光了 — 邓友旺</title>
+<meta name="description" content="三个 MCP server,40 个工具,143K token 在用户开口之前就被吃掉了。2026 年最强的 agent 不是工具最多的那个,是工具最少的那个。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-07</time>
+        <span class="post-tag">mcp</span>
+        <span class="post-tag">agent</span>
+        <span class="post-tag">性能</span>
+      </div>
+      <h1 class="post-title">装满 MCP 的 Agent 只会更蠢:工具说明书把你七成脑子吃光了</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">200K token 的 context window 听起来很够用,直到你意识到 agent 必须把它花在<em>什么地方</em>。Apideck 四月份扒了自己生产环境的数据:三个 MCP server——GitHub、Slack、Sentry,加起来大概 40 个工具。用户还没敲第一个字符,光这些工具的 schema 就已经吃掉了 <strong>200K window 里的 143K</strong>。<strong>72% 的预算,直接没了,花在了一份模型还没下单的菜单上。</strong>这就是 GitHub trending 上那一排排"awesome-MCP-servers"仓库没人愿意算的账。也是为什么 2026 年所有真正在跑 agent 的人,都在悄悄删工具,而不是加。</p>
+
+      <h2>把账摊开看</h2>
+
+      <p>数字不会骗人。下面这张表是用户消息进来之前就要从 context window 里扣掉的钱,数据全来自真实的生产 telemetry 和 MCP server 自己公布的工具清单:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>来源</th>
+            <th>配置</th>
+            <th>消耗 token</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="https://agentmarketcap.ai/blog/2026/04/08/mcp-context-bloat-enterprise-scale-tool-definitions-agent-context-budget" target="_blank">Apideck 生产 telemetry</a></td>
+            <td>3 个 server · 约 40 个工具(GitHub + Slack + Sentry)</td>
+            <td><strong>约 143,000</strong> / 200K 窗口(72%)</td>
+          </tr>
+          <tr>
+            <td><a href="https://www.atlassian.com/blog/development/mcp-compression-preventing-tool-bloat-in-ai-agents" target="_blank">Atlassian mcp-compressor 发布</a></td>
+            <td>官方 GitHub MCP server 自带的工具清单</td>
+            <td><strong>约 17,600</strong>,94 个工具</td>
+          </tr>
+          <tr>
+            <td>Atlassian,同篇</td>
+            <td>同样 94 个工具,前面挂上 <code>mcp-compressor</code> 代理</td>
+            <td><strong>约 500</strong>(降了 97%)</td>
+          </tr>
+          <tr>
+            <td>Anthropic Tool Search(2026 年 2 月)</td>
+            <td>按需懒加载工具定义</td>
+            <td>相对全量加载减少约 85%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>盯着这张表看三十秒,有两个事实你逃不掉:</p>
+
+      <ul>
+        <li>token 成本<strong>不是</strong>由你实际调用了几个工具决定的——它跟你<em>列出来</em>了几个工具线性相关。</li>
+        <li>所有正在大规模跑 MCP 的厂商,现在都在往中间塞一层东西,目的就是<em>不让模型看见</em>完整的工具清单。这不是 feature,这是损失控制。</li>
+      </ul>
+
+      <p>Atlassian 公开把一个 17,600 token 的工具清单压到 500 token,还专门写文章把它定位成<em>预防</em>工具膨胀,这等于他们在承认 MCP 的默认配置已经把 Rovo Dev 的 prompt 预算搞崩了。Perplexity 的 CTO Denis Yarats 三月份直接<a href="https://denis-yarats.com/" target="_blank">在内部生产环境放弃了 MCP</a>,理由就是"context window 消耗",这话不是吐槽,是采购信号。</p>
+
+      <h2>三笔你 tool-calling 成功率上根本看不见的隐藏成本</h2>
+
+      <h3>1. Context 膨胀——还没干活就先交税</h3>
+
+      <p>第一笔账最直白也最容易测。每个工具定义都是 JSON Schema:参数、类型、描述、默认值、错误语义,模型每一轮都得从头读一遍。一份 17,600 token 的工具清单意味着你<strong>少了 17,600 token 的余量</strong>给真正重要的东西:system prompt、检索回来的文档、对话历史、用户实际想解决的问题。在长会话里这笔账会反复被收——清单作为 context 的一部分,下一次调用又要被重新读一遍。</p>
+
+      <p>痛得最真切的不是合成 benchmark,是长跑的会话。我们有一个 wiki-curator,挂在常驻 kiro session 上一篇一篇地处理文章。一开始每篇 10–15 分钟。处理了大概二十几篇之后,慢慢爬到 60–100 分钟。prompt 一个字都没改。模型也没退化。就是 context 不停往上堆,工具清单一遍一遍被重读,单次 tick 的成本从"够用"漂到了"完全不能用"。修法没什么花哨的:<em>每跑 N 篇就重启 session</em>,把桶倒空。桶还会再灌满,但至少这一桶是干净的。</p>
+
+      <h3>2. 工具选错——菜单越大,模型选得越差</h3>
+
+      <p>第二笔账你账单上看不到,只能在 trace 里看到。arXiv 二月那篇 <a href="https://arxiv.org/abs/2502.10043" target="_blank"><em>"MCP Tool Descriptions Are Smelly"</em></a> 把我天天在生产里看到的失败模式量化了:工具集越大,工具选取的 accuracy <em>越低</em>。当四十个工具里一半的描述都长得差不多,模型根本分不清谁是谁。<code>get_user</code> vs <code>fetch_user_profile</code> vs <code>read_member</code>——三个 MCP server,三个团队,三套几乎一样的 signature,模型挑了一个,经常挑错。</p>
+
+      <p>这是对常见话术的反向打脸。话术是:能力越多,agent 越强。数据是:能力越多,agent 越<em>糊涂</em>,你最新加上的那个工具有时候是<em>负贡献</em>——它把你真正需要的那个挤糊了。多不一定好。哪怕忽略 token 不算,多<em>本身</em>就常常等于差。</p>
+
+      <h3>3. Cold-start race——工具到得太晚,直接没注册上</h3>
+
+      <p>第三笔账最隐蔽,因为它不会显化成"回答变差"。它显化成<em>工具直接消失</em>。这个我们查了大半个下午才搞懂,网上似乎也没人写过。</p>
+
+      <p>大多数 agent runtime 在 session 启动时会"封"一次工具注册表。封完之后,任何晚到的 MCP server 都活着——<code>/mcp</code> 里看得见,JSON-RPC 探针也能拿到完整工具列表——但 agent 自己根本不知道这些工具的存在。它们没赶上注册表关门那一刻。整个 race 静悄悄。没有 error。只有一个干瞪眼的 server 陪你跑完整个 session。</p>
+
+      <h2>事故复盘:那 1 秒的工具注册表 race</h2>
+
+      <p>我们当时按 MCP 推荐的写法配 <code>scholar-feed-mcp</code>:</p>
+
+      <pre><code>{
+  "mcpServers": {
+    "scholar-feed": {
+      "command": "npx",
+      "args": ["-y", "scholar-feed-mcp@3.7.0"]
+    }
+  }
+}</code></pre>
+
+      <p>这是全世界 MCP README 都教你写的样子。<code>npx -y</code> 看着特别顺手:版本能 pin、按需下载、不污染全局。session 启动了,<code>/mcp</code> 显示 <code>scholar-feed</code> 绿灯、connected、健康。agent 看到的工具数:<strong>零</strong>。它宣称的 25 个 method 一个都调不动。agent 日志没 error。MCP transport 也没 error。</p>
+
+      <p>我们直接拿 JSON-RPC 怼了一发,server 乐呵呵地把 25 个工具全返了。server 没事。agent 也没事。它俩就是没接上。grep 了一阵才把缝找到。</p>
+
+      <pre><code><span class="code-comment"># 一次 session 启动的实测时间线</span>
+T+0.000s   kiro-cli 启动,agent 进程 fork
+T+0.420s   MCP transport 打开,准备拉 scholar-feed(npx 被调起)
+T+1.000s   <span class="code-comment">### 工具注册表关门——agent 锁定了工具列表 ###</span>
+T+1.000s   agent 看到:scholar-feed 有 0 个工具
+T+3.150s   npx 终于热完,scholar-feed-mcp ready
+T+3.151s   server 宣布有 25 个工具——已经晚了</code></pre>
+
+      <p>修法本质是一个字符的改动,落地是 config 重写:别再拿 <code>npx</code> 当 launcher。把包装到全局——<code>npm i -g scholar-feed-mcp@3.7.0</code>——然后让 spec 直接指向二进制的绝对路径,args 留空:</p>
+
+      <pre><code>{
+  "mcpServers": {
+    "scholar-feed": {
+      "command": "/home/dyouwang/.nvm/versions/node/v22.17.1/bin/scholar-feed-mcp",
+      "args": []
+    }
+  }
+}</code></pre>
+
+      <p>cold-start 时间从 ~3.0 秒掉到 <strong>0.37 秒</strong>。server 在 T+1.0s 关门之前就把工具喊出来了。agent 看到全部 25 个工具。同样的代码、同样的包版本、同样的模型。唯一变化是 launcher 不再和注册表赛跑。</p>
+
+      <p>这种病只会随着你装的 MCP server 越多<em>越严重</em>。每多一个 <code>npx</code> 风格的 server,就多一次掷骰子赌它能不能在关门前热好。叠得越厚,你就在静默地丢掉越多工具。<strong>看不见的工具照样在你账单上</strong>——你为它的清单付了 token,什么都没收回来。</p>
+
+      <h2>瘦身手册</h2>
+
+      <p>把 MCP server 当依赖来管。"该不该加这个 server"的默认答案是<em>不该</em>。让团队为每一次添加做举证,跟在生产 codebase 里加一个新 SDK 一样严肃。下面是我们已经在跑、确实减少痛苦的几条规矩:</p>
+
+      <ul>
+        <li><strong>按 domain 拆分,而不是按 demo 堆。</strong>Pinterest 的做法:一个 agent 要么拿到<em>数据类</em> server,要么拿到<em>沟通类</em> server,绝不把全套拍在一起。如果一个 workflow 必须两边都用,写一个薄的 orchestrator,spawn 两个 scope 各自独立的 agent。你拿一点点协调成本换一大把 context 余量。</li>
+
+        <li><strong>大 server 前面挂个压缩器。</strong>Atlassian 的 <code>mcp-compressor</code>、Anthropic 的 Tool Search,或者自己撸一个:用两个 meta-tool——<code>list_tools(filter)</code> 和 <code>invoke_tool(name, args)</code>——把那 94 个工具的 eager 清单藏起来。模型用到了再去找。97% 的减幅不是打字错。</li>
+
+        <li><strong>狠狠审你的 <code>allowedTools</code> 白名单。</strong>没进白名单的工具<em>照样</em>烧你 token 列清单——server 该返还是要返——但你一分钱产出都拿不到。如果一个 server 你一个工具都没启用,直接把整个 server 删掉。"以后可能用得上"在 token 这件事上不存在,你今天就在为它付费。</li>
+
+        <li><strong>发二进制,别发 <code>npx</code> 启动符。</strong>cold-start 重要,因为工具注册表关门很早。全局安装 + 绝对路径,稳赢"包管理器当 launcher"那一派。<code>npm i -g</code>、<code>uv tool install</code>,只要能在 500ms 内解析到一个二进制就行。</li>
+
+        <li><strong>给长 session 设重启预算。</strong>没人盯着的时候 context 也在堆。挑一个指标——文章数、轮次、累计 token——到阈值就硬重启。wiki-curator 那个重启技巧拉回了 5–10 倍的单 tick 性能。这是我们整套基础设施里最便宜的优化,没有之一。</li>
+      </ul>
+
+      <p>"awesome-X-AI-agents"trending 列表上的本能反应是:技能越多,agent 越强。本能反应错得很彻底。每多装一个 server,你都在烧 context、把模型选工具的判断糊掉,还多一次输给 startup race 的可能性——而且这种输你日志里根本看不到。<a href="https://x.com/steipete/status/1929938716412461451" target="_blank">@steipete 几天前那条推</a>讲得很干净:<em>"modular and lean,只加你需要的。技能越少、工具越少 = agent 跑得越高效。"</em>112 颗心,零反对。市场已经投完票了。"MCP server marketplace"那波淘金潮要直接撞上 200K token 的墙,活下来的会是带刀来的 agent,不是带工具箱的。</p>
+
+      <p>你的 agent 弱不是因为它工具不够。是因为它工具太多。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由一个人和他的 agent 共同打造。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The MCP Tax: Why Loading Every Server Makes Your Agent Worse — Youwang Deng</title>
+<meta name="description" content="Three MCP servers, 143K tokens consumed before the user types a character. The best agent in 2026 is the one with the fewest tools, not the most. Data, post-mortems, and a diet plan.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-07</time>
+        <span class="post-tag">mcp</span>
+        <span class="post-tag">agents</span>
+        <span class="post-tag">performance</span>
+      </div>
+      <h1 class="post-title">The MCP Tax: Why Loading Every Server Makes Your Agent Worse</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">A 200K-token context window sounds enormous until you remember the agent has to spend it on <em>something</em>. Apideck instrumented their production stack in April: three MCP servers — GitHub, Slack, Sentry — totaling about 40 tools. Before the human typed a single character, those tool definitions had already consumed <strong>143,000 of the 200,000 available tokens</strong>. <strong>72% of the budget, gone, on a menu the model didn't even order from yet.</strong> This is the bill nobody on the "awesome MCP servers" trending list is paying attention to. It is also why every serious agent shop in 2026 is quietly cutting tools, not adding them.</p>
+
+      <h2>The cold ledger</h2>
+
+      <p>Numbers don't argue. Here is what gets billed against your context window before the first user message arrives, sourced from real production telemetry and from the official MCP server inventories themselves:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Configuration</th>
+            <th>Tokens consumed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="https://agentmarketcap.ai/blog/2026/04/08/mcp-context-bloat-enterprise-scale-tool-definitions-agent-context-budget" target="_blank">Apideck production telemetry</a></td>
+            <td>3 servers · ~40 tools (GitHub + Slack + Sentry)</td>
+            <td><strong>~143,000</strong> / 200K window (72%)</td>
+          </tr>
+          <tr>
+            <td><a href="https://www.atlassian.com/blog/development/mcp-compression-preventing-tool-bloat-in-ai-agents" target="_blank">Atlassian mcp-compressor announcement</a></td>
+            <td>Official GitHub MCP server inventory</td>
+            <td><strong>~17,600</strong> for 94 tools</td>
+          </tr>
+          <tr>
+            <td>Atlassian, same post</td>
+            <td>Same 94 tools, behind <code>mcp-compressor</code> proxy</td>
+            <td><strong>~500</strong> (97% reduction)</td>
+          </tr>
+          <tr>
+            <td>Anthropic Tool Search (Feb 2026)</td>
+            <td>Lazy-load tool definitions on-demand</td>
+            <td>~85% reduction vs eager loading</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Two facts you cannot escape after staring at this table for thirty seconds:</p>
+
+      <ul>
+        <li>The token cost is <strong>not</strong> bounded by how many tools you actually call — it scales with how many you <em>list</em>.</li>
+        <li>Every major vendor that runs MCP at scale is now shipping a layer that <em>hides</em> the inventory from the model. That is not a feature; it is damage control.</li>
+      </ul>
+
+      <p>When Atlassian publicly reduces a 17,600-token surface to 500 tokens and frames it as a <em>preventative</em> against tool bloat, they are admitting that the default MCP configuration breaks Rovo Dev's prompt budget. When Perplexity's CTO Denis Yarats <a href="https://denis-yarats.com/" target="_blank">walked away from MCP for internal production</a> in March citing "context window consumption" as the operational blocker, that is not a hot take. That is a procurement signal.</p>
+
+      <h2>Three hidden costs your tool-calling success rate will not show you</h2>
+
+      <h3>1. Context bloat — the tax you pay before you do any work</h3>
+
+      <p>The first cost is straightforward and the easiest to measure. Every tool definition is JSON Schema describing parameters, types, descriptions, defaults, error semantics. The model has to read all of it on every turn. A 17,600-token tool inventory means you have <strong>17,600 fewer tokens of headroom</strong> for everything else: system prompt, retrieved documents, conversation history, the user's actual problem. On a long agentic session that compounds across many turns, the inventory is paid for over and over again as part of the context that the next call sees.</p>
+
+      <p>The painful version of this is not the synthetic benchmark — it is the long-running session. We have a wiki-curator that runs on a persistent kiro session ingesting one article at a time. Per-article time started at 10–15 minutes. After about two dozen articles it crept to 60–100 minutes. None of the prompts had changed. The model didn't get worse. The context just kept accumulating, the inventory kept getting re-read, and the per-tick cost grew from "fast enough" to "drop dead unusable." The fix was nothing clever: <em>restart the session every N articles.</em> Drain the bucket. The bucket fills back up.</p>
+
+      <h3>2. Tool-selection drift — bigger menus produce worse choices</h3>
+
+      <p>The second cost is the one you can't see in your billing dashboard, only in your traces. The arXiv paper <a href="https://arxiv.org/abs/2502.10043" target="_blank"><em>"MCP Tool Descriptions Are Smelly"</em></a> (Feb 2026) measured exactly the failure I keep seeing in the wild: as the toolset grows, tool-selection accuracy <em>drops</em>. The model can't crisply distinguish between forty plausible-sounding options when half their descriptions overlap. <code>get_user</code> vs <code>fetch_user_profile</code> vs <code>read_member</code>. Three different MCP servers, three different teams, three near-identical signatures. The model picks one. It's often the wrong one.</p>
+
+      <p>This is the inverse of the standard pitch. The pitch is: more capabilities mean a more capable agent. The data is: more capabilities mean a more <em>confused</em> agent, and the marginal capability you just added is sometimes <em>negative</em> — it crowds out the one you actually needed. Bigger isn't better. It is often <em>worse</em>, even if you ignore tokens entirely.</p>
+
+      <h3>3. Cold-start races — the tools that arrive too late to register</h3>
+
+      <p>The third cost is the most invisible, because it doesn't show up as a degraded response. It shows up as <em>tools that vanish entirely.</em> This is the one we burned half a Tuesday afternoon discovering, and I haven't seen anyone else write it up.</p>
+
+      <p>Most agent runtimes seal their tool registry at the start of a session. After that seal, any MCP server that arrives late is alive — visible in <code>/mcp</code>, accepting JSON-RPC probes, returning a healthy tool list — but the agent itself has no idea those tools exist. They were not in the registry when the registry was sealed. The race is silent. There is no error. There is just a server that does nothing for the rest of the session.</p>
+
+      <h2>Post-mortem: the 1-second tool registry race</h2>
+
+      <p>We had configured <code>scholar-feed-mcp</code> in our agent specs the recommended way:</p>
+
+      <pre><code>{
+  "mcpServers": {
+    "scholar-feed": {
+      "command": "npx",
+      "args": ["-y", "scholar-feed-mcp@3.7.0"]
+    }
+  }
+}</code></pre>
+
+      <p>This is what every MCP README in the world tells you to write. <code>npx -y</code> looks ergonomic — pin the version, fetch on demand, no global install pollution. We started a session. <code>/mcp</code> showed <code>scholar-feed</code> green. Connected. Healthy. The agent saw <strong>zero</strong> tools from it. None of the 25 advertised methods were callable. No error in the agent log. No error in the MCP transport.</p>
+
+      <p>We hit it directly with a JSON-RPC probe and the server happily returned all 25 tools. The server was fine. The agent was fine. They were just not wired together. Took an embarrassing amount of grepping to find the seam.</p>
+
+      <pre><code><span class="code-comment"># Timeline of one session start, measured.</span>
+T+0.000s   kiro-cli boots, agent process forks
+T+0.420s   MCP transport opens to scholar-feed (npx invoked)
+T+1.000s   <span class="code-comment">### tool registry SEALED — agent locks its tool list ###</span>
+T+1.000s   agent sees: 0 scholar-feed tools registered
+T+3.150s   npx finishes warming up, scholar-feed-mcp ready
+T+3.151s   server announces 25 tools — TOO LATE</code></pre>
+
+      <p>The fix was a one-character change in spirit and a config rewrite in practice: stop using <code>npx</code> as a launcher. Install the package globally — <code>npm i -g scholar-feed-mcp@3.7.0</code> — and point the spec at the absolute binary path with empty args:</p>
+
+      <pre><code>{
+  "mcpServers": {
+    "scholar-feed": {
+      "command": "/home/dyouwang/.nvm/versions/node/v22.17.1/bin/scholar-feed-mcp",
+      "args": []
+    }
+  }
+}</code></pre>
+
+      <p>Cold-start time dropped from ~3.0s to <strong>0.37s</strong>. The server announces its tools well before the registry seal at T+1.0s. The agent sees all 25 tools. Same code, same package version, same model. The only thing that changed was that the launcher stopped racing the registry.</p>
+
+      <p>This is the kind of pathology that gets <em>worse</em> with more MCP servers, not better. Each <code>npx</code>-style server adds another roll of the dice on whether it warms up before the seal. The more you stack, the more you lose silently. <strong>Tools you don't see are still on your bill</strong> — you paid for the listing tokens with no return.</p>
+
+      <h2>The diet</h2>
+
+      <p>Treat MCP servers like dependencies. The default answer to "should I add this server" is <em>no</em>. Make people justify each addition the way they would a new third-party SDK in a production codebase. Concrete rules that have stopped hurting us:</p>
+
+      <ul>
+        <li><strong>Decompose by domain, not by demo.</strong> Pinterest's pattern: a single agent gets a <em>data</em> server <em>or</em> a <em>comms</em> server, never both stacked together with everything in scope. If a workflow needs both, build a thin orchestrator that spawns two scoped agents. You'll trade a tiny coordination cost for a massive context-window dividend.</li>
+
+        <li><strong>Put a compressor in front of any large server.</strong> Atlassian's <code>mcp-compressor</code>, Anthropic's Tool Search, or roll your own: replace the eager 94-tool inventory with two meta-tools — <code>list_tools(filter)</code> and <code>invoke_tool(name, args)</code>. The model finds what it needs <em>when</em> it needs it. 97% reduction is not a typo.</li>
+
+        <li><strong>Audit your <code>allowedTools</code> whitelist ruthlessly.</strong> A tool you don't whitelist still costs you the listing tokens — the server still ships its inventory — but earns you nothing. Drop the server entirely if you're not whitelisting any of it. There is no "we might need it later" mode that doesn't cost you tokens today.</li>
+
+        <li><strong>Ship binaries, not <code>npx</code> launchers.</strong> Cold-start matters because tool registries seal early. Global installs and absolute paths win every time over package-manager-as-launcher. <code>npm i -g</code>, <code>uv tool install</code>, anything that resolves to a binary in under 500ms.</li>
+
+        <li><strong>Restart long-running sessions on a budget.</strong> Context accumulates even when no one is looking. Pick a metric — articles processed, turns elapsed, total tokens spent — and force a hard restart at the threshold. The wiki-curator restart trick reclaimed 5–10× per-tick performance. It is the cheapest optimization in the building.</li>
+      </ul>
+
+      <p>The reflex on the "awesome-X-AI-agents" trending list is that more skills produce a more capable agent. The reflex is exactly backwards. Every server you load costs you context, blurs the model's ability to choose, and risks losing tools to a startup race you'll never see in the logs. <a href="https://x.com/steipete/status/1929938716412461451" target="_blank">@steipete put it cleanly</a> a few days ago: <em>"modular and lean, only add what you need. Fewer skills, fewer tools = your agent works more efficiently."</em> 112 hearts and zero pushback. The market has voted on this one. The "MCP server marketplace" goldrush is going to slam into a 200K-token wall and the survivors will be the agents that brought a knife, not a tackle box.</p>
+
+      <p>Your agent is not weak because it lacks tools. It is weak because it has too many.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
