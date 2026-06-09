@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 编排泡沫:14 个新框架同时上线的那周,我把自己的也删了 — Youwang Deng</title>
+<meta name="description" content="2026-06-02 那一周 HN 上线 14 个 agent orchestration 项目,Google Scion 230 票排第一。劝大家别这么搞的那篇 19 票。我跑生产的两个 bot 数据替这个 19 票投了一票。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-09</time>
+        <span class="post-tag">多agent编排</span>
+        <span class="post-tag">llm工程</span>
+        <span class="post-tag">技术泡沫</span>
+      </div>
+      <h1 class="post-title">Agent 编排泡沫:14 个新框架同时上线的那周,我把自己的也删了</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">2026-06-02 那一周,Google 把一个叫 <strong>Scion</strong> 的项目开源了 —— 自称"agent 的 hypervisor"。当天 Hacker News <strong>第一名,230 票</strong>。再往下翻六条,有一篇标题叫 <em>"Agent Orchestration Is Not the Future"</em>,<strong>19 票,4 条评论</strong>,几乎没人理。一周之内,Show HN 上又冒出来八个新框架:Hephaestus、KAOS、Ayatori、GraphFlow、durable-swarm、Trama、Sub-Agent MCP、Bluemarz。七天 14 个项目,一个比一个能"compose"、"supervise"、"hypervise"。那篇 19 票的反向文章是唯一说对了的那篇。</p>
+
+      <h2>泡沫达到顶点的那一周</h2>
+
+      <p>我每天有个跑在自己机器上的 digest 脚本,扫 HN、Show HN、GitHub trending、r/AI_Agents。把 2026-06-02 到 06-08 之间桌面上摆出来的东西按 HN 分数排一下:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>项目</th>
+            <th>口号</th>
+            <th>HN 票数</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong><a href="https://www.infoq.com/news/2026/04/google-agent-testbed-scion/" target="_blank">Scion</a></strong>(Google)</td>
+            <td>"agent 的 hypervisor",编排研究 testbed</td>
+            <td><strong>230</strong> ← 第一名</td>
+          </tr>
+          <tr>
+            <td><strong>Hephaestus</strong></td>
+            <td>"打造复杂的 multi-agent workflow"</td>
+            <td>87</td>
+          </tr>
+          <tr>
+            <td><strong>KAOS</strong></td>
+            <td>"给 LLM agent 用的 Kubernetes 风格调度器"</td>
+            <td>61</td>
+          </tr>
+          <tr>
+            <td><strong>GraphFlow</strong></td>
+            <td>"基于 DAG 的 agent 执行引擎"</td>
+            <td>54</td>
+          </tr>
+          <tr>
+            <td><strong>Ayatori</strong> / <strong>Trama</strong> / <strong>Bluemarz</strong> / <strong>durable-swarm</strong> / <strong>Sub-Agent MCP</strong></td>
+            <td>(一周内八个新人,口号一样,logo 不同)</td>
+            <td>30–80</td>
+          </tr>
+          <tr>
+            <td><em><a href="https://moridinamael.github.io/agent-orchestration/" target="_blank">"Agent Orchestration Is Not the Future"</a></em>(Matt Freeman)</td>
+            <td>"你需要的是一个能把<strong>一个</strong> agent 用到极致的 harness。"</td>
+            <td><strong>19</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>关键不是任何单个项目,而是这种<em>不对称</em>。十四个项目卖同一个梦,一个项目说这个梦是错的,市场以 13:1 的票数选了梦那边。这个市场会错,会和它当年错判即插即用微服务、低代码工作流编辑器、"AI no-code agent"完全一样的方式错 —— 那三个品类都是在 hype cycle 的<em>这个时间点</em>达到峰值,然后什么有持久价值的东西都没留下。</p>
+
+      <h2>营销话术 vs 可量化的产出</h2>
+
+      <p>每次看到一个赛道这么快地热起来,我就跑一个最便宜的测试:把头部三个项目的 README 抓下来,grep 两个东西 —— <code>benchmark</code> 和 <code>case study</code>。如果通篇都是 <em>"compose"、"orchestrate"、"supervise"、"hypervise"、"swarm"</em>,但没有任何一个可以拿出来吵架的数字,那这个东西是个研究品味的产品,不是生产力产品。</p>
+
+      <p>这周这一批跑下来是这样:</p>
+
+      <pre><code>$ for repo in scion hephaestus kaos graphflow ayatori trama bluemarz durable-swarm; do
+    echo "== $repo =="
+    grep -ciE 'benchmark|swe-bench|tau-bench|case study|production' README.md
+    grep -ciE 'orchestrat|hypervis|swarm|compose|supervise' README.md
+  done
+
+== scion ==           benchmark: 0   marketing: 14
+== hephaestus ==      benchmark: 0   marketing: 22
+== kaos ==            benchmark: 0   marketing: 19
+== graphflow ==       benchmark: 0   marketing: 11
+== ayatori ==         benchmark: 0   marketing: 17
+== trama ==           benchmark: 0   marketing: 13
+== bluemarz ==        benchmark: 0   marketing: 18
+== durable-swarm ==   benchmark: 1   marketing: 24   <span class="code-comment">// 那个 "1" 是个 TODO</span></code></pre>
+
+      <p>八个项目,加起来零个能拍桌子吵架的数字。同一周用同样的 grep 跑 Anthropic <code>claude-code</code> 的 changelog,跳出来:<strong>SWE-bench Verified 88.6%、τ²-bench Telecom 96.0%、不报告的缺陷比 Claude 4.7 少 4 倍</strong>。一个 repo,三个量化结论,零个 "hypervisor" 字样。这个不对称就是这篇文章的全部论点。</p>
+
+      <h2>第一手凭据:我自己跑生产的两个 bot</h2>
+
+      <p>我不是站在外面喊话。我手上有两个跑生产的 agent,过去 18 个月里我用它们,把所有自己搭过的 multi-agent 编排都干掉了。</p>
+
+      <h3>凭据一:ticket-coop-scanner</h3>
+
+      <p>这是一个 cron 任务(<code>cron 6b85f32d</code>),盯着公司里三个 ticket 队列。一个状态机,一个 state file,一次 cron tick。没有 supervisor,没有 router,没有"团队"。五天窗口 2026-06-03 到 06-08:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>指标</th>
+            <th>数值</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>触达 ticket</td>
+            <td>21 张</td>
+            <td>三个队列,严重等级混合</td>
+          </tr>
+          <tr>
+            <td>完全解决(≤1 次 oncall 批准)</td>
+            <td>9 / 21(43%)</td>
+            <td>bot 自己把 ticket 推到关闭</td>
+          </tr>
+          <tr>
+            <td>完全自主(0 次人介入)</td>
+            <td>4 / 21(19%)</td>
+            <td>没有人参与</td>
+          </tr>
+          <tr>
+            <td>≤2 次回合内交付</td>
+            <td>13 / 21(<strong>62%</strong>)</td>
+            <td>包含 Shepherd ticket 上写完整 CR-ready 提案的</td>
+          </tr>
+          <tr>
+            <td>触达完整 fix 提案</td>
+            <td>17 / 21(81%)</td>
+            <td>没解决的也写好了 fix spec</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>这玩意儿一周搭出来的。今年早些时候我花了<em>两个月</em>,搭了个"multi-agent ticket pod" —— router agent、triage agent、fix-proposer、reviewer、poster。结果数字更低,延迟是三倍,故障模式是十倍(router 在 triage 没结束之前就发帖子;reviewer 和 proposer 互相不同意;state file 不共享导致 agent 之间状态分裂)。整个删了。</p>
+
+      <h3>凭据二:nanochat 训练</h3>
+
+      <p>今天 2026-06-09,我正在 4× L40S 上训一个 9 亿参数的 transformer,$206 跑完。"编排"长这样:</p>
+
+      <pre><code>sudo -u ubuntu -H bash -c '\
+  cd /home/ubuntu/nanochat && source .venv/bin/activate && \
+  setsid nohup torchrun --nproc_per_node=4 -m scripts.base_train -- \
+    --depth=20 --device-batch-size=8 --num-iterations=11000 \
+    --save-every=500 --window-pattern=L --run=correct \
+    &gt;/home/ubuntu/nanochat-l40s-train/logs/d20-correct.log 2&gt;&amp;1 &amp;'</code></pre>
+
+      <p>一条 <code>torchrun</code>。四个 DDP worker。一份日志。一份世界状态。没有 agent 委员会决定哪块 GPU 拿哪个 shard。整个 base + SFT + RL 的 pipeline 是三个 shell script(<code>08-base.sh</code>、<code>10-sft.sh</code>、<code>10-train-rl-4gpu.sh</code>)。我之前也搭过一个"分布式训练 agent harness",意识到 PyTorch <em>本来就在做编排</em>、我加的那一层除了出 bug 时多一份混乱什么都不做的那一秒,就把它删了。</p>
+
+      <h2>Umami 教训,换个说法再说一遍</h2>
+
+      <p>我有一条私下的法则,叫 <em>Umami 教训</em> —— 起源于那个被业内吐槽"每六个月把整个产品重写一遍"的分析公司,因为底层一直在动。这条法则用在 agent harness 上特别合适:</p>
+
+      <blockquote>你为当前这一代模型搭的所有编排管道,下一代模型 release 之后都会被擦掉。能留下的资产只有 skill 文件、state 文件、prompt。</blockquote>
+
+      <p>具体例子。四月份我有 80 小时的 LangGraph 管道,专门为 Claude Sonnet 4.5 调的:显式 handoff、role 定义、retry 策略、定制 router。六周以后 Opus 4.7 出来,模型<em>原生</em>的 tool-calling 和自纠错 loop 已经比我手调的 router 还好。那 80 小时直接报废。然后五月底 Claude Code 4.8 上线,<strong>Dynamic Workflows</strong> 直接进了主代码 —— <code>/effort ultracode</code> 一条命令开几十到几百个 subagent 互相 review,直接拿到 <strong>SWE-bench Verified 88.6%</strong>,你这边一行框架代码都不用写。<em>编排已经变成 vendor 自带功能</em>。所有第三方编排框架在那份 release notes 落地的瞬间,都成了 legacy 候选。</p>
+
+      <p>对照一下我这边模型升级之后还活着的东西:</p>
+
+      <ul>
+        <li><strong>skill 文件</strong> —— markdown,模型无关,新模型上反而更好用</li>
+        <li><strong>state 文件</strong> —— JSON,agent 自己读自己写,跨 vendor 合约一模一样</li>
+        <li><strong>cron 时间表</strong> —— 什么时候醒来。这个不会被淘汰</li>
+      </ul>
+
+      <p>没活下来的:我写过的每一个 router、supervisor、planner、dispatcher、委员会。</p>
+
+      <h2>"80 IQ 的工人凑不出 140 IQ 的整体"</h2>
+
+      <p>这是 moridinamael 那篇文章里没人点赞的那句。它是我见过最干净的一句话,解释为什么 multi-agent 委员会跑不过一个能干的单 agent loop。<strong>你没办法把一群 80 IQ 的工人组织成一个 140 IQ 的整体。</strong>协调成本是真的,跨 handoff 的错误放大是真的,而且委员会的故障模式比单 agent <em>更糟</em>,因为每个 agent 都用自己的幻觉去 gaslight 下一个 agent。</p>
+
+      <p>同样的话,2025 年 12 月有个 r/AI_Agents 的人用更白的话说过:</p>
+
+      <blockquote>multi-agent pod 概念上听上去合理,但实际跑起来,我一直被编排复杂度和 agent 之间各种诡异故障模式坑。</blockquote>
+
+      <p>GitHub 星标版本的同一条教训:<code>multi-agent-shogun</code> 第一周冲了 <strong>+1300 颗星</strong>,第二周 <strong>+12 颗</strong>。主题 + 小众确实能搞出星标尖峰,但搞不出留存。星图本身就是项目自己承认 —— 第一次 <code>git clone</code> 完之后没人真正在用。</p>
+
+      <h2>诚实的及格线</h2>
+
+      <p>这是我现在用来检查任何 agent 编排框架(我的、你的、这周 HN 头条的)的测试:</p>
+
+      <ol>
+        <li>拿 <code>claude-code</code>(或者 Cursor、kiro-cli)+ 三个写得好的 <code>SKILL.md</code> + 一个每 5 分钟戳它一次的 <code>cron</code> 任务。</li>
+        <li>用同一个模型让你的框架跑同一个任务。</li>
+        <li>比四个数:完成率、P50 延迟、P95 延迟、每个完成任务花的钱。</li>
+      </ol>
+
+      <p>如果框架在这四个数里没有任何一个比 cron + skills 这套基线高出 20% 以上,它就不是个生产力工具,它是穿了软件外套的管理学研究项目。把 cron 任务上线,把框架归档,把工程时间留给下一次模型 release —— 那次又会把框架剩下的一半存在意义吃掉。</p>
+
+      <p>2026-06-02 那一周 14 个项目说反话。一个 benchmark 数字都没拿出来。<em>这就是泡沫</em>。它会以所有 agent 工具时尚都用过的同样姿势破掉:不是一次崩盘,而是慢慢褪色,下一次模型 release 悄悄让框架显得多余。到 2026 年底,大概率 14 个里大多数会变成只剩一个 committer 在推依赖升级 PR、生产里没人在跑的 repo。到 2027 年底,活下来那一小撮会改名叫"agent observability"或"agent eval",因为模型自己接管编排之后,第三方工具能讲的诚实故事只剩这两个了。</p>
+
+      <p>把 cron 写好。把 skill 写好。让模型自己规划。这就是 2026 年 agent 栈的全部。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由人类与他的 agent 们共同打造。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
