@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skills Ate the Framework: How a Markdown File Beat the SDK — Youwang Deng</title>
+<meta name="description" content="Anthropic open-sourced SKILL.md in December 2025. Six months later Cursor, Gemini CLI, opencode, OpenHands, and mux all adopted it. The portable unit of agent capability turned out to be a 30-line markdown file in a folder, not a Python class hierarchy. Receipts and the next bloat problem.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-13</time>
+        <span class="post-tag">agent-skills</span>
+        <span class="post-tag">markdown-as-code</span>
+        <span class="post-tag">anti-framework</span>
+      </div>
+      <h1 class="post-title">Skills Ate the Framework: How a Markdown File Beat the SDK</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">If you want to know what won the agent-tooling fight, open one tab: <a href="https://agentskills.io/home" target="_blank">agentskills.io</a>. Quietly, six months after Anthropic released the SKILL.md format as an open standard in December 2025, the homepage's "Client Showcase" lists <strong>Cursor, Gemini CLI, opencode, OpenHands, and mux</strong> alongside Claude itself — five non-Anthropic runtimes shipping the same primitive. Nobody held a press conference. There is no LangSkills 1.0. The de-facto standard for "give an agent a new capability" is now <em>a folder with a markdown file in it</em>. The Python class hierarchy your favourite framework was selling you in 2024 lost without a fight.</p>
+
+      <h2>The single page nobody is quoting</h2>
+
+      <p>Cross-vendor adoption announcements normally show up as competing blog posts six months apart. Skills did the opposite — they showed up as a list on one page, with no marketing budget behind it, and almost none of the agent-tooling discourse has caught up. The <a href="https://agentskills.io/home" target="_blank">agentskills.io homepage</a> states it plainly:</p>
+
+      <blockquote>"The Agent Skills format was originally developed by Anthropic, released as an open standard, and has been adopted by a growing number of agent products."</blockquote>
+
+      <p>What follows on the same page is a Client Showcase grid. I screenshotted it on 2026-06-13 and counted: five non-Anthropic clients reading the same SKILL.md folders, plus Claude. The community caught it earlier — the top thread on <a href="https://www.reddit.com/r/ClaudeAI/comments/1ppw38d/" target="_blank">r/ClaudeAI from 2025-12-18</a> ("Agent Skills is now an open standard") spent its top 200 comments on exactly one phrase: "cross-platform portability." That was always the prize. Whoever owned the unit of agent capability that ran on every runtime owned the next layer of the stack. Anthropic shipped the format, then walked away from owning it. That walk-away is why it works.</p>
+
+      <p>Compare what didn't happen on a single page. There is no <em>"frameworks.io"</em>. There is no list of agent products that all run LangGraph workflows interchangeably. There is no list of agent products that all run AutoGen graphs interchangeably. The frameworks didn't lose because they were bad. They lost because <em>none of them ever produced an artefact you could move from one runtime to another</em>. A LangGraph node is a Python class wired to a particular planner; the moment you change runtime you rewrite from scratch. A SKILL.md is a folder. It moves.</p>
+
+      <h2>The portability gradient</h2>
+
+      <p>If you draw the agent-capability formats on a single axis — least portable to most portable — the pattern that won is obvious in hindsight:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Format</th>
+            <th>Where it runs</th>
+            <th>Cost to move runtime</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Python class in framework X</td>
+            <td>Runtime X only</td>
+            <td>Rewrite</td>
+          </tr>
+          <tr>
+            <td>JSON tool schema (vendor-specific)</td>
+            <td>One model family</td>
+            <td>Translate + retest</td>
+          </tr>
+          <tr>
+            <td>MCP server (binary + JSON-RPC)</td>
+            <td>Any MCP-aware client</td>
+            <td>Reconnect, hope the model picks it</td>
+          </tr>
+          <tr>
+            <td><strong>SKILL.md folder</strong></td>
+            <td><strong>Any runtime that can read text and call tools</strong></td>
+            <td><strong>Copy folder. Done.</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Read the right column and tell me you're surprised. The lowest-friction format has zero binary dependency, no schema version, no SDK pin. It is markdown. The model is the runtime. Every layer above it became a layer you don't need.</p>
+
+      <h2>Why markdown was the only thing that could win</h2>
+
+      <p>The agent-framework category spent two years selling the wrong abstraction. The pitch was: "your agent's capabilities should be expressed as a graph of typed Python objects so that we can reason about them statically." Reasonable for compilers; wrong for prompt-time reasoning. The actual consumer of an agent capability is the model, and the model already reads text better than your framework reads its own schema. Every layer between the markdown and the model is a layer of <em>translation loss</em>:</p>
+
+      <ul>
+        <li><strong>Class hierarchies</strong> require the human to translate intent into types. The model doesn't read types — it reads docstrings, which are markdown stuck inside Python triple-quotes.</li>
+        <li><strong>JSON schemas</strong> require both producer and consumer to agree on a shape. The model patches over malformed JSON anyway.</li>
+        <li><strong>Plugin APIs</strong> require an SDK upgrade to add a capability. SKILL.md requires <code>git pull</code>.</li>
+      </ul>
+
+      <p>Markdown won because the model was always the abstraction layer. The framework tier was a translation layer that translated from human intent to a representation the model couldn't use, and back. Removing it didn't lose information. It saved the round trip.</p>
+
+      <p>This is also why "MCP vs Skills" is a category error you see on Reddit a lot lately. They don't compete. MCP is the wire protocol for a capability that needs a process — the GitHub server, the Slack server, the database server. Skills are the prompt-time discipline a model uses to <em>decide</em> what to do with those tools, plus the small bits of in-repo logic that don't need a server at all. The week that became obvious to me was the week I deleted three internal MCP servers and replaced them with one SKILL.md that called out to the AWS CLI directly. The SKILL.md was 40 lines. The MCP servers it replaced were 1,400.</p>
+
+      <h2>The bloat is back</h2>
+
+      <p>Whenever a portable format wins, the second-order disaster is curation. <code>node_modules</code> happened to JavaScript. <code>requirements.txt</code> happened to Python. The MCP-tax post on this blog two weeks ago was the same shape: 143K tokens consumed before the user typed a character, because the menu kept growing.</p>
+
+      <p>Skills are already on this curve. Today's GitHub trending digest, 2026-06-13:</p>
+
+      <ul>
+        <li><strong>sinhoneyy/master-skills</strong> — "Unified skill library for Claude, Codex, Cursor, Antigravity & AI agents — <strong>2,658 skills across 15 domains</strong>." Two thousand, six hundred and fifty-eight. In a single repo. Trending.</li>
+        <li><strong>cinicu/opencode-dotfiles</strong> — "19 AI agent skills + 8 MCP servers + persistent memory."</li>
+        <li><strong>nuke-on-rails</strong> — "Rails audit skill for AI coding agents, ranked by blast radius."</li>
+        <li><strong>tuwulalo/git-sync-check</strong> — "Agent Skill + zero-dependency scripts ... any harness, humans."</li>
+      </ul>
+
+      <p>Read those four titles in order. The first one is the bloat ("just install all 2,658"). The next three are the early antibodies — <em>blast-radius tagging</em>, <em>narrow scope</em>, <em>harness-agnostic</em>. The mature pattern is in the antibodies, not in the inventory. The lesson the MCP world is still learning the hard way — <em>fewer tools, fewer skills, better outcomes</em> — is going to repeat in the skills ecosystem about a quarter behind.</p>
+
+      <p>The model-side data already says it. From the <a href="https://arxiv.org/abs/2502.10043" target="_blank"><em>"MCP Tool Descriptions Are Smelly"</em></a> paper I cited last week: tool-selection accuracy <em>drops</em> as the toolset grows. Same physics applies to skills. A model that lazy-loads three relevant SKILL.md files for a task will out-decide a model handed all 2,658 every turn. The winning skill libraries in 2027 will not be the biggest. They will be the ones with the meanest curation policy.</p>
+
+      <h2>Receipts: what I built, what I deleted</h2>
+
+      <p>I am writing this from a Cloud Desktop with <code>27 production SKILL.md folders</code> in <code>~/.meshclaw/skills/</code> (excluding two visualisation and pet-companion families that bring it to 49 total). Each one of them replaces what would have shipped as a Python plugin in MeshClaw v1. The framework I started building in early 2026 had a class registry, a plugin loader, a YAML manifest, a typed event bus. All of it is gone. The "framework" is now: a session prompt, a tool registry, and "load this folder of markdown."</p>
+
+      <p>Concrete receipts. The production behaviour of <code>ticket-coop-scanner</code> (cron <code>6b85f32d</code>, three internal queues, 21-ticket window 2026-06-03 to 06-08, <strong>62% delivered ≤2 oncall turns</strong>) is defined entirely by:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>What it is</th>
+            <th>Lines</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>~/.meshclaw/skills/ticket-coop-scanner/SKILL.md</code></td>
+            <td>State machine, escalation rules, voice/tone, redlines</td>
+            <td>170</td>
+          </tr>
+          <tr>
+            <td><code>workspace/ticket-coop-scanner/reviewer_persona.md</code></td>
+            <td>Cross-check reviewer prompt</td>
+            <td>170</td>
+          </tr>
+          <tr>
+            <td><code>workspace/ticket-coop-scanner/pick_next.py</code></td>
+            <td>State derivation + cron tick</td>
+            <td>296</td>
+          </tr>
+          <tr>
+            <td colspan="2"><strong>Total</strong></td>
+            <td><strong>636</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Two-thirds of that is markdown. The Python is the glue, not the brain. Earlier this year the same scope sketched out as a "ticket triage agent framework module" had a router, a triage agent, a fix-proposer, a reviewer, a poster — five classes, an event bus, ~2,000 lines, plus a config schema I had to keep updating. Every one of them is now <em>one section in one SKILL.md</em>. The escalation rules are markdown. The redlines (no Shepherd self-resolve, no <code>git add -A</code> in Brazil workspaces, no internal context in WORKLOG comments) are markdown. The voice is markdown. The deletion was the punch line.</p>
+
+      <p>The cleanest test is portability. I dragged that same SKILL.md into a vanilla Claude Code session yesterday with no MeshClaw runtime and no <code>pick_next.py</code>. The model immediately understood the state machine, asked for the missing tool registry, and was running the right escalation logic on a fake ticket within two turns. The "framework" was the session prompt. The capability was the markdown. Move the folder, move the agent.</p>
+
+      <h2>The next year</h2>
+
+      <p>If you're betting where the agent-tooling stack lands by mid-2027, here is what the agentskills.io adopters list and the GitHub trending bloat are both telling you, even though they look like opposite signals:</p>
+
+      <ol>
+        <li><strong>The framework tier loses its dignity quietly.</strong> No crash, no acquisition fire sale — just an accelerating list of "we now also support skills" lines on framework READMEs, the way "we now support TypeScript" landed in JS frameworks five years ago. The framework keeps shipping. Its reason to exist hollows out.</li>
+        <li><strong>The skill curation tier becomes the next moat.</strong> "We have 2,658 skills" is the wrong answer. "We loaded the right three for this task" is the right one. Whoever ships the lazy-loader / blast-radius tagger / one-skill-per-job linter for skills wins what the MCP-compressor crew won for tool inventories.</li>
+        <li><strong>The runtime becomes the model.</strong> This was true already and skills just made it visible. The session prompt + tool registry + folder-of-markdown is the entire 2026 agent stack. Everything above the model is curation; everything below it is plumbing. The middle layer is gone.</li>
+      </ol>
+
+      <p>I'm writing this in Markdown, in a folder, on a runtime I might not be using next month. The post will outlive the runtime. So will the skills. That was always going to be the joke at the end of the framework era — the most portable thing in the room turned out to be the format the engineers were too embarrassed to admit they preferred all along.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

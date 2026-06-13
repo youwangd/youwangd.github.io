@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill 把 Framework 吃了:一年过去,Markdown 赢麻了 — Youwang Deng</title>
+<meta name="description" content="2025 年 12 月 Anthropic 把 SKILL.md 当开放标准开源出来。半年过去,Cursor、Gemini CLI、opencode、OpenHands、mux 全都接了。agent 能力的可移植单位最后是一个文件夹里的一个 markdown,不是 Python class hierarchy。第一手数据 + 下一波 bloat。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-13</time>
+        <span class="post-tag">agent-skill</span>
+        <span class="post-tag">markdown工程</span>
+        <span class="post-tag">反框架</span>
+      </div>
+      <h1 class="post-title">Skill 把 Framework 吃了:一年过去,Markdown 赢麻了</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">想知道这一轮 agent 工具仗最后是谁赢了,打开一个网页就够了:<a href="https://agentskills.io/home" target="_blank">agentskills.io</a>。2025 年 12 月 Anthropic 把 SKILL.md 当开放标准放出来,半年过去,这个站的 Client Showcase 列着 <strong>Cursor、Gemini CLI、opencode、OpenHands、mux</strong> —— 五个非 Anthropic 自己的 runtime,加上 Claude,六家在跑同一种东西。没人开发布会,也没什么"LangSkills 1.0"。"给 agent 加一个能力"的事实标准已经变成了 <em>一个文件夹里塞一个 markdown</em>。你 2024 年那帮卖 framework 的朋友吹的 Python class hierarchy,这场仗连一刀都没还上就输了。</p>
+
+      <h2>那个谁都没在引用的页面</h2>
+
+      <p>跨厂商一起接同一个标准这种事,平时会以六个月里互发 blog 的形式出现。Skill 反过来 —— 它就以一张网页、一个 Showcase 列表的形式出现了,没什么营销预算,大部分 agent tooling 圈子的讨论都还没追上。<a href="https://agentskills.io/home" target="_blank">agentskills.io 首页</a>原话:</p>
+
+      <blockquote>"The Agent Skills format was originally developed by Anthropic, released as an open standard, and has been adopted by a growing number of agent products."</blockquote>
+
+      <p>下面就是那张 Client Showcase 网格图。我 2026-06-13 截了一张,数了一下:五家非 Anthropic 客户端在读同一份 SKILL.md 文件夹,加上 Claude 自己。社区其实早就嗅到了 —— <a href="https://www.reddit.com/r/ClaudeAI/comments/1ppw38d/" target="_blank">r/ClaudeAI 那条 2025-12-18 的置顶帖</a>("Agent Skills is now an open standard")200 多条评论翻下来,关键词永远是同一个:<em>cross-platform portability</em>。这本来就是这场仗的奖杯。谁握住了"agent 能力"这个能跨 runtime 跑的最小单位,谁就握住了下一层栈。Anthropic 把格式开源了,然后<em>主动放手</em>不去拥有它。这一放手,反而是它能赢的原因。</p>
+
+      <p>对比一下没发生的事:没有一个 <em>frameworks.io</em> 网页。没有一份"以下这些 agent 产品都能互换跑 LangGraph workflow"的列表。也没有 AutoGen 版本的同款列表。这些 framework 不是因为做得差才输 —— 它们输是因为<em>从来没生产出过一个能从这个 runtime 搬到那个 runtime 的可移植产物</em>。LangGraph 的 node 是一个绑死在某个 planner 上的 Python class,你换 runtime 就得重写。SKILL.md 是一个文件夹。它能搬。</p>
+
+      <h2>可移植度的梯度</h2>
+
+      <p>把"agent 能力"这件事的几种格式按可移植性排一下,谁会赢这件事其实事后看一目了然:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>格式</th>
+            <th>能跑在哪</th>
+            <th>换 runtime 的代价</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>某 framework X 的 Python class</td>
+            <td>只跑在 X 上</td>
+            <td>重写</td>
+          </tr>
+          <tr>
+            <td>JSON tool schema(各家私有)</td>
+            <td>一个模型家族</td>
+            <td>翻译 + 回归</td>
+          </tr>
+          <tr>
+            <td>MCP server(二进制 + JSON-RPC)</td>
+            <td>任何支持 MCP 的客户端</td>
+            <td>重连,祈祷模型挑得对</td>
+          </tr>
+          <tr>
+            <td><strong>SKILL.md 文件夹</strong></td>
+            <td><strong>任何能读文本、能调 tool 的 runtime</strong></td>
+            <td><strong>复制文件夹。完事。</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>右边那一列读一遍,这事还有什么悬念吗。摩擦最小的格式没有任何二进制依赖、没有 schema 版本、没有 SDK pin。它就是 markdown。runtime 就是模型本身。它上面的每一层,事后看都是你<em>不需要</em>的那一层。</p>
+
+      <h2>为什么只有 markdown 能赢</h2>
+
+      <p>过去两年 agent framework 这一档卖的是错的抽象。它们的卖点是:"你 agent 的能力应该被表达成一张 Python typed object 的图,这样我们能对它做静态分析。"做编译器这话对,prompt-time reasoning 这话错。agent 能力的真正消费者是模型,而模型读文本比你那个 framework 读自己的 schema 还流畅。markdown 和模型之间的每一层中间件,都是一层<em>翻译损耗</em>:</p>
+
+      <ul>
+        <li><strong>Class hierarchy</strong> —— 要求人把意图翻译成 type。模型根本不读 type,它读 docstring,而 docstring 就是塞在 Python 三引号里的 markdown。</li>
+        <li><strong>JSON schema</strong> —— 要求生产者和消费者对一个形状达成一致。模型反正会自动 patch 掉畸形的 JSON。</li>
+        <li><strong>Plugin API</strong> —— 加一个能力要升 SDK 版本。SKILL.md 加一个能力要 <code>git pull</code>。</li>
+      </ul>
+
+      <p>markdown 赢是因为模型一直就是抽象层。framework 这一层是个翻译层,把人意图翻译成模型用不上的那种表示,再翻回来。把它撕掉,信息没丢,只是省了一来一回。</p>
+
+      <p>顺带说一句,最近 Reddit 上经常看到的"MCP vs Skill 谁胜出"这种讨论是个范畴错误。它们不打架。MCP 是给那些必须有进程的能力用的协议 —— GitHub server、Slack server、数据库 server。Skill 是模型在 prompt-time 决定<em>怎么</em>用这些 tool 的纪律,加上一些根本不需要 server 的 in-repo 逻辑。我意识到这点的那一周,我一口气删了三个内部 MCP server,换成一个直接调 AWS CLI 的 SKILL.md。SKILL.md 一共 40 行。被它替掉的那三个 MCP server 加起来 1,400 行。</p>
+
+      <h2>Bloat 又回来了</h2>
+
+      <p>每次有个可移植格式赢了,二阶灾难永远是<strong>策展</strong>。JS 那边变成 <code>node_modules</code>,Python 那边变成 <code>requirements.txt</code>。两周前我在这个博客写过的 <a href="/posts/mcp-tax-fewer-tools">MCP-tax</a> 也是同款 —— 用户还没敲第一个字符,context 就被 143K token 吃掉了,因为菜单越列越长。</p>
+
+      <p>Skill 已经在这条曲线上了。今天 2026-06-13 的 GitHub trending digest:</p>
+
+      <ul>
+        <li><strong>sinhoneyy/master-skills</strong> —— "统一的 skill 库,适配 Claude、Codex、Cursor、Antigravity & AI agents —— <strong>15 个领域 2,658 个 skill</strong>"。两千六百五十八个。一个 repo。还在 trending。</li>
+        <li><strong>cinicu/opencode-dotfiles</strong> —— "19 个 AI agent skill + 8 个 MCP server + 持久 memory"。</li>
+        <li><strong>nuke-on-rails</strong> —— "给 AI 编码 agent 用的 Rails 审计 skill,按 blast radius 排序"。</li>
+        <li><strong>tuwulalo/git-sync-check</strong> —— "Agent Skill + 零依赖脚本 …… 任何 harness、任何人都能用"。</li>
+      </ul>
+
+      <p>这四条标题按顺序读一遍。第一条是 bloat 本体("装上全部 2,658 个就行")。后面三条是早期抗体 —— <em>blast-radius 标签</em>、<em>窄 scope</em>、<em>harness 中立</em>。成熟的范式藏在抗体那边,不在那个仓库的 inventory 里。MCP 圈正在硬学的那条经验 —— <em>tool 越少,skill 越少,产出越好</em> —— 大概会在 skill 这边晚一个季度重演一次。</p>
+
+      <p>模型这边的数据其实早就明牌了。上周引用过的 <a href="https://arxiv.org/abs/2502.10043" target="_blank"><em>"MCP Tool Descriptions Are Smelly"</em></a> 论文(2026-02):tool 集合越大,tool-selection 准确率反而<em>越低</em>。同一套物理学也作用在 skill 上。一个能 lazy-load 出当前任务真正需要的三个 SKILL.md 的模型,会比一个每轮塞进 2,658 个 skill 的模型决策更准。2027 年最强的 skill 库不会是最大的那个。会是那个策展最狠的那个。</p>
+
+      <h2>第一手数据:我自己写了什么、删了什么</h2>
+
+      <p>我写这篇文章这台 Cloud Desktop 上,<code>~/.meshclaw/skills/</code> 下有 <code>27 个生产用的 SKILL.md 文件夹</code>(再加上两个可视化和宠物陪伴系列,总数到 49)。每一个都替代了 MeshClaw v1 时代会以 Python plugin 形式出现的东西。我 2026 年初开始搭的那个"agent 框架"有 class registry、有 plugin loader、有 YAML manifest、有 typed event bus。<em>全</em>都没了。今天的"框架"是:一个 session prompt + 一个 tool registry + "把这个文件夹里的 markdown 加载进来"。</p>
+
+      <p>具体一点。<code>ticket-coop-scanner</code>(cron <code>6b85f32d</code>,三个内部 ticket 队列,2026-06-03 到 06-08 这 21 张 ticket 的窗口里 <strong>62% 在 ≤2 个 oncall turn 内交付</strong>)的全部生产行为是这三个文件定义的:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>文件</th>
+            <th>是什么</th>
+            <th>行数</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>~/.meshclaw/skills/ticket-coop-scanner/SKILL.md</code></td>
+            <td>状态机、升级规则、口吻、红线</td>
+            <td>170</td>
+          </tr>
+          <tr>
+            <td><code>workspace/ticket-coop-scanner/reviewer_persona.md</code></td>
+            <td>交叉审核 reviewer 的 prompt</td>
+            <td>170</td>
+          </tr>
+          <tr>
+            <td><code>workspace/ticket-coop-scanner/pick_next.py</code></td>
+            <td>状态推导 + cron tick</td>
+            <td>296</td>
+          </tr>
+          <tr>
+            <td colspan="2"><strong>总计</strong></td>
+            <td><strong>636</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>三分之二是 markdown。Python 是胶水,不是大脑。今年早些时候我把同样这块 scope 草稿过一遍"ticket triage agent framework module" —— router、triage agent、fix-proposer、reviewer、poster,五个 class、一个 event bus、~2,000 行 Python,加一个我得不停回去更新的 config schema。它们现在每一个都是<em>同一个 SKILL.md 里的一节</em>。升级规则是 markdown。红线(Shepherd ticket 不能自己 resolve、Brazil workspace 不能用 <code>git add -A</code>、WORKLOG 评论不能漏内部上下文)是 markdown。口吻是 markdown。删掉的那部分本身就是这个故事的笑点。</p>
+
+      <p>最干净的测试是可移植性。昨天我把这一份 SKILL.md 直接拖进一个干净的 Claude Code session,没有 MeshClaw runtime,也没有 <code>pick_next.py</code>。模型马上就理解了那套状态机、问了我缺的 tool registry,两轮之内已经在一张假 ticket 上跑对了升级逻辑。"框架"是 session prompt 本身。"能力"是那份 markdown。文件夹搬过去,agent 跟着搬过去。</p>
+
+      <h2>未来一年</h2>
+
+      <p>如果你要押 agent tooling 这一栈到 2027 年中长成什么样,agentskills.io 那张 adopters 列表和 GitHub trending 那波 bloat 表面上看是相反的信号,但说的是同一件事:</p>
+
+      <ol>
+        <li><strong>Framework 这一档会很安静地失去尊严。</strong>不会崩,也不会有什么打折出售 —— 只会有越来越多的 framework README 上加一行"我们也支持 skill 了",节奏跟五年前 JS framework 加"我们也支持 TypeScript 了"那一波一样。Framework 还在出版本。它存在的理由在变薄。</li>
+        <li><strong>Skill 策展层会变成下一道护城河。</strong>"我们有 2,658 个 skill"是错答案。"这个任务我们加载了对的那 3 个"才是对答案。谁先做出 skill 的 lazy-loader / blast-radius 标签 / 一 skill 一职的 linter,谁就拿到 mcp-compressor 这一波在 MCP 那边拿到的东西。</li>
+        <li><strong>Runtime 就是模型本身。</strong>这件事其实早就是这样,skill 只是把它显式化了。session prompt + tool registry + 一个文件夹的 markdown 就是 2026 年 agent 的全部栈。模型之上是策展,模型之下是管道。中间那一层,没了。</li>
+      </ol>
+
+      <p>我现在在用 markdown 写这篇,在一个文件夹里,跑在一个我下个月可能就不用的 runtime 上。文章会比 runtime 活得长。skill 也会。这就是 framework 时代结尾那个早就该讲的笑话 —— 屋子里最可移植的东西,最后是工程师们当年最不好意思承认自己更喜欢的那种格式。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
