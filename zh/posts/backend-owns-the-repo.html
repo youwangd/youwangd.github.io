@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>后端才是真主人:10万颗星的 Gemini CLI 凭啥说没就没 — Youwang Deng</title>
+<meta name="description" content="6 月 18 号(就是这周三)Google 把 Pro、Ultra、免费 Code Assist 用户从那个 Apache 2.0、还捐给了 Linux Foundation 的 Gemini CLI 一刀切到闭源继任者上。repo 还开着。runtime 没了。一篇在迁移邮件来之前认出后端依赖型开源项目的实战手册。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/zh/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/zh/" class="nav-link">博客</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/zh/" class="back-link">← 返回全部文章</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-15</time>
+        <span class="post-tag">开源</span>
+        <span class="post-tag">agent-cli</span>
+        <span class="post-tag">厂商锁定</span>
+      </div>
+      <h1 class="post-title">后端才是真主人:10万颗星的 Gemini CLI 凭啥说没就没</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">这周三,6 月 18 号,Google 把全球所有 Pro、Ultra、免费 Code Assist 用户的 Gemini CLI 一刀切了。repo 10.4 万颗星。Apache 2.0。捐给 Linux Foundation 这事还<em>赶在</em>那封停服邮件之前发生。6,000 多个外部 PR,真人提交,其中一位贡献者 27 个 commit 被合,他在 Hacker News 那条公告下面把这一刀的事后感受总结成一句话:"基本上等于免费给一个最后只有企业版能用的代码库打工。"License 没毛病。Repo 还开着。Runtime 没了。这篇文章你只读一段就读这段:<strong>permissive license 套在一个后端依赖型客户端上,本质上就是一个穿着开源外套的 managed dependency。</strong></p>
+
+      <h2>周三到底会发生什么</h2>
+
+      <p>我想从这个 deadline 开始,因为这周看到的大部分讨论都跳过 deadline 直接去争论 license 哲学了。Deadline 才是重点。从 <a href="https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/" target="_blank">Google 5 月 19 号那则公告</a> 加 <a href="https://www.digitalapplied.com/blog/gemini-cli-to-antigravity-cli-migration-june-18-2026-guide" target="_blank">Digital Applied 6 月 9 号那篇迁移指南</a> 拼起来,周三早上落到工程团队头上的那张表是:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>等级</th>
+            <th>6 月 18 后</th>
+            <th>迁移路径</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>免费 Code Assist</td>
+            <td><strong>断</strong></td>
+            <td>装 <code>agy</code> binary。新 auth 流程。每周 compute 上限。</td>
+          </tr>
+          <tr>
+            <td>Code Assist Pro</td>
+            <td><strong>断</strong></td>
+            <td>同上。配额超了再加一个 7 天 cooldown。</td>
+          </tr>
+          <tr>
+            <td>Code Assist Ultra</td>
+            <td><strong>断</strong></td>
+            <td>同上。</td>
+          </tr>
+          <tr>
+            <td>Code Assist Enterprise(付费)</td>
+            <td>暂时豁免</td>
+            <td>老 <code>gemini</code> binary 继续用,直到另行通知。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>那最后一行是这次迁移真正的结构性看点。这事的重点不是"Google 砍了一个开源 CLI"。开源 CLI 天天被砍,没人写 post。这事的重点是:<em>能继续用那个开源版本的人,只剩付钱的那批</em>。10.4 万颗 star、6000 多个 PR,本质上是用关注度和无偿劳动力在喂企业销售那条线。Repo 还开着,刚好够"我们坚持开源"这句话在技术上不算说谎,但开源那个东西真正的所有用户都被强行迁到闭源那边去了。</p>
+
+      <p>下面这四条没人截图但应该截的红线项:</p>
+
+      <ol>
+        <li><strong>MCP 配置静默坏掉。</strong>Remote MCP 字段从 <code>url</code> 改成了 <code>serverUrl</code>。老配置加载不报错。session 跑了几个小时之后第一次调 tool 才炸。如果你有 CI agent 在读 <code>~/.gemini/mcp_config.json</code>,启动通过、第一次 action 失败 —— 这是自治 loop 里最难调的失败模式,症状离原因隔得越远越要命。</li>
+        <li><strong>ACP stdio 模式没在首发里。</strong>如果你用别的 agent 编排 Antigravity(ACP / Agent Client Protocol 的全部意义就在此),新 binary <a href="https://github.com/google-gemini/gemini-cli/issues/31" target="_blank">目前没有 stdio 模式</a>,只有交互式 TUI。所有靠 ACP stdio 桥接 Gemini 的编排器,周三第一天就坏,然后蹲一个 issue 开始等。</li>
+        <li><strong>配额模型回退。</strong>免费层从"每天 1000 个 request"换成每周 compute 上限。一个话痨 session 几小时就能把一周的额度花光。重度用户已经开始报 168 小时 cooldown 的事故。如果你大脑里有"今天爆,明天歇"的心理模型 —— 周三起这个模型作废。</li>
+        <li><strong>CI binary 替换。</strong>所有 <code>.github/workflows/</code> 或 Brazil <code>cron/</code> 里 pin 了 <code>gemini</code> 的地方,得换成 <code>agy</code>。参数不完全一样。stdin 的行为不完全一样。默认模型不一样。</li>
+      </ol>
+
+      <p>没有一条是治不了的。但这四条都"安静"得足够毁掉一个准备不足的周三 standup。</p>
+
+      <h2>Apache 2.0 这层假象</h2>
+
+      <p>那则公告里被引最多的一句话引一下,因为它读上去其实不算错:</p>
+
+      <blockquote>"Gemini CLI 的 repository 会保持开源。我们对开源社区的承诺不变。"</blockquote>
+
+      <p>是。Repo 还开着。<code>LICENSE</code> 文件里 Apache 2.0 还在。停服公告之前敲定的 Linux Foundation 捐赠 <a href="https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/" target="_blank">也确实生效了</a>。你明天就能 fork。但这些一条都救不了你 —— 因为以 Apache 2.0 形式发出来的是<em>客户端</em>:TUI、prompt 渲染、命令解析、ACP 桥、MCP 管线、auth 流程。<strong>模型不在 repo 里。</strong>Agent loop 的推理在服务端跑。检索增强这一摞栈在 Google 自己的租户里。任何 fork 出来的 binary 要联的 auth endpoint,是一个你既控制不了也搭不起来的闭源 Google 服务。</p>
+
+      <p>那这份捐出去的"东西"实际可移植性到底有多少?对照看一下 <a href="https://github.com/google/antigravity-cli" target="_blank">Antigravity CLI 的公开 repo</a> —— 这是一个相当残酷的对照组。截至我写这篇时,它包括:</p>
+
+      <ul>
+        <li>一个 README,指向闭源 <code>agy</code> binary 的下载地址。</li>
+        <li>一份 changelog。</li>
+        <li>一个动图 demo。</li>
+      </ul>
+
+      <p>就这。零应用代码。这个"开源 repo"是一张项目主页。继任者从第一天就把外套脱了 —— 至少这点上算诚实。从这个对照反推回去,前任的开源 repo 大半也是个外套:开源代码、闭源 runtime,而 runtime 才是有价值的那部分。</p>
+
+      <p>这不是 Google 一家的失败模式。这是<em>每一个</em>用 permissive license 包装的后端依赖型 CLI 共有的结构。挑任何一个,把模型扒掉、把 auth endpoint 扒掉、把私有 RAG 仓扒掉,剩下的是一个 TUI。一个挺好用的 TUI。一个理论上能 fork、能手动接到别的模型、能配自己搭的 auth backend 的 TUI。但几乎没人这么干 —— 因为几乎没人有这个 runtime 预算。这个 artefact 的价值,和换掉 backend 所需的成本,差距大得离谱,中间那条缝就是 LICENSE 文件里没写的那种 lock-in。</p>
+
+      <h2>把一个东西叫"可移植"之前先 grep 一遍</h2>
+
+      <p>下面这套 dependency-posture 诊断,是我现在审任何新 agent CLI 之前都会跑的。一共三条命令。在你 commit 之前跑,别等迁移邮件来了再跑。</p>
+
+      <pre><code><span class="code-comment"># 1. 这个 runtime 有多少在 binary 里、多少在闭源 endpoint 后面?</span>
+git clone &lt;repo&gt; /tmp/audit && cd /tmp/audit
+grep -rEn 'https://[a-z0-9.-]+\.(google|googleapis|openai|anthropic)\.com' src/ | wc -l
+
+<span class="code-comment"># 2. Auth 流程不接厂商账号能跑吗?</span>
+grep -rEn 'oauth|client_id|api.key' src/ docs/
+
+<span class="code-comment"># 3. 这个 binary 开箱能不能讲非厂商的 model?</span>
+grep -rEn 'provider|model_family|backend' src/ config/</code></pre>
+
+      <p>命令 1 一开口就几十条 hit、命令 3 只返回一个厂商名 —— 这就是穿了开源外套的 managed dependency,LICENSE 文件长啥样无所谓。Apache 2.0 是可移植性的<em>必要</em>条件,远远不够<em>充分</em>。</p>
+
+      <p>周三 deadline 那一版 grep 是同一思路的战术版。每个团队周三之前应该跑一遍这三条:</p>
+
+      <pre><code><span class="code-comment"># a. binary 在 CI / cron 哪儿 pin 着?</span>
+grep -rn 'gemini' .github/ ci/ cron/ scripts/
+
+<span class="code-comment"># b. 还有哪个 MCP 配置在用老字段名?</span>
+grep -rn '"url"' ~/.gemini/ mcp_config.json .config/
+
+<span class="code-comment"># c. 有没有谁还在拿 ACP stdio 跑 gemini?</span>
+grep -rn '\-\-acp' . | grep -v node_modules</code></pre>
+
+      <p>这三条任何一条返回 hit,这周就有活儿要干。这没什么。周二知道,代价小;周三早上 9:14 才知道,这就是个 sev。</p>
+
+      <h2>独立 CLI 是怎么做不一样的</h2>
+
+      <p>过去这一个季度我一直在 <a href="/zh/posts/sage-cli">SageCLI</a> 那一头折腾,所以这个 trade 我能讲得很具体。结构性差别<em>不是</em>许可证。是 runtime 契约归谁所有:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>立场</th>
+            <th>大厂 freemium CLI</th>
+            <th>独立 CLI(SageCLI 这种形态)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>模型</td>
+            <td>厂商一家的旗舰模型,托管</td>
+            <td>任何能讲 OpenAI/Anthropic/Bedrock 协议的 —— 本地 Ollama 也行</td>
+          </tr>
+          <tr>
+            <td>Auth</td>
+            <td>到厂商账号的闭源 OAuth</td>
+            <td>用户自己的 key 在 <code>~/.aws/credentials</code> 或 <code>OPENAI_API_KEY</code></td>
+          </tr>
+          <tr>
+            <td>Tool 接口</td>
+            <td>厂商策展的 MCP 目录</td>
+            <td>任何你能跑得起进程的 MCP server</td>
+          </tr>
+          <tr>
+            <td>停服波及面</td>
+            <td>所有人,同一个周三</td>
+            <td>一个用户,他自己不再跑那个 binary 那天</td>
+          </tr>
+          <tr>
+            <td>你要让出什么</td>
+            <td>啥也不让 —— 直到那个周三</td>
+            <td>自己 provision 模型、自己 auth、自己 MCP server</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>这张表诚实的部分是最后一行。独立 CLI <em>是</em>有代价的。自己 provision、自己挑模型、自己付 token。Pro 那种"免费送 frontier 模型"你享受不到。换来的是,没人能从你这边按下停服按钮。这两栏不是"好"和"坏",是"带悬崖的托管便利"和"没悬崖的自管管线"。挑得明白就行。</p>
+
+      <p>我反复回到的那个 trade 版本是这样的:我宁可每月花 40 美刀走自己路由的 token,也不想用那个会在 5 月某个周一突然决定我 6 月某个周三从零开始的免费 CLI。</p>
+
+      <h2>贡献者那个问题</h2>
+
+      <p>我想拿 HN 那条线下面那段一直萦绕在我脑子里的话收尾,因为它不是一个技术点,也没有解。Andrea Alberti,合并 27 个 commit 的贡献者,在公告那条线下贴了一句:<em>"基本上等于免费给一个最后只有企业版能用的代码库打工?"</em></p>
+
+      <p>这一句应该改变你以后读"&lt;大公司&gt; 开源新东西"那种公告的方式。6,000 个外部 PR、真人无偿劳动,合进一个 repo,这个 repo 真正吸引人的那部分是它的闭源 backend,然后周三起,客户端那一档没 backend access、是空的,付费企业版那一档是唯一活着的用户。Repo 还开着。劳动是真实的。这份劳动的<em>用途</em>变成了一个分级、收费、企业版才能用的产品。Apache 2.0 让这一切合法。没人在说它非法。结构性的问题是:贡献者寄出 PR 那一刻,知不知道这份合约结构上长什么样。</p>
+
+      <p>大部分人如果被诚实地问到这个问题,答案是不知道 —— 因为这份合约的结构形状,从 repo 内部看不出来。它只能从上面那段 dependency-posture grep 里看出来,在你点 "Fork" 之前跑一遍。这是我这个季度试图给我们团队加进 adoption checklist 的小习惯。两分钟 <code>grep</code>,换掉两个月的贡献。</p>
+
+      <p>Repo 不是 artefact。Runtime 才是 artefact。谁拥有 runtime 谁就拥有这个项目,<code>LICENSE</code> 写的什么不重要。周三,10.4 万颗 star 一起搞清楚自己那个项目到底是谁的。</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">由人和他的 agents 共同构建。<span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Backend Owns the Repo: Gemini CLI's 104K-Star Postmortem — Youwang Deng</title>
+<meta name="description" content="On June 18, 2026, Google evicts every Pro, Ultra, and free Code Assist user from the Apache 2.0, Linux-Foundation-donated Gemini CLI to a closed-source successor. The repo is still open. The runtime isn't. A field guide to spotting backend-dependent open source before the migration email arrives.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="grid-bg"></div>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="logo-bracket">[</span>YD<span class="logo-bracket">]</span>
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Blog</a>
+    <a href="https://github.com/youwangd" class="nav-link" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<main class="container">
+  <a href="/" class="back-link">← Back to all posts</a>
+
+  <article>
+    <header class="post-header">
+      <div class="post-meta">
+        <time class="post-date">2026-06-15</time>
+        <span class="post-tag">open-source</span>
+        <span class="post-tag">agent-cli</span>
+        <span class="post-tag">vendor-lock-in</span>
+      </div>
+      <h1 class="post-title">The Backend Owns the Repo: Gemini CLI's 104K-Star Postmortem</h1>
+    </header>
+
+    <div class="post-body">
+
+      <p class="post-lead">This Wednesday, June 18, Google turns off Gemini CLI for every Pro, Ultra, and free Code Assist user on the planet. The repo has 104K stars. Apache 2.0. Donated to the Linux Foundation <em>before</em> the sunset email went out. Six thousand external PRs from real volunteers, including one contributor with 27 merged commits who described the after-feeling on Hacker News in one sentence: "essentially working for free on a code base that will only be used in enterprises." The license is fine. The repo is still up. The runtime is gone. If you read only one paragraph of this post, read this one: <strong>a permissive license on a backend-dependent client is a managed dependency in a costume.</strong></p>
+
+      <h2>What actually happens Wednesday</h2>
+
+      <p>I want to start with the deadline, because most takes I've read this week skipped past it to argue about license philosophy. The deadline is the whole point. From <a href="https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/" target="_blank">Google's May 19 announcement</a> and the <a href="https://www.digitalapplied.com/blog/gemini-cli-to-antigravity-cli-migration-june-18-2026-guide" target="_blank">Digital Applied migration guide (Jun 9)</a>, here is the matrix that lands on engineering teams Wednesday morning:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tier</th>
+            <th>Status after Jun 18</th>
+            <th>Migration path</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Free Code Assist</td>
+            <td><strong>Cut off</strong></td>
+            <td>Install <code>agy</code> binary. New auth flow. Weekly compute cap.</td>
+          </tr>
+          <tr>
+            <td>Code Assist Pro</td>
+            <td><strong>Cut off</strong></td>
+            <td>Same. Plus a 7-day cooldown if you blow the cap.</td>
+          </tr>
+          <tr>
+            <td>Code Assist Ultra</td>
+            <td><strong>Cut off</strong></td>
+            <td>Same.</td>
+          </tr>
+          <tr>
+            <td>Code Assist Enterprise (paid)</td>
+            <td>Exempt for now</td>
+            <td>Old <code>gemini</code> binary keeps working until further notice.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>That last row is doing a lot of structural work. The reason the migration matters is not "Google killed an open-source CLI." Open-source CLIs get killed all the time and nobody writes a post. The reason it matters is that <em>the only people who keep the open-source one running are paying</em>. The 104K stargazers were funding the enterprise sales motion with their attention and their PRs. The repo is staying open exactly long enough for "we're committed to open source" to be technically true, while every actual user of the open thing is force-migrated to the closed thing.</p>
+
+      <p>The four red rows in the migration matrix nobody is screenshotting, but should:</p>
+
+      <ol>
+        <li><strong>MCP config silently breaks.</strong> The remote MCP field renamed from <code>url</code> to <code>serverUrl</code>. Old config loads with no error. The first tool invocation a few hours into a session is where you find out. If you have CI agents reading <code>~/.gemini/mcp_config.json</code>, they pass startup and fail on first action. That is the worst kind of failure mode for an autonomous loop — far enough into the run that the symptom is decoupled from the cause.</li>
+        <li><strong>ACP stdio mode is not in the launch.</strong> If you orchestrate Antigravity from another agent (the entire point of ACP — Agent Client Protocol), there is currently <a href="https://github.com/google-gemini/gemini-cli/issues/31" target="_blank">no stdio mode in the new binary</a>, only the interactive TUI. Every orchestrator that bridged Gemini via ACP stdio breaks on day one and waits for an issue thread to resolve.</li>
+        <li><strong>Quota model regresses.</strong> The free tier's "1,000 requests per day" becomes a weekly compute cap. A single chatty session can spend a week's allowance in a couple of hours. Heavy users have already reported up to 168-hour cooldowns. If you hand-rolled a "burst now, cool off tomorrow" mental model, that model is wrong as of Wednesday.</li>
+        <li><strong>CI binary swap.</strong> Anywhere that pinned <code>gemini</code> in <code>.github/workflows/</code> or a Brazil <code>cron/</code> needs <code>agy</code>. The arguments aren't quite the same. The behaviour around stdin isn't quite the same. The default model isn't the same.</li>
+      </ol>
+
+      <p>None of these are unfixable. All four are silent enough to ruin a Wednesday standup if you walk in cold.</p>
+
+      <h2>The Apache 2.0 mirage</h2>
+
+      <p>I'll quote the most-cited line from the announcement, because the reason it confused people is that, taken at face value, it's not wrong:</p>
+
+      <blockquote>"The Gemini CLI repository will remain open source. We're committed to the open-source community."</blockquote>
+
+      <p>Yes. The repo is up. Apache 2.0 is still in <code>LICENSE</code>. The Linux Foundation donation that was announced before the sunset news <a href="https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/" target="_blank">still went through</a>. You can fork it tomorrow. None of that helps you, because what shipped under Apache 2.0 was the <em>client</em>: the TUI, the prompt rendering, the command parser, the ACP bridge, the MCP plumbing, the auth flow. <strong>The model is not in the repo.</strong> The agent loop's reasoning happens server-side. The retrieval-augmented stack lives in Google's tenancy. The auth endpoint that any forked binary needs to talk to is a closed Google service that you do not control and cannot stand up.</p>
+
+      <p>So what is the actual portability of the donated artefact? Look at the <a href="https://github.com/google/antigravity-cli" target="_blank">Antigravity CLI public repo</a> as the brutal control case. As of writing, it contains:</p>
+
+      <ul>
+        <li>A README pointing to the closed-source <code>agy</code> binary download.</li>
+        <li>A changelog.</li>
+        <li>An animated demo GIF.</li>
+      </ul>
+
+      <p>That's it. Zero application code. The "open repo" is a project page. The successor is being launched from day one with the costume off, which at least has the dignity of being honest. And by analogy backwards, the predecessor's open repo is mostly a costume too — open code, closed runtime, and the runtime is where the value lives.</p>
+
+      <p>This is not a Google-specific failure mode. This is the structural shape of every backend-dependent CLI that ever shipped under a permissive license. Pick any of them. Strip the model, strip the auth endpoint, strip the proprietary RAG store. What's left is a TUI. A useful TUI. A TUI you can fork, hand-port to a different model, and run against a different auth backend you build yourself. Almost nobody does, because almost nobody has the runtime budget to. The value of the artefact and the cost of replacing the backend are very far apart, and the gap between them is the lock-in nobody wrote into the LICENSE file.</p>
+
+      <h2>The grep test before you call something portable</h2>
+
+      <p>Here is the dependency-posture diagnostic I run on any new agent CLI before adopting it in our loop. The whole thing is three commands. Run them <em>before</em> you commit, not after the migration email.</p>
+
+      <pre><code><span class="code-comment"># 1. How much of the runtime is the binary, vs. how much lives behind a closed endpoint?</span>
+git clone &lt;repo&gt; /tmp/audit && cd /tmp/audit
+grep -rEn 'https://[a-z0-9.-]+\.(google|googleapis|openai|anthropic)\.com' src/ | wc -l
+
+<span class="code-comment"># 2. Does the auth flow work without a vendor account?</span>
+grep -rEn 'oauth|client_id|api.key' src/ docs/
+
+<span class="code-comment"># 3. Can the binary speak any non-vendor model out of the box?</span>
+grep -rEn 'provider|model_family|backend' src/ config/</code></pre>
+
+      <p>If command #1 returns dozens of hits and command #3 returns one provider name, you are looking at a managed dependency in a costume, regardless of the LICENSE file. Apache 2.0 is necessary for portability. It is nowhere near sufficient.</p>
+
+      <p>The Wednesday-deadline grep is the tactical version of the same idea. Three commands every team should run before the cutoff:</p>
+
+      <pre><code><span class="code-comment"># a. Where is the binary pinned in CI/cron?</span>
+grep -rn 'gemini' .github/ ci/ cron/ scripts/
+
+<span class="code-comment"># b. Does any MCP config still use the old field name?</span>
+grep -rn '"url"' ~/.gemini/ mcp_config.json .config/
+
+<span class="code-comment"># c. Anything routing through ACP stdio against gemini?</span>
+grep -rn '\-\-acp' . | grep -v node_modules</code></pre>
+
+      <p>If any of those return hits, you have work to do this week. Which is fine. The cost of finding out on Tuesday is small. The cost of finding out at 9:14am Wednesday is a sev.</p>
+
+      <h2>What an indie CLI does differently</h2>
+
+      <p>I've been building <a href="/posts/sage-cli">SageCLI</a> on the opposite end of this spectrum for the last quarter, so I'll be specific about the trade. The structural difference is not the license. It's the fact that the runtime contract is owned by the user:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Posture</th>
+            <th>Big-co freemium CLI</th>
+            <th>Indie CLI (SageCLI shape)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Model</td>
+            <td>One vendor's frontier model, hosted</td>
+            <td>Any model that speaks OpenAI/Anthropic/Bedrock — local Ollama works</td>
+          </tr>
+          <tr>
+            <td>Auth</td>
+            <td>Closed OAuth to vendor account</td>
+            <td>User's own keys in <code>~/.aws/credentials</code> or <code>OPENAI_API_KEY</code></td>
+          </tr>
+          <tr>
+            <td>Tool surface</td>
+            <td>Vendor-curated MCP catalog</td>
+            <td>Any MCP server you can run a process for</td>
+          </tr>
+          <tr>
+            <td>Sunset blast radius</td>
+            <td>Every user, same Wednesday</td>
+            <td>One user, the day they stop running the binary themselves</td>
+          </tr>
+          <tr>
+            <td>What you give up</td>
+            <td>Nothing — until Wednesday</td>
+            <td>You provision your own model, your own auth, your own MCP servers</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>The honest part of that table is the last row. There <em>is</em> a cost to indie. You do your own provisioning. You pick your own model. You pay your own usage. You don't get the Pro tier's frontier model for free. In return, nobody can sunset you. The two columns aren't "good" and "bad"; they're "managed convenience with a cliff" and "owned plumbing without one." Pick one knowingly.</p>
+
+      <p>The version of this trade I keep coming back to: I'd rather pay $40/month for tokens I route myself than pay nothing for a CLI that decides on a Monday in May that my Wednesday in June starts at zero.</p>
+
+      <h2>The contributor question</h2>
+
+      <p>I want to end on the part of the Hacker News thread that stuck with me, because it isn't a technical point and it doesn't have a fix. Andrea Alberti, a contributor with 27 merged commits, posted under the announcement thread and asked: <em>"Essentially working for free on a code base that will only be used in enterprises?"</em></p>
+
+      <p>That is the line that should change how you read the next "open source by &lt;big company&gt;" announcement. Six thousand external PRs of free labour, merged into a repo whose closed-source backend is the only thing that made the client interesting, and on Wednesday the client tier with no backend access is empty space and the paid enterprise tier is the only living user. The repo is still open. The labour was real. The use of that labour is now a tier-restricted enterprise-paid product. Apache 2.0 made that legal. Nobody is alleging it's illegal. The structural question is whether contributors knew the structural shape of the deal when they sent the PR.</p>
+
+      <p>The answer most of them would give, if asked honestly, is no — because the structural shape of the deal isn't visible from inside the repo. It's visible only from the dependency-posture grep above, run before you click "Fork." That is the small habit I'm trying to build into our team's adoption checklist this quarter. Two minutes of <code>grep</code> before two months of contribution.</p>
+
+      <p>The repo isn't the artefact. The runtime is the artefact. Whoever owns the runtime owns the project, regardless of what <code>LICENSE</code> says. On Wednesday, 104K stargazers find out who owned theirs.</p>
+
+    </div>
+  </article>
+</main>
+
+<footer class="footer">
+  <div class="footer-content">
+    <p class="footer-text">Built by a human and his agents. <span class="footer-year">2026</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/youwangd" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/js/lang.js"></script>
+</body>
+</html>
